@@ -1,0 +1,150 @@
+# CLAUDE.md - Project Context for AI Assistants
+
+This file provides context for AI assistants (like Claude) working on this codebase.
+
+## Project Summary
+
+**Coconut Health Monitor** - A React Native mobile application for an AI-powered drone-based coconut tree health monitoring and yield prediction system. This is a SLIIT research project.
+
+## Tech Stack
+
+- React Native 0.82.1
+- React Navigation 7.x (native-stack)
+- react-native-screens 4.18.0
+- react-native-safe-area-context 5.6.2
+- @react-native-firebase/app & auth
+- @react-native-google-signin/google-signin
+- Target: Android (API 36)
+
+## Package & Firebase Info
+
+- **Package Name:** `com.coconuthealthmonitorNew`
+- **Firebase Project:** `coconut-app-cd914`
+- **Google Cloud Project:** `coconut-app-cd914`
+- **SHA-1 Fingerprint:** `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`
+
+## Project Location
+
+- **Development Path:** `D:\Projects\CoconutHealthMonitor`
+- **Original Path:** `D:\SLIIT\Reaserch Project\R2\CoconutHealthMonitor` (moved due to spaces in path causing build issues)
+
+## Key Files
+
+### App Entry Point
+- `App.tsx` - Main application with navigation setup
+
+### Screens
+- `src/screens/LoginScreen.js` - User login UI
+- `src/screens/SignupScreen.js` - User registration UI
+
+### Android Configuration
+- `android/settings.gradle` - Module configuration (autolinking disabled, manual linking used)
+- `android/app/build.gradle` - App build configuration
+- `android/build/generated/autolinking/autolinking.json` - Manual autolinking config (required!)
+
+## Build Commands (Windows PowerShell)
+
+```powershell
+# Navigate to project
+cd D:\Projects\CoconutHealthMonitor
+
+# Start Metro bundler (Terminal 1)
+node node_modules\@react-native-community\cli\build\bin.js start
+
+# Build and run on Android (Terminal 2)
+node node_modules\@react-native-community\cli\build\bin.js run-android
+
+# Clean build
+cd android && .\gradlew clean && cd ..
+
+# Check connected devices
+adb devices
+```
+
+## Important Notes
+
+### Why standard commands don't work
+Standard `npx react-native run-android` fails on Windows with "react-native is not recognized" error. Use the full node path instead:
+```powershell
+node node_modules\@react-native-community\cli\build\bin.js run-android
+```
+
+### Autolinking Configuration
+The project uses manual autolinking because `autolinkLibrariesFromCommand()` fails on Windows. The autolinking.json file must exist at:
+```
+android/build/generated/autolinking/autolinking.json
+```
+
+If build fails with autolinking errors, recreate this file with the proper JSON structure containing dependencies and project info.
+
+### Required Environment Variables
+```powershell
+$env:ANDROID_HOME = "C:\Users\DELL\AppData\Local\Android\Sdk"
+$env:Path += ";$env:ANDROID_HOME\platform-tools"
+```
+
+### settings.gradle Configuration
+The project uses manual module linking instead of autolinking:
+```gradle
+include ':react-native-screens'
+project(':react-native-screens').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-screens/android')
+
+include ':react-native-safe-area-context'
+project(':react-native-safe-area-context').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-safe-area-context/android')
+```
+
+## Current State
+
+### Completed
+- Project setup with React Native 0.82.1
+- Login screen UI
+- Signup screen UI
+- Navigation between screens
+- Android build configuration
+- Firebase & Google Sign-In integration
+- Google OAuth authentication working
+
+### Next Steps (Planned)
+1. Dashboard screen after login
+2. MongoDB backend integration
+3. Drone data visualization
+4. Health monitoring features
+5. Yield prediction display
+
+## Troubleshooting
+
+### Build Fails with Autolinking Error
+1. Create directory: `mkdir -p android/build/generated/autolinking`
+2. Create autolinking.json with proper structure
+3. Run build again
+
+### Emulator Not Detected
+```powershell
+adb devices  # Should show connected emulator
+```
+
+### Metro Permission Error
+Run PowerShell as Administrator or use:
+```powershell
+node node_modules\@react-native-community\cli\build\bin.js start --reset-cache
+```
+
+### NDK Issues
+If NDK installation is corrupted:
+```powershell
+Remove-Item -Recurse -Force "C:\Users\DELL\AppData\Local\Android\Sdk\ndk\27.1.12297006"
+# Then rebuild - NDK will be reinstalled automatically
+```
+
+### Google Sign-In DEVELOPER_ERROR
+If Google Sign-In fails with DEVELOPER_ERROR:
+1. Verify SHA-1 fingerprint: `cd android && .\gradlew signingReport`
+2. Check Google Cloud Console has Android OAuth client with correct package name & SHA-1
+3. Ensure `google-services.json` has matching `client_type: 1` entry
+4. Web Client ID in `src/config/googleAuth.js` must match Google Cloud Console
+
+### Port 8081 Already in Use
+```powershell
+netstat -ano | findstr :8081
+taskkill /PID <PID_NUMBER> /F
+```

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(cat:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(node node_modules/@react-native-community/cli/build/bin.js start:*)",
+      "Bash(node node_modules/@react-native-community/cli/build/bin.js run-android:*)",
+      "Bash(./gradlew app:assembleDebug:*)",
+      "Bash(keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android:*)",
+      "Bash(keytool:*)",
+      "Bash(./gradlew signingReport:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(./gradlew:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)"
+    ]
+  }
+}
