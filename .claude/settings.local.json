@@ -14,7 +14,13 @@
       "Bash(find:*)",
       "Bash(./gradlew:*)",
       "Bash(node -e:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(pip install:*)",
+      "Bash(pip.exe install:*)",
+      "Bash(python.exe -m netron:*)",
+      "Bash(python.exe:*)",
+      "Bash(python3.exe:*)",
+      "Bash(cd:*)"
     ]
   }
 }

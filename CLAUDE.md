@@ -8,6 +8,7 @@ This file provides context for AI assistants (like Claude) working on this codeb
 
 ## Tech Stack
 
+### Mobile App
 - React Native 0.82.1
 - React Navigation 7.x (native-stack)
 - react-native-screens 4.18.0
@@ -15,6 +16,13 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - @react-native-firebase/app & auth
 - @react-native-google-signin/google-signin
 - Target: Android (API 36)
+
+### Machine Learning
+- Python 3.13
+- TensorFlow 2.20.0
+- EfficientNetB0 (Transfer Learning)
+- Flask 3.1.2 (API Server)
+- Pillow, NumPy, Matplotlib
 
 ## Package & Firebase Info
 
@@ -42,6 +50,12 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `android/app/build.gradle` - App build configuration
 - `android/build/generated/autolinking/autolinking.json` - Manual autolinking config (required!)
 
+### ML & API Files
+- `Research/ml/notebooks/` - Jupyter notebooks for model training
+- `Research/ml/models/coconut_mite/` - Trained pest detection models
+- `Research/ml/api/app.py` - Flask API for model serving
+- `src/services/pestDetectionApi.js` - React Native API client
+
 ## Build Commands (Windows PowerShell)
 
 ```powershell
@@ -60,6 +74,39 @@ cd android && .\gradlew clean && cd ..
 # Check connected devices
 adb devices
 ```
+
+## ML Commands (Windows PowerShell)
+
+```powershell
+# Navigate to ML folder
+cd "D:\SLIIT\Reaserch Project\CoconutHealthMonitor\Research\ml"
+
+# Run Jupyter Lab
+python -m jupyterlab
+
+# Run Flask API
+cd api
+python run_api.py
+
+# Test API
+python test_api.py
+```
+
+## Trained Models
+
+### Coconut Mite Detection Model
+- **Model:** EfficientNetB0 (Transfer Learning)
+- **Accuracy:** 95.62%
+- **Input Size:** 224x224x3
+- **Classes:** coconut_mite, healthy
+- **Files:**
+  - `models/coconut_mite/coconut_mite_model.keras`
+  - `models/coconut_mite/coconut_mite_model.h5`
+  - `models/coconut_mite/coconut_mite_model.tflite` (mobile-ready)
+
+### Pending Models
+- White Fly Detection (not trained yet)
+- Coconut Caterpillar Detection (not trained yet)
 
 ## Important Notes
 
@@ -103,13 +150,20 @@ project(':react-native-safe-area-context').projectDir = new File(rootProject.pro
 - Android build configuration
 - Firebase & Google Sign-In integration
 - Google OAuth authentication working
+- ML folder structure setup
+- Coconut Mite detection model trained (95.62% accuracy)
+- Flask API for model serving
+- React Native API client service
 
 ### Next Steps (Planned)
 1. Dashboard screen after login
 2. MongoDB backend integration
-3. Drone data visualization
-4. Health monitoring features
-5. Yield prediction display
+3. Train White Fly detection model
+4. Train Coconut Caterpillar detection model
+5. Integrate pest detection with mobile app
+6. Drone data visualization
+7. Health monitoring features
+8. Yield prediction display
 
 ## Troubleshooting
 

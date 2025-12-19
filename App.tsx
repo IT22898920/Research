@@ -13,6 +13,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
+import PestDetectionScreen from './src/screens/PestDetectionScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +31,7 @@ function App(): React.JSX.Element {
           <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+          <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

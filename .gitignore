@@ -85,3 +85,39 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# ===================
+# ML / Python
+# ===================
+
+# Dataset - large files (don't push to git)
+ml/data/raw/
+ml/data/processed/
+
+# Trained models (large files)
+ml/models/**/*.h5
+ml/models/**/*.pkl
+ml/models/**/*.pt
+ml/models/**/*.pth
+ml/models/**/*.onnx
+ml/models/**/*.tflite
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.eggs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+*.swp
+*.swo

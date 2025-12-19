@@ -54,21 +54,33 @@ export default function DashboardScreen({navigation, route}) {
       </View>
 
       <View style={styles.featuresContainer}>
-        <Text style={styles.sectionTitle}>Features Coming Soon</Text>
+        <Text style={styles.sectionTitle}>Features</Text>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('PestDetection')}>
+          <Text style={styles.featureIcon}>🐛</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Pest Detection</Text>
+            <Text style={styles.featureSubtext}>AI-powered coconut mite detection</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
 
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
-          <Text style={styles.featureText}>Drone Monitoring</Text>
-        </View>
-
-        <View style={styles.featureCard}>
-          <Text style={styles.featureIcon}>🌴</Text>
-          <Text style={styles.featureText}>Tree Health Analysis</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Drone Monitoring</Text>
+            <Text style={styles.featureSubtext}>Coming soon</Text>
+          </View>
         </View>
 
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>📊</Text>
-          <Text style={styles.featureText}>Yield Prediction</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Yield Prediction</Text>
+            <Text style={styles.featureSubtext}>Coming soon</Text>
+          </View>
         </View>
       </View>
 
@@ -148,14 +160,44 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    opacity: 0.6,
+  },
+  featureCardActive: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+    borderColor: '#2e7d32',
   },
   featureIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginRight: 15,
+  },
+  featureContent: {
+    flex: 1,
   },
   featureText: {
     fontSize: 16,
+    fontWeight: 'bold',
     color: '#333',
+  },
+  featureSubtext: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  featureArrow: {
+    fontSize: 20,
+    color: '#2e7d32',
+    fontWeight: 'bold',
   },
   logoutButton: {
     backgroundColor: '#d32f2f',
