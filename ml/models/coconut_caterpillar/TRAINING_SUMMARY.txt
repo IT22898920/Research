@@ -1,0 +1,131 @@
+================================================================================
+         COCONUT CATERPILLAR DETECTION MODEL - TRAINING SUMMARY
+================================================================================
+
+Date: 2025-12-21
+Training Time: 64.4 minutes
+Model: MobileNetV2 (Transfer Learning)
+
+================================================================================
+                              DATASET INFO
+================================================================================
+
+  Train samples:      8,925 images (with 20x augmentation)
+  Validation samples: 91 images
+  Test samples:       92 images
+  Total:              9,108 images
+
+  Classes: caterpillar, healthy
+  Split: 70% train / 15% validation / 15% test
+
+================================================================================
+                           TRAINING PROGRESS
+================================================================================
+
+Epoch  1/50: val_accuracy = 0.92308 (92.31%) - SAVED
+Epoch  2/50: val_accuracy = 0.93407 (93.41%) - IMPROVED, SAVED
+Epoch  3/50: val_accuracy = 0.93407 (93.41%) - no improvement
+Epoch  4/50: val_accuracy = 0.93407 (93.41%) - no improvement
+Epoch  5/50: val_accuracy = 0.93407 (93.41%) - no improvement
+Epoch  6/50: val_accuracy = 0.94505 (94.51%) - IMPROVED, SAVED
+Epoch  7/50: val_accuracy = 0.94505 (94.51%) - no improvement
+Epoch  8/50: val_accuracy = 0.95604 (95.60%) - IMPROVED, SAVED
+Epoch  9/50: val_accuracy = 0.95604 (95.60%) - no improvement
+Epoch 10/50: val_accuracy = 0.95604 (95.60%) - no improvement
+Epoch 11/50: val_accuracy = 0.95604 (95.60%) - no improvement
+Epoch 12/50: val_accuracy = 0.95604 (95.60%) - no improvement
+Epoch 13/50: val_accuracy = 0.95604 (95.60%) - no improvement
+Epoch 14/50: val_accuracy = 0.96703 (96.70%) - IMPROVED, SAVED (BEST)
+Epoch 15/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 16/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 17/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 18/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 19/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 20/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 21/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 22/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 23/50: val_accuracy = 0.96703 (96.70%) - no improvement
+Epoch 24/50: val_accuracy = 0.96703 (96.70%) - no improvement -> EARLY STOPPING
+
+Model weights restored from Epoch 14 (best epoch)
+
+================================================================================
+                         FINAL TEST RESULTS
+================================================================================
+
+  Test Accuracy:     98.91%
+  Macro Precision:   98.96%
+  Macro Recall:      98.89%
+  Macro F1-Score:    98.91%
+  Optimal Threshold: 0.20
+
+================================================================================
+                        PER-CLASS METRICS
+================================================================================
+
+  CATERPILLAR:
+    Precision: 97.92%
+    Recall:    100.00%
+    F1-Score:  98.95%
+    P/R/F1 Gap: 2.08% [PASS]
+
+  HEALTHY:
+    Precision: 100.00%
+    Recall:    97.78%
+    F1-Score:  98.88%
+    P/R/F1 Gap: 2.22% [PASS]
+
+================================================================================
+                    UTHPALA MISS REQUIREMENTS CHECK
+================================================================================
+
+  Requirement 1: P/R/F1 should be close for each class
+    - Caterpillar: Gap = 2.08% [PASS]
+    - Healthy: Gap = 2.22% [PASS]
+
+  Requirement 2: Accuracy should equal F1-Score
+    - Accuracy: 98.91%
+    - F1-Score: 98.91%
+    - Difference: 0.00% [PASS]
+
+  Requirement 3: Class F1-Scores should be similar
+    - Caterpillar F1: 98.95%
+    - Healthy F1: 98.88%
+    - Difference: 0.07% [PASS]
+
+================================================================================
+                         CONFUSION MATRIX
+================================================================================
+
+                    Predicted
+                    Caterpillar  Healthy
+  Actual Caterpillar     47         0
+  Actual Healthy          1        44
+
+  True Positives (Caterpillar): 47
+  True Negatives (Healthy): 44
+  False Positives: 1
+  False Negatives: 0
+
+================================================================================
+                           GENERATED FILES
+================================================================================
+
+  1. caterpillar_model.keras    - Trained model file
+  2. model_info.json            - Model metadata and metrics
+  3. training_results.png       - Training accuracy/loss charts
+  4. model_performance.png      - Performance bar chart
+  5. training_output.log        - Full training console output
+  6. TRAINING_SUMMARY.txt       - This summary file
+
+================================================================================
+                              CONCLUSION
+================================================================================
+
+The Coconut Caterpillar Detection model achieved 98.91% accuracy on the test
+set with all Uthpala Miss requirements PASSED. The model uses MobileNetV2
+transfer learning with frozen ImageNet weights and was trained on 8,925
+augmented images. Early stopping was used to prevent overfitting, with the
+best model saved at Epoch 14.
+
+================================================================================

@@ -1,17 +1,18 @@
 /**
- * Pest Detection API Service
- * Connects to Flask ML API for coconut mite detection
+ * Pest Detection API Service v2.0
+ * Connects to Flask ML API for pest detection
+ * Supports: Coconut Mite, Caterpillar, All Pests
  */
 
 // API Configuration
 // Use your computer's IP for real device, localhost for emulator
 const API_CONFIG = {
   // For Android Emulator
-  emulator: 'http://10.0.2.2:5001',
+  emulator: 'http://10.0.2.2:5000',
   // For iOS Simulator
-  ios: 'http://localhost:5001',
+  ios: 'http://localhost:5000',
   // For Real Device - replace with your computer's IP
-  device: 'http://192.168.8.196:5001',
+  device: 'http://192.168.8.196:5000',
 };
 
 // Change this based on your testing environment
@@ -25,13 +26,14 @@ export const checkApiHealth = async () => {
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
     const data = await response.json();
     return {
       success: response.ok,
-      data: data,
+      healthy: data.status === 'healthy',
+      models: data.models, // { mite: true, caterpillar: true }
     };
   } catch (error) {
     return {
@@ -42,20 +44,20 @@ export const checkApiHealth = async () => {
 };
 
 /**
- * Get model information
+ * Get all models information
  */
-export const getModelInfo = async () => {
+export const getModelsInfo = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/model-info`, {
+    const response = await fetch(`${API_BASE_URL}/models`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
     const data = await response.json();
     return {
       success: response.ok,
-      data: data,
+      models: data,
     };
   } catch (error) {
     return {
@@ -66,29 +68,32 @@ export const getModelInfo = async () => {
 };
 
 /**
- * Predict pest infection from image
- * @param {string} imageUri - Local URI of the image
- * @returns {Promise} Prediction result
+ * Helper function to create form data
  */
-export const predictPest = async (imageUri) => {
+const createFormData = (imageUri) => {
+  const formData = new FormData();
+  const filename = imageUri.split('/').pop();
+
+  formData.append('image', {
+    uri: imageUri,
+    type: 'image/jpeg',
+    name: filename || 'image.jpg',
+  });
+
+  return formData;
+};
+
+/**
+ * Detect Coconut Mite infection
+ */
+export const detectMite = async (imageUri) => {
   try {
-    // Create form data
-    const formData = new FormData();
+    const formData = createFormData(imageUri);
 
-    // Get filename from URI
-    const filename = imageUri.split('/').pop();
-
-    // Append image to form data
-    formData.append('image', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: filename || 'image.jpg',
-    });
-
-    const response = await fetch(`${API_BASE_URL}/predict`, {
+    const response = await fetch(`${API_BASE_URL}/predict/mite`, {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'multipart/form-data',
       },
       body: formData,
@@ -99,6 +104,7 @@ export const predictPest = async (imageUri) => {
     if (data.success) {
       return {
         success: true,
+        pestType: 'mite',
         prediction: data.prediction,
         probabilities: data.probabilities,
         timestamp: data.timestamp,
@@ -118,50 +124,106 @@ export const predictPest = async (imageUri) => {
 };
 
 /**
- * Predict pest infection for multiple images
- * @param {Array} imageUris - Array of local image URIs
- * @returns {Promise} Batch prediction results
+ * Detect Caterpillar damage
  */
-export const predictBatch = async (imageUris) => {
+export const detectCaterpillar = async (imageUri) => {
   try {
-    const formData = new FormData();
+    const formData = createFormData(imageUri);
 
-    imageUris.forEach((uri, index) => {
-      const filename = uri.split('/').pop();
-      formData.append('images', {
-        uri: uri,
-        type: 'image/jpeg',
-        name: filename || `image_${index}.jpg`,
-      });
-    });
-
-    const response = await fetch(`${API_BASE_URL}/predict/batch`, {
+    const response = await fetch(`${API_BASE_URL}/predict/caterpillar`, {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'multipart/form-data',
       },
       body: formData,
     });
 
     const data = await response.json();
-    return {
-      success: data.success,
-      results: data.results,
-      count: data.count,
-    };
+
+    if (data.success) {
+      return {
+        success: true,
+        pestType: 'caterpillar',
+        prediction: data.prediction,
+        probabilities: data.probabilities,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
   } catch (error) {
     return {
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to analyze image',
     };
   }
 };
 
+/**
+ * Detect ALL pests (Mite + Caterpillar)
+ */
+export const detectAllPests = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/all`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        results: data.results,
+        summary: data.summary,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
+ * Legacy function - Predict pest (defaults to mite for backward compatibility)
+ * @deprecated Use detectMite, detectCaterpillar, or detectAllPests instead
+ */
+export const predictPest = async (imageUri) => {
+  return detectMite(imageUri);
+};
+
+// Pest types for convenience
+export const PEST_TYPES = {
+  MITE: 'mite',
+  CATERPILLAR: 'caterpillar',
+  ALL: 'all',
+};
+
 export default {
   checkApiHealth,
-  getModelInfo,
+  getModelsInfo,
+  detectMite,
+  detectCaterpillar,
+  detectAllPests,
   predictPest,
-  predictBatch,
+  PEST_TYPES,
   API_BASE_URL,
 };

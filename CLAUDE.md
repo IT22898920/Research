@@ -20,9 +20,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 ### Machine Learning
 - Python 3.13
 - TensorFlow 2.20.0
-- EfficientNetB0 (Transfer Learning)
+- EfficientNetB0 (Transfer Learning) - Coconut Mite model
+- MobileNetV2 (Transfer Learning) - Coconut Caterpillar model
 - Flask 3.1.2 (API Server)
-- Pillow, NumPy, Matplotlib
+- Pillow, NumPy, Matplotlib, Seaborn, Scikit-learn
 
 ## Package & Firebase Info
 
@@ -52,7 +53,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 
 ### ML & API Files
 - `Research/ml/notebooks/` - Jupyter notebooks for model training
-- `Research/ml/models/coconut_mite/` - Trained pest detection models
+  - `01_coconut_mite_exploration.ipynb` - Mite data exploration
+  - `02_coconut_caterpillar_training.ipynb` - Caterpillar model training
+- `Research/ml/models/coconut_mite/` - Mite detection model (95.62% accuracy)
+- `Research/ml/models/coconut_caterpillar/` - Caterpillar detection model (98.91% accuracy)
 - `Research/ml/api/app.py` - Flask API for model serving
 - `src/services/pestDetectionApi.js` - React Native API client
 
@@ -104,9 +108,23 @@ python test_api.py
   - `models/coconut_mite/coconut_mite_model.h5`
   - `models/coconut_mite/coconut_mite_model.tflite` (mobile-ready)
 
+### Coconut Caterpillar Detection Model
+- **Model:** MobileNetV2 (Transfer Learning)
+- **Accuracy:** 98.91%
+- **Input Size:** 224x224x3
+- **Classes:** caterpillar, healthy
+- **Optimal Threshold:** 0.20 (for balanced P/R/F1)
+- **Dataset:** 9,108 images (8,925 train + 91 val + 92 test)
+- **Training Time:** 64.4 minutes (24 epochs, early stopped at epoch 14)
+- **Files:**
+  - `models/coconut_caterpillar/caterpillar_model.keras`
+  - `models/coconut_caterpillar/model_info.json`
+  - `models/coconut_caterpillar/TRAINING_SUMMARY.txt`
+- **API Endpoint:** `/predict/caterpillar`
+- **Uthpala Miss Requirements:** ALL PASSED
+
 ### Pending Models
 - White Fly Detection (not trained yet)
-- Coconut Caterpillar Detection (not trained yet)
 
 ## Important Notes
 
@@ -152,18 +170,18 @@ project(':react-native-safe-area-context').projectDir = new File(rootProject.pro
 - Google OAuth authentication working
 - ML folder structure setup
 - Coconut Mite detection model trained (95.62% accuracy)
-- Flask API for model serving
+- Coconut Caterpillar detection model trained (98.91% accuracy)
+- Flask API for model serving (supports both mite and caterpillar)
 - React Native API client service
 
 ### Next Steps (Planned)
 1. Dashboard screen after login
 2. MongoDB backend integration
 3. Train White Fly detection model
-4. Train Coconut Caterpillar detection model
-5. Integrate pest detection with mobile app
-6. Drone data visualization
-7. Health monitoring features
-8. Yield prediction display
+4. Integrate pest detection with mobile app
+5. Drone data visualization
+6. Health monitoring features
+7. Yield prediction display
 
 ## Troubleshooting
 

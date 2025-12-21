@@ -17,9 +17,10 @@ This mobile application is part of a research project that uses drone technology
 
 ### Machine Learning
 - **Framework:** TensorFlow 2.20.0
-- **Model:** EfficientNetB0 (Transfer Learning)
+- **Models:** EfficientNetB0 & MobileNetV2 (Transfer Learning)
 - **API:** Flask 3.1.2
 - **Language:** Python 3.13
+- **Libraries:** NumPy, Matplotlib, Seaborn, Scikit-learn, Pillow
 
 ## Features
 
@@ -29,14 +30,14 @@ This mobile application is part of a research project that uses drone technology
 - Responsive design for Android devices
 - Google OAuth authentication
 - **Coconut Mite Detection Model** (95.62% accuracy)
-- Flask REST API for pest detection
+- **Coconut Caterpillar Detection Model** (98.91% accuracy)
+- Flask REST API for pest detection (supports multiple models)
 - TFLite model for mobile deployment
 
 ### Planned Features
 - MongoDB integration for user authentication
 - Dashboard with coconut tree health data
 - White Fly detection model
-- Coconut Caterpillar detection model
 - Drone image analysis results
 - Yield prediction visualization
 - Farm management tools
@@ -58,19 +59,22 @@ CoconutHealthMonitor/
 │   └── ml/
 │       ├── notebooks/          # Jupyter notebooks for training
 │       │   ├── 01_coconut_mite_exploration.ipynb
-│       │   ├── 02_coconut_mite_training_local.ipynb
-│       │   └── 02_coconut_mite_training_colab.ipynb
+│       │   └── 02_coconut_caterpillar_training.ipynb
 │       ├── models/
-│       │   └── coconut_mite/   # Trained model files
-│       │       ├── coconut_mite_model.keras
-│       │       ├── coconut_mite_model.h5
-│       │       ├── coconut_mite_model.tflite
-│       │       └── model_info.json
+│       │   ├── coconut_mite/   # Mite detection model (95.62%)
+│       │   │   ├── coconut_mite_model.keras
+│       │   │   ├── coconut_mite_model.h5
+│       │   │   ├── coconut_mite_model.tflite
+│       │   │   └── model_info.json
+│       │   └── coconut_caterpillar/  # Caterpillar detection model (98.91%)
+│       │       ├── caterpillar_model.keras
+│       │       ├── model_info.json
+│       │       └── TRAINING_SUMMARY.txt
 │       ├── api/
 │       │   ├── app.py          # Flask API server
 │       │   ├── run_api.py      # API startup script
 │       │   └── test_api.py     # API tests
-│       └── data/raw/pest/      # Training images (not in git)
+│       └── data/raw/           # Training images (not in git)
 ├── android/                    # Android native code
 ├── ios/                        # iOS native code (not configured)
 ├── App.tsx                     # Main application entry point
@@ -128,11 +132,11 @@ node node_modules\@react-native-community\cli\build\bin.js run-android
 
 ### Trained Models
 
-| Model | Accuracy | Status |
-|-------|----------|--------|
-| Coconut Mite Detection | 95.62% | Trained |
-| White Fly Detection | - | Pending |
-| Coconut Caterpillar Detection | - | Pending |
+| Model | Architecture | Accuracy | Status |
+|-------|--------------|----------|--------|
+| Coconut Mite Detection | EfficientNetB0 | 95.62% | Trained |
+| Coconut Caterpillar Detection | MobileNetV2 | 98.91% | Trained |
+| White Fly Detection | - | - | Pending |
 
 ### Running the ML API
 
@@ -152,8 +156,11 @@ API will be available at `http://localhost:5000`
 |--------|----------|-------------|
 | GET | `/` | API information |
 | GET | `/health` | Health check |
-| GET | `/model-info` | Model details |
-| POST | `/predict` | Predict pest from image |
+| GET | `/models` | List available models |
+| GET | `/model-info` | Detailed model information |
+| POST | `/predict` | Predict pest (mite) from image |
+| POST | `/predict/caterpillar` | Detect caterpillar damage |
+| POST | `/predict/all` | Run all available models |
 
 ### Training New Models
 

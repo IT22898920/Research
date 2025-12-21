@@ -9,25 +9,27 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import app, load_model
+from app import app, load_models
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("  COCONUT HEALTH MONITOR - PEST DETECTION API")
+    print("  COCONUT HEALTH MONITOR - PEST DETECTION API v2.0")
     print("=" * 60)
     print()
 
-    # Load the trained model
-    load_model()
+    # Load all trained models
+    load_models()
 
     print()
     print("API Endpoints:")
     print("-" * 40)
-    print("  GET  /           - API information")
-    print("  GET  /health     - Health check")
-    print("  GET  /model-info - Model information")
-    print("  POST /predict    - Single image prediction")
-    print("  POST /predict/batch - Multiple images prediction")
+    print("  GET  /                  - API information")
+    print("  GET  /health            - Health check")
+    print("  GET  /models            - List all models")
+    print("  POST /predict/mite      - Mite detection")
+    print("  POST /predict/caterpillar - Caterpillar detection")
+    print("  POST /predict/all       - All pest detection")
+    print("  POST /predict           - Legacy (mite)")
     print("-" * 40)
     print()
     print("Starting server on http://localhost:5000")
