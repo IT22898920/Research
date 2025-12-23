@@ -96,11 +96,30 @@ ml/data/processed/
 
 # Trained models (large files)
 ml/models/**/*.h5
+ml/models/**/*.keras
 ml/models/**/*.pkl
 ml/models/**/*.pt
 ml/models/**/*.pth
 ml/models/**/*.onnx
 ml/models/**/*.tflite
+
+# Deprecated model versions (keep only latest)
+ml/models/coconut_mite_v4/
+ml/models/coconut_mite_v5/
+ml/models/coconut_mite_v6/
+
+# TensorFlow dataset cache (large files)
+ml/models/**/tf_data/
+
+# TensorBoard logs
+ml/models/**/logs/
+**/events.out.tfevents.*
+
+# Training output images/plots
+ml/models/**/*.png
+
+# Model architecture files (auto-generated)
+ml/models/**/model_architecture.txt
 
 # Python
 __pycache__/
@@ -121,3 +140,13 @@ venv/
 .vscode/
 *.swp
 *.swo
+
+# Windows artifacts
+nul
+ml/nul
+
+# Temporary training scripts
+ml/train_*.py
+
+# Notebook outputs (large files)
+ml/notebooks/*_with_outputs.ipynb

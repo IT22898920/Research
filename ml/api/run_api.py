@@ -32,9 +32,10 @@ if __name__ == '__main__':
     print("  POST /predict           - Legacy (mite)")
     print("-" * 40)
     print()
-    print("Starting server on http://localhost:5000")
+    print("Starting ML server on http://localhost:5001")
+    print("(Auth backend runs on port 5000)")
     print("Press Ctrl+C to stop")
     print()
 
-    # Run the Flask app
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Run the Flask app on port 5001 (port 5000 is for Node.js auth backend)
+    app.run(host='0.0.0.0', port=5001, debug=True)

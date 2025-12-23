@@ -1,0 +1,30 @@
+{
+  "version": "v7_anti_overfit",
+  "changes": [
+    "Dropout: 0.5 -> 0.6",
+    "L2: 0.01 -> 0.02",
+    "Label Smoothing: 0.1",
+    "Dense: 64 -> 32",
+    "Stronger augmentation",
+    "Earlier early stopping"
+  ],
+  "threshold": 0.6000000000000002,
+  "test_accuracy": 0.8253968253968254,
+  "test_f1": 0.8246901087781432,
+  "train_val_gap": 0.06200379133224487,
+  "metrics": {
+    "coconut_mite": {
+      "precision": 0.8316831683168316,
+      "recall": 0.84,
+      "f1": 0.835820895522388,
+      "support": 100
+    },
+    "healthy": {
+      "precision": 0.8181818181818182,
+      "recall": 0.8089887640449438,
+      "f1": 0.8135593220338984,
+      "support": 89
+    }
+  },
+  "timestamp": "2025-12-24T00:04:41.887779"
+}

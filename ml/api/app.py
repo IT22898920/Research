@@ -23,9 +23,12 @@ CORS(app)  # Enable CORS for React Native app
 # Configuration paths
 BASE_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models')
 
-# Mite model paths
-MITE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite', 'best_model.keras')
-MITE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite', 'model_info.json')
+# Mite model paths (v7 - Anti-Overfitting version)
+MITE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v7', 'best_model.keras')
+MITE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v7', 'model_info.json')
+
+# Mite v7 optimal threshold (for balanced P/R)
+MITE_THRESHOLD = 0.60
 
 # Caterpillar model paths (using final model with optimal threshold)
 CATERPILLAR_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_caterpillar', 'caterpillar_model.keras')
@@ -46,14 +49,16 @@ def load_models():
     print("  Loading Coconut Health Monitor Models...")
     print("=" * 60)
 
-    # Load Mite Model
+    # Load Mite Model (v7 - Anti-Overfitting)
     try:
-        print("\n[1] Loading Coconut Mite model...")
+        print("\n[1] Loading Coconut Mite model (v7)...")
         with open(MITE_MODEL_INFO_PATH, 'r') as f:
             model_infos['mite'] = json.load(f)
         models['mite'] = tf.keras.models.load_model(MITE_MODEL_PATH)
-        print(f"    Model: {model_infos['mite']['model_name']}")
-        print(f"    Accuracy: {model_infos['mite'].get('test_accuracy', 'N/A')}")
+        print(f"    Version: {model_infos['mite'].get('version', 'v7')}")
+        print(f"    Accuracy: {model_infos['mite'].get('test_accuracy', 0)*100:.2f}%")
+        print(f"    F1 Score: {model_infos['mite'].get('test_f1', 0)*100:.2f}%")
+        print(f"    Threshold: {MITE_THRESHOLD}")
         print("    Status: LOADED")
     except Exception as e:
         print(f"    ERROR loading mite model: {e}")
@@ -81,21 +86,18 @@ def load_models():
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
-    """Preprocess image for mite model (ImageNet normalization)"""
-    info = model_infos['mite']
+    """Preprocess image for mite model v7 (MobileNetV2 normalization: -1 to 1)"""
     img = Image.open(io.BytesIO(image_bytes))
 
     if img.mode != 'RGB':
         img = img.convert('RGB')
 
-    img_size = info['input_shape'][0]
-    img = img.resize((img_size, img_size), Image.Resampling.LANCZOS)
+    # v7 uses 224x224 input
+    img = img.resize((224, 224), Image.Resampling.LANCZOS)
     img_array = np.array(img, dtype=np.float32)
 
-    # ImageNet normalization
-    mean = np.array(info['normalization']['mean'])
-    std = np.array(info['normalization']['std'])
-    img_array = (img_array / 255.0 - mean) / std
+    # MobileNetV2 normalization: (x / 127.5) - 1 => range [-1, 1]
+    img_array = (img_array / 127.5) - 1.0
 
     return np.expand_dims(img_array, axis=0)
 
@@ -121,7 +123,8 @@ def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest Detection API',
-        'version': '2.0.0',
+        'version': '2.1.0',
+        'mite_model': 'v7 (Anti-Overfitting)',
         'status': 'running',
         'models': {
             'mite': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -157,9 +160,12 @@ def list_models():
     if model_infos.get('mite'):
         info = model_infos['mite']
         result['mite'] = {
-            'name': info['model_name'],
-            'classes': info['classes'],
+            'name': 'Coconut Mite Detection Model',
+            'version': info.get('version', 'v7'),
+            'classes': ['coconut_mite', 'healthy'],
             'accuracy': info.get('test_accuracy'),
+            'f1_score': info.get('test_f1'),
+            'threshold': MITE_THRESHOLD,
             'loaded': models.get('mite') is not None
         }
 
@@ -177,7 +183,7 @@ def list_models():
 
 @app.route('/predict/mite', methods=['POST'])
 def predict_mite():
-    """Detect coconut mite infection"""
+    """Detect coconut mite infection (v7 model - binary classification)"""
 
     if models.get('mite') is None:
         return jsonify({'error': 'Mite model not loaded'}), 500
@@ -192,26 +198,31 @@ def predict_mite():
     try:
         image_bytes = file.read()
         processed_image = preprocess_image_mite(image_bytes)
-        predictions = models['mite'].predict(processed_image, verbose=0)
+        prediction = models['mite'].predict(processed_image, verbose=0)[0][0]
 
-        probs = predictions[0]
-        predicted_class_idx = np.argmax(probs)
-        info = model_infos['mite']
-        predicted_class = info['classes'][predicted_class_idx]
-        confidence = float(probs[predicted_class_idx])
+        # v7 Binary classification: sigmoid output
+        # Classes: ['coconut_mite', 'healthy'] => 0 = mite, 1 = healthy
+        # prediction > threshold => healthy
+        # prediction < threshold => coconut_mite
+        is_mite = bool(prediction < MITE_THRESHOLD)
+        confidence = float(1 - prediction if is_mite else prediction)
+        predicted_class = 'coconut_mite' if is_mite else 'healthy'
 
         return jsonify({
             'success': True,
             'pest_type': 'mite',
+            'model_version': 'v7',
             'prediction': {
                 'class': predicted_class,
                 'confidence': confidence,
-                'is_infected': predicted_class == 'coconut_mite',
-                'label': 'Coconut Mite Infected' if predicted_class == 'coconut_mite' else 'Healthy'
+                'is_infected': is_mite,
+                'label': 'Coconut Mite Infected' if is_mite else 'Healthy',
+                'raw_score': float(prediction),
+                'threshold_used': MITE_THRESHOLD
             },
             'probabilities': {
-                info['classes'][i]: float(probs[i])
-                for i in range(len(info['classes']))
+                'coconut_mite': float(1 - prediction),
+                'healthy': float(prediction)
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -282,21 +293,23 @@ def predict_all():
     results = {}
     detected_pests = []
 
-    # Run Mite Detection
+    # Run Mite Detection (v7 - binary classification)
     if models.get('mite') is not None:
         try:
             processed = preprocess_image_mite(image_bytes)
-            preds = models['mite'].predict(processed, verbose=0)[0]
-            idx = np.argmax(preds)
-            info = model_infos['mite']
-            predicted_class = info['classes'][idx]
+            pred = models['mite'].predict(processed, verbose=0)[0][0]
+
+            # v7 binary: prediction < threshold = mite
+            is_mite = bool(pred < MITE_THRESHOLD)
+            predicted_class = 'coconut_mite' if is_mite else 'healthy'
 
             results['mite'] = {
                 'class': predicted_class,
-                'confidence': float(preds[idx]),
-                'is_infected': predicted_class == 'coconut_mite'
+                'confidence': float(1 - pred if is_mite else pred),
+                'is_infected': is_mite,
+                'threshold_used': MITE_THRESHOLD
             }
-            if predicted_class == 'coconut_mite':
+            if is_mite:
                 detected_pests.append('Coconut Mite')
         except Exception as e:
             results['mite'] = {'error': str(e)}
@@ -352,7 +365,7 @@ if __name__ == '__main__':
     # Load all models on startup
     load_models()
 
-    # Run the Flask app
-    print("\nStarting Coconut Health Monitor API v2.0...")
+    # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
+    print("\nStarting Coconut Health Monitor ML API v2.0...")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

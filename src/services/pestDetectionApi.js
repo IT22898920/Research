@@ -6,13 +6,14 @@
 
 // API Configuration
 // Use your computer's IP for real device, localhost for emulator
+// ML API runs on port 5001 (Auth backend runs on port 5000)
 const API_CONFIG = {
   // For Android Emulator
-  emulator: 'http://10.0.2.2:5000',
+  emulator: 'http://10.0.2.2:5001',
   // For iOS Simulator
-  ios: 'http://localhost:5000',
+  ios: 'http://localhost:5001',
   // For Real Device - replace with your computer's IP
-  device: 'http://192.168.8.196:5000',
+  device: 'http://192.168.8.196:5001',
 };
 
 // Change this based on your testing environment

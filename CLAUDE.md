@@ -53,9 +53,12 @@ This file provides context for AI assistants (like Claude) working on this codeb
 
 ### ML & API Files
 - `Research/ml/notebooks/` - Jupyter notebooks for model training
-  - `01_coconut_mite_exploration.ipynb` - Mite data exploration
   - `02_coconut_caterpillar_training.ipynb` - Caterpillar model training
-- `Research/ml/models/coconut_mite/` - Mite detection model (95.62% accuracy)
+  - `03_coconut_mite_training.ipynb` - Mite model training (v4-v5)
+  - `04_coconut_mite_proper_training.ipynb` - Mite model proper training
+  - `05_mite_model_results.ipynb` - Mite v6 results analysis
+  - `06_mite_v7_results.ipynb` - Mite v7 (anti-overfit) results analysis
+- `Research/ml/models/coconut_mite_v7/` - Latest Mite detection model (82.54% accuracy, anti-overfit)
 - `Research/ml/models/coconut_caterpillar/` - Caterpillar detection model (98.91% accuracy)
 - `Research/ml/api/app.py` - Flask API for model serving
 - `src/services/pestDetectionApi.js` - React Native API client
@@ -98,15 +101,35 @@ python test_api.py
 
 ## Trained Models
 
-### Coconut Mite Detection Model
-- **Model:** EfficientNetB0 (Transfer Learning)
-- **Accuracy:** 95.62%
+### Coconut Mite Detection Model (v7 - Latest)
+- **Model:** EfficientNetB0 (Transfer Learning) with Anti-Overfit measures
+- **Version:** v7_anti_overfit
+- **Test Accuracy:** 82.54%
+- **Test F1 Score:** 82.47%
+- **Train-Val Gap:** 6.2% (reduced overfitting)
+- **Optimal Threshold:** 0.60
 - **Input Size:** 224x224x3
 - **Classes:** coconut_mite, healthy
+- **Anti-Overfit Changes:**
+  - Dropout: 0.6, L2 Regularization: 0.02
+  - Label Smoothing: 0.1
+  - Dense layer: 32 units
+  - Stronger augmentation, Earlier early stopping
+- **Per-Class Metrics:**
+  - coconut_mite: P=0.83, R=0.84, F1=0.84
+  - healthy: P=0.82, R=0.81, F1=0.81
 - **Files:**
-  - `models/coconut_mite/coconut_mite_model.keras`
-  - `models/coconut_mite/coconut_mite_model.h5`
-  - `models/coconut_mite/coconut_mite_model.tflite` (mobile-ready)
+  - `models/coconut_mite_v7/best_model.keras`
+  - `models/coconut_mite_v7/model_info.json`
+- **API Endpoint:** `/predict/mite`
+
+### Model Version History (Coconut Mite)
+| Version | Accuracy | F1 Score | Train-Val Gap | Notes |
+|---------|----------|----------|---------------|-------|
+| v4 | ~90% | - | High | Initial training |
+| v5 | ~92% | - | High | Improved augmentation |
+| v6 | ~85% | - | Medium | Reduced overfitting |
+| v7 | 82.54% | 82.47% | 6.2% | Best generalization |
 
 ### Coconut Caterpillar Detection Model
 - **Model:** MobileNetV2 (Transfer Learning)
@@ -116,6 +139,9 @@ python test_api.py
 - **Optimal Threshold:** 0.20 (for balanced P/R/F1)
 - **Dataset:** 9,108 images (8,925 train + 91 val + 92 test)
 - **Training Time:** 64.4 minutes (24 epochs, early stopped at epoch 14)
+- **Per-Class Metrics:**
+  - caterpillar: P=0.98, R=1.00, F1=0.99
+  - healthy: P=1.00, R=0.98, F1=0.99
 - **Files:**
   - `models/coconut_caterpillar/caterpillar_model.keras`
   - `models/coconut_caterpillar/model_info.json`
@@ -169,10 +195,11 @@ project(':react-native-safe-area-context').projectDir = new File(rootProject.pro
 - Firebase & Google Sign-In integration
 - Google OAuth authentication working
 - ML folder structure setup
-- Coconut Mite detection model trained (95.62% accuracy)
+- Coconut Mite detection model v7 trained (82.54% accuracy, anti-overfit optimized)
 - Coconut Caterpillar detection model trained (98.91% accuracy)
 - Flask API for model serving (supports both mite and caterpillar)
 - React Native API client service
+- Multiple mite model iterations (v4-v7) to reduce overfitting
 
 ### Next Steps (Planned)
 1. Dashboard screen after login

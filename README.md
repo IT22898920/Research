@@ -1,204 +1,126 @@
 # Coconut Health Monitor
 
-AI-Powered Drone-Based System for Comprehensive Coconut Tree Health Monitoring and Yield Prediction.
+AI-powered drone-based coconut tree health monitoring and yield prediction system.
 
-## Project Overview
+**SLIIT Research Project**
 
-This mobile application is part of a research project that uses drone technology and artificial intelligence to monitor coconut tree health and predict yields. The app serves as the user interface for farmers and agricultural professionals to access monitoring data and insights.
+## Overview
+
+A React Native mobile application that uses machine learning models to detect pests and diseases in coconut trees. The system is designed to work with drone-captured images for large-scale plantation monitoring.
+
+## Features
+
+- Coconut Mite Detection (EfficientNetB0)
+- Coconut Caterpillar Detection (MobileNetV2)
+- Real-time pest prediction via Flask API
+- Mobile-optimized ML inference
+- Firebase Authentication with Google Sign-In
 
 ## Tech Stack
 
 ### Mobile App
-- **Frontend:** React Native 0.82.1
-- **Navigation:** React Navigation 7.x
-- **Backend:** Node.js + Express (planned)
-- **Database:** MongoDB (planned)
-- **Language:** JavaScript/TypeScript
+| Technology | Version |
+|------------|---------|
+| React Native | 0.82.1 |
+| React Navigation | 7.x |
+| Firebase Auth | Latest |
+| Google Sign-In | Latest |
 
 ### Machine Learning
-- **Framework:** TensorFlow 2.20.0
-- **Models:** EfficientNetB0 & MobileNetV2 (Transfer Learning)
-- **API:** Flask 3.1.2
-- **Language:** Python 3.13
-- **Libraries:** NumPy, Matplotlib, Seaborn, Scikit-learn, Pillow
+| Technology | Version |
+|------------|---------|
+| Python | 3.13 |
+| TensorFlow | 2.20.0 |
+| Flask | 3.1.2 |
 
-## Features
+## ML Models
 
-### Current Features
-- User Authentication UI (Login/Signup screens)
-- Navigation between screens
-- Responsive design for Android devices
-- Google OAuth authentication
-- **Coconut Mite Detection Model** (95.62% accuracy)
-- **Coconut Caterpillar Detection Model** (98.91% accuracy)
-- Flask REST API for pest detection (supports multiple models)
-- TFLite model for mobile deployment
+### Coconut Mite Detection (v7)
+- **Architecture:** EfficientNetB0 (Transfer Learning)
+- **Accuracy:** 82.54%
+- **F1 Score:** 82.47%
+- **Classes:** coconut_mite, healthy
+- **Optimizations:** Anti-overfit (Dropout 0.6, L2 0.02, Label Smoothing 0.1)
 
-### Planned Features
-- MongoDB integration for user authentication
-- Dashboard with coconut tree health data
-- White Fly detection model
-- Drone image analysis results
-- Yield prediction visualization
-- Farm management tools
-- Push notifications for health alerts
+### Coconut Caterpillar Detection
+- **Architecture:** MobileNetV2 (Transfer Learning)
+- **Accuracy:** 98.91%
+- **F1 Score:** 98.91%
+- **Classes:** caterpillar, healthy
+- **Dataset:** 9,108 images
 
 ## Project Structure
 
 ```
-CoconutHealthMonitor/
+Research/
+├── ml/
+│   ├── api/                    # Flask API server
+│   │   ├── app.py              # API routes
+│   │   └── run_api.py          # Server launcher
+│   ├── models/
+│   │   ├── coconut_mite_v7/    # Latest mite model
+│   │   └── coconut_caterpillar/ # Caterpillar model
+│   └── notebooks/
+│       ├── 02_coconut_caterpillar_training.ipynb
+│       ├── 03_coconut_mite_training.ipynb
+│       ├── 04_coconut_mite_proper_training.ipynb
+│       ├── 05_mite_model_results.ipynb
+│       └── 06_mite_v7_results.ipynb
 ├── src/
-│   ├── screens/
-│   │   ├── LoginScreen.js      # User login interface
-│   │   └── SignupScreen.js     # User registration interface
-│   ├── services/
-│   │   └── pestDetectionApi.js # API client for pest detection
-│   ├── components/             # Reusable UI components
-│   └── navigation/             # Navigation configuration
-├── Research/
-│   └── ml/
-│       ├── notebooks/          # Jupyter notebooks for training
-│       │   ├── 01_coconut_mite_exploration.ipynb
-│       │   └── 02_coconut_caterpillar_training.ipynb
-│       ├── models/
-│       │   ├── coconut_mite/   # Mite detection model (95.62%)
-│       │   │   ├── coconut_mite_model.keras
-│       │   │   ├── coconut_mite_model.h5
-│       │   │   ├── coconut_mite_model.tflite
-│       │   │   └── model_info.json
-│       │   └── coconut_caterpillar/  # Caterpillar detection model (98.91%)
-│       │       ├── caterpillar_model.keras
-│       │       ├── model_info.json
-│       │       └── TRAINING_SUMMARY.txt
-│       ├── api/
-│       │   ├── app.py          # Flask API server
-│       │   ├── run_api.py      # API startup script
-│       │   └── test_api.py     # API tests
-│       └── data/raw/           # Training images (not in git)
+│   ├── screens/                # React Native screens
+│   └── services/               # API clients
 ├── android/                    # Android native code
-├── ios/                        # iOS native code (not configured)
-├── App.tsx                     # Main application entry point
-├── package.json                # Project dependencies
-└── README.md                   # This file
+└── App.tsx                     # App entry point
 ```
 
-## Prerequisites
+## Quick Start
 
-- Node.js >= 20.19.4
-- JDK 17
-- Android Studio with:
-  - Android SDK
-  - Android SDK Platform (API 36)
-  - Android Virtual Device (Emulator)
-  - NDK 27.1.12297006
-  - CMake 3.22.1
-- Environment Variables:
-  - `ANDROID_HOME` = `C:\Users\<username>\AppData\Local\Android\Sdk`
-  - Add to PATH: `%ANDROID_HOME%\platform-tools`
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd CoconutHealthMonitor
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create autolinking configuration (if needed):
-```bash
-mkdir -p android/build/generated/autolinking
-```
-
-## Running the App
-
-1. Start Android Emulator from Android Studio Device Manager
-
-2. Start Metro bundler:
-```bash
+### Run Mobile App
+```powershell
+# Start Metro bundler
 node node_modules\@react-native-community\cli\build\bin.js start
-```
 
-3. In a new terminal, build and run:
-```bash
+# Run on Android (another terminal)
 node node_modules\@react-native-community\cli\build\bin.js run-android
 ```
 
-## Machine Learning
-
-### Trained Models
-
-| Model | Architecture | Accuracy | Status |
-|-------|--------------|----------|--------|
-| Coconut Mite Detection | EfficientNetB0 | 95.62% | Trained |
-| Coconut Caterpillar Detection | MobileNetV2 | 98.91% | Trained |
-| White Fly Detection | - | - | Pending |
-
-### Running the ML API
-
+### Run ML API
 ```powershell
-# Navigate to API folder
-cd Research/ml/api
-
-# Start the Flask API server
+cd ml/api
 python run_api.py
 ```
 
-API will be available at `http://localhost:5000`
-
 ### API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/predict/mite` | POST | Detect coconut mite |
+| `/predict/caterpillar` | POST | Detect caterpillar |
+| `/health` | GET | API health check |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | API information |
-| GET | `/health` | Health check |
-| GET | `/models` | List available models |
-| GET | `/model-info` | Detailed model information |
-| POST | `/predict` | Predict pest (mite) from image |
-| POST | `/predict/caterpillar` | Detect caterpillar damage |
-| POST | `/predict/all` | Run all available models |
+## Model Training
 
-### Training New Models
+Jupyter notebooks are available in `ml/notebooks/`:
 
-```powershell
-# Navigate to ML folder
-cd Research/ml
+1. **02_coconut_caterpillar_training.ipynb** - Caterpillar model training
+2. **03_coconut_mite_training.ipynb** - Mite model v4-v5 training
+3. **04_coconut_mite_proper_training.ipynb** - Proper training pipeline
+4. **05_mite_model_results.ipynb** - v6 results analysis
+5. **06_mite_v7_results.ipynb** - v7 anti-overfit results
 
-# Start Jupyter Lab
-python -m jupyterlab
+## Model Version History
 
-# Open the training notebook and run all cells
-```
-
-## Development Notes
-
-### Known Issues
-- Standard `npx react-native` commands may not work on Windows; use the full node path instead
-- Autolinking requires manual configuration file (see CLAUDE.md for details)
-- First build takes 5-10 minutes due to native compilation
-
-### Build Commands (Windows PowerShell)
-```powershell
-# Start Metro
-node node_modules\@react-native-community\cli\build\bin.js start
-
-# Run on Android
-node node_modules\@react-native-community\cli\build\bin.js run-android
-
-# Clean build
-cd android
-.\gradlew clean
-cd ..
-```
+| Version | Accuracy | F1 Score | Train-Val Gap | Status |
+|---------|----------|----------|---------------|--------|
+| Mite v4 | ~90% | - | High | Deprecated |
+| Mite v5 | ~92% | - | High | Deprecated |
+| Mite v6 | ~85% | - | Medium | Deprecated |
+| Mite v7 | 82.54% | 82.47% | 6.2% | **Current** |
+| Caterpillar | 98.91% | 98.91% | - | **Current** |
 
 ## Team
 
-SLIIT Research Project Team
+SLIIT Research Team
 
 ## License
 
-This project is part of academic research at SLIIT.
+Research Project - SLIIT
