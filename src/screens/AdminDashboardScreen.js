@@ -77,7 +77,10 @@ export default function AdminDashboardScreen({navigation, route}) {
       <View style={styles.featuresContainer}>
         <Text style={styles.sectionTitle}>Admin Features</Text>
 
-        <TouchableOpacity style={styles.featureCard}>
+        <TouchableOpacity
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('UserManagement')}
+        >
           <Text style={styles.featureIcon}>👥</Text>
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>User Management</Text>

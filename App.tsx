@@ -14,6 +14,7 @@ import SignupScreen from './src/screens/SignupScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
+import UserManagementScreen from './src/screens/UserManagementScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,7 @@ function App(): React.JSX.Element {
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
           <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
+          <Stack.Screen name="UserManagement" component={UserManagementScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

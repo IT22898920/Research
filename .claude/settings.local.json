@@ -72,7 +72,9 @@
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/pest_caterpillar/dataset/train\"/*)",
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\")",
+      "Bash(tree:*)"
     ]
   }
 }
