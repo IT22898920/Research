@@ -1,0 +1,105 @@
+{
+  "model_name": "coconut_mite_3class_v10",
+  "version": "v10_mite_focused",
+  "architecture": "MobileNetV2 (Fine-tuned)",
+  "improvements": [
+    "Focal Loss (gamma=2.0) for hard examples",
+    "Class weight boost (2.5x) for mites",
+    "2-phase training with fine-tuning",
+    "Stronger data augmentation"
+  ],
+  "num_classes": 3,
+  "classes": [
+    "coconut_mite",
+    "healthy",
+    "not_coconut"
+  ],
+  "input_size": [224, 224, 3],
+  "dataset": {
+    "version": "v4_clean (no data leaks)",
+    "train": 12928,
+    "validation": 479,
+    "test": 374
+  },
+  "performance": {
+    "test_accuracy": 0.8716577540106952,
+    "macro_f1": 0.8352065654369891,
+    "mite_recall": 0.58,
+    "mite_f1": 0.7116564417177914,
+    "per_class": [
+      {
+        "class": "coconut_mite",
+        "precision": 0.9206349206349206,
+        "recall": 0.58,
+        "f1": 0.7116564417177914,
+        "support": 100
+      },
+      {
+        "class": "healthy",
+        "precision": 0.7391304347826086,
+        "recall": 0.9550561797752809,
+        "f1": 0.8333333333333334,
+        "support": 89
+      },
+      {
+        "class": "not_coconut",
+        "precision": 0.9336734693877551,
+        "recall": 0.9891891891891892,
+        "f1": 0.9606299212598425,
+        "support": 185
+      }
+    ],
+    "confusion_matrix": [
+      [58, 30, 12],
+      [3, 85, 1],
+      [2, 0, 183]
+    ]
+  },
+  "performance_with_threshold": {
+    "threshold": 0.10,
+    "boost_factor": 5.0,
+    "test_accuracy": 0.9144,
+    "macro_f1": 0.8969,
+    "mite_recall": 0.79,
+    "mite_f1": 0.8316,
+    "per_class": [
+      {
+        "class": "coconut_mite",
+        "precision": 0.8778,
+        "recall": 0.79,
+        "f1": 0.8316,
+        "support": 100
+      },
+      {
+        "class": "healthy",
+        "precision": 0.8632,
+        "recall": 0.9213,
+        "f1": 0.8913,
+        "support": 89
+      },
+      {
+        "class": "not_coconut",
+        "precision": 0.9577,
+        "recall": 0.9784,
+        "f1": 0.9679,
+        "support": 185
+      }
+    ]
+  },
+  "training": {
+    "phase1_epochs": 7,
+    "phase2_epochs": 8,
+    "total_epochs": 15,
+    "training_time_minutes": 153.62,
+    "final_train_accuracy": 0.9953588843345642,
+    "final_val_accuracy": 0.8914405107498169,
+    "train_val_gap": 10.39
+  },
+  "requirements_check": {
+    "pr_balanced": true,
+    "acc_equals_f1": true,
+    "f1_similar": true,
+    "mite_recall_ok": true,
+    "all_pass": true
+  }
+}

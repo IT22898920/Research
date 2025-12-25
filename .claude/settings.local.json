@@ -60,7 +60,19 @@
       "Bash(python -m nbconvert:*)",
       "Bash(powershell -Command:*)",
       "Bash(timeout:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(adb devices:*)",
+      "Bash(python split_and_augment_not_coconut.py:*)",
+      "Bash(python train_3class_model.py:*)",
+      "Bash(dir \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\pest_mite\\\\dataset_v3_clean\\\\train\\\\not_coconut\\\\Y2*\")",
+      "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\pest_mite\\\\dataset_v3_clean\\\\*.index\")",
+      "Bash(python verify_files.py:*)",
+      "Bash(pip show:*)",
+      "Bash(jupyter-nbconvert:*)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/pest_caterpillar/dataset/train\"/*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(set:*)"
     ]
   }
 }

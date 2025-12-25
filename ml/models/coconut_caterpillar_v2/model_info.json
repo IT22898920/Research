@@ -1,0 +1,80 @@
+{
+  "model_name": "coconut_caterpillar_3class_v2",
+  "version": "v2_3class_focal",
+  "architecture": "MobileNetV2 (Fine-tuned)",
+  "num_classes": 3,
+  "classes": [
+    "caterpillar",
+    "healthy",
+    "not_coconut"
+  ],
+  "input_size": [
+    224,
+    224,
+    3
+  ],
+  "dataset": {
+    "train": 12910,
+    "validation": 382,
+    "test": 277
+  },
+  "performance": {
+    "test_accuracy": 0.9819494584837545,
+    "macro_f1": 0.9746546972353425,
+    "caterpillar_recall": 0.9361702127659575,
+    "caterpillar_f1": 0.967032967032967,
+    "per_class": [
+      {
+        "class": "caterpillar",
+        "precision": 1.0,
+        "recall": 0.9361702127659575,
+        "f1": 0.967032967032967,
+        "support": 47
+      },
+      {
+        "class": "healthy",
+        "precision": 0.9375,
+        "recall": 1.0,
+        "f1": 0.967741935483871,
+        "support": 45
+      },
+      {
+        "class": "not_coconut",
+        "precision": 0.9891891891891892,
+        "recall": 0.9891891891891892,
+        "f1": 0.9891891891891892,
+        "support": 185
+      }
+    ],
+    "confusion_matrix": [
+      [
+        44,
+        1,
+        2
+      ],
+      [
+        0,
+        45,
+        0
+      ],
+      [
+        0,
+        2,
+        183
+      ]
+    ]
+  },
+  "training": {
+    "phase1_epochs": 15,
+    "phase2_epochs": 15,
+    "total_epochs": 30,
+    "training_time_minutes": 199.92963291803997,
+    "final_train_accuracy": 0.9971340298652649,
+    "final_val_accuracy": 0.9738219976425171
+  },
+  "focal_loss": {
+    "gamma": 2.0,
+    "alpha": 0.25
+  },
+  "date": "2025-12-25T20:06:28.724808"
+}

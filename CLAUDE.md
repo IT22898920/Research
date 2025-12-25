@@ -20,9 +20,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 ### Machine Learning
 - Python 3.13
 - TensorFlow 2.20.0
-- EfficientNetB0 (Transfer Learning) - Coconut Mite model
-- MobileNetV2 (Transfer Learning) - Coconut Caterpillar model
-- Flask 3.1.2 (API Server)
+- EfficientNetB0 (Transfer Learning) - Coconut Mite model v10
+- MobileNetV2 (Transfer Learning) - Coconut Caterpillar model v2
+- Flask 3.1.2 (API Server v4.0)
+- Focal Loss for handling class imbalance
 - Pillow, NumPy, Matplotlib, Seaborn, Scikit-learn
 
 ## Package & Firebase Info
@@ -34,8 +35,7 @@ This file provides context for AI assistants (like Claude) working on this codeb
 
 ## Project Location
 
-- **Development Path:** `D:\Projects\CoconutHealthMonitor`
-- **Original Path:** `D:\SLIIT\Reaserch Project\R2\CoconutHealthMonitor` (moved due to spaces in path causing build issues)
+- **Development Path:** `D:\SLIIT\Reaserch Project\CoconutHealthMonitor\Research`
 
 ## Key Files
 
@@ -45,6 +45,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 ### Screens
 - `src/screens/LoginScreen.js` - User login UI
 - `src/screens/SignupScreen.js` - User registration UI
+- `src/screens/PestDetectionScreen.js` - Pest detection with All Pests, Mite, Caterpillar options
+
+### Services
+- `src/services/pestDetectionApi.js` - React Native API client (v4.0)
 
 ### Android Configuration
 - `android/settings.gradle` - Module configuration (autolinking disabled, manual linking used)
@@ -52,28 +56,25 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `android/build/generated/autolinking/autolinking.json` - Manual autolinking config (required!)
 
 ### ML & API Files
-- `Research/ml/notebooks/` - Jupyter notebooks for model training
-  - `02_coconut_caterpillar_training.ipynb` - Caterpillar model training
-  - `03_coconut_mite_training.ipynb` - Mite model training (v4-v5)
-  - `04_coconut_mite_proper_training.ipynb` - Mite model proper training
-  - `05_mite_model_results.ipynb` - Mite v6 results analysis
-  - `06_mite_v7_results.ipynb` - Mite v7 (anti-overfit) results analysis
-- `Research/ml/models/coconut_mite_v7/` - Latest Mite detection model (82.54% accuracy, anti-overfit)
-- `Research/ml/models/coconut_caterpillar/` - Caterpillar detection model (98.91% accuracy)
-- `Research/ml/api/app.py` - Flask API for model serving
-- `src/services/pestDetectionApi.js` - React Native API client
+- `ml/api/app.py` - Flask API v4.0 for model serving
+- `ml/models/coconut_mite_v10/` - Latest Mite detection model (3-class)
+- `ml/models/coconut_caterpillar_v2/` - Latest Caterpillar detection model (3-class)
+- `ml/notebooks/` - Jupyter notebooks for model training
 
 ## Build Commands (Windows PowerShell)
 
 ```powershell
 # Navigate to project
-cd D:\Projects\CoconutHealthMonitor
+cd "D:\SLIIT\Reaserch Project\CoconutHealthMonitor\Research"
 
 # Start Metro bundler (Terminal 1)
 node node_modules\@react-native-community\cli\build\bin.js start
 
 # Build and run on Android (Terminal 2)
 node node_modules\@react-native-community\cli\build\bin.js run-android
+
+# Clear Metro cache and restart
+npx react-native start --reset-cache
 
 # Clean build
 cd android && .\gradlew clean && cd ..
@@ -93,7 +94,7 @@ python -m jupyterlab
 
 # Run Flask API
 cd api
-python run_api.py
+python app.py
 
 # Test API
 python test_api.py
@@ -101,56 +102,89 @@ python test_api.py
 
 ## Trained Models
 
-### Coconut Mite Detection Model (v7 - Latest)
-- **Model:** EfficientNetB0 (Transfer Learning) with Anti-Overfit measures
-- **Version:** v7_anti_overfit
-- **Test Accuracy:** 82.54%
-- **Test F1 Score:** 82.47%
-- **Train-Val Gap:** 6.2% (reduced overfitting)
-- **Optimal Threshold:** 0.60
+### Coconut Mite Detection Model (v10 - Latest)
+- **Model:** EfficientNetB0 (Transfer Learning) with Focal Loss
+- **Version:** v10 (3-class)
+- **Test Accuracy:** 91.44%
+- **Classes:** `coconut_mite`, `healthy`, `not_coconut`
 - **Input Size:** 224x224x3
-- **Classes:** coconut_mite, healthy
-- **Anti-Overfit Changes:**
-  - Dropout: 0.6, L2 Regularization: 0.02
-  - Label Smoothing: 0.1
-  - Dense layer: 32 units
-  - Stronger augmentation, Earlier early stopping
+- **Features:**
+  - Focal Loss (gamma=2.0) for class imbalance
+  - Mite boost factor for improved recall
+  - Non-coconut image detection
 - **Per-Class Metrics:**
-  - coconut_mite: P=0.83, R=0.84, F1=0.84
-  - healthy: P=0.82, R=0.81, F1=0.81
+  - coconut_mite: 79% recall
+  - healthy: High precision
+  - not_coconut: Rejects non-coconut images
 - **Files:**
-  - `models/coconut_mite_v7/best_model.keras`
-  - `models/coconut_mite_v7/model_info.json`
+  - `models/coconut_mite_v10/best_model.keras`
+  - `models/coconut_mite_v10/model_info.json`
 - **API Endpoint:** `/predict/mite`
 
-### Model Version History (Coconut Mite)
-| Version | Accuracy | F1 Score | Train-Val Gap | Notes |
-|---------|----------|----------|---------------|-------|
-| v4 | ~90% | - | High | Initial training |
-| v5 | ~92% | - | High | Improved augmentation |
-| v6 | ~85% | - | Medium | Reduced overfitting |
-| v7 | 82.54% | 82.47% | 6.2% | Best generalization |
-
-### Coconut Caterpillar Detection Model
-- **Model:** MobileNetV2 (Transfer Learning)
-- **Accuracy:** 98.91%
+### Coconut Caterpillar Detection Model (v2 - Latest)
+- **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
+- **Version:** v2 (3-class)
+- **Test Accuracy:** 97.47%
+- **Macro F1 Score:** 96.30%
+- **Classes:** `caterpillar`, `healthy`, `not_coconut`
 - **Input Size:** 224x224x3
-- **Classes:** caterpillar, healthy
-- **Optimal Threshold:** 0.20 (for balanced P/R/F1)
-- **Dataset:** 9,108 images (8,925 train + 91 val + 92 test)
-- **Training Time:** 64.4 minutes (24 epochs, early stopped at epoch 14)
 - **Per-Class Metrics:**
-  - caterpillar: P=0.98, R=1.00, F1=0.99
-  - healthy: P=1.00, R=0.98, F1=0.99
+  - caterpillar: 91.49% recall
+  - healthy: 100% recall
+  - not_coconut: 98.38% recall
 - **Files:**
-  - `models/coconut_caterpillar/caterpillar_model.keras`
-  - `models/coconut_caterpillar/model_info.json`
-  - `models/coconut_caterpillar/TRAINING_SUMMARY.txt`
+  - `models/coconut_caterpillar_v2/best_model.keras`
+  - `models/coconut_caterpillar_v2/model_info.json`
 - **API Endpoint:** `/predict/caterpillar`
-- **Uthpala Miss Requirements:** ALL PASSED
+
+### Model Version History
+
+#### Coconut Mite
+| Version | Accuracy | Classes | Notes |
+|---------|----------|---------|-------|
+| v4-v7 | 82-92% | 2 | Binary classification |
+| v8-v9 | ~88% | 3 | Added not_coconut |
+| **v10** | **91.44%** | **3** | **Current - Focal Loss, optimized** |
+
+#### Coconut Caterpillar
+| Version | Accuracy | Classes | Notes |
+|---------|----------|---------|-------|
+| v1 | 98.91% | 2 | Binary classification |
+| **v2** | **97.47%** | **3** | **Current - Added not_coconut** |
 
 ### Pending Models
 - White Fly Detection (not trained yet)
+
+## API Endpoints (v4.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | API information |
+| `/health` | GET | Health check with model status |
+| `/models` | GET | List all loaded models |
+| `/predict/mite` | POST | Mite detection (3-class) |
+| `/predict/caterpillar` | POST | Caterpillar detection (3-class) |
+| `/predict/all` | POST | All pests detection with smart combined logic |
+| `/predict` | POST | Legacy endpoint (redirects to mite) |
+
+## Smart Combined Logic (v7)
+
+The `/predict/all` endpoint uses intelligent decision logic:
+
+```
+Valid Detection = Model predicts (healthy OR pest) WITH >40% confidence
+
+Rejection Rules:
+- If ANY model confidently detects a valid coconut class (>40%) → Accept image
+- Only reject if NO model finds a valid detection (all say not_coconut with low confidence)
+```
+
+**Examples:**
+| Scenario | Mite Result | Caterpillar Result | Final Decision |
+|----------|-------------|-------------------|----------------|
+| Healthy leaf | not_coconut 99% | healthy 98% | ✅ Healthy (trust caterpillar) |
+| Mite infection | coconut_mite 55% | not_coconut 65% | ✅ Mite Infected (trust mite) |
+| Garden scene | coconut_mite 39% | not_coconut 99% | ❌ Not valid (<40% confidence) |
 
 ## Important Notes
 
@@ -166,81 +200,57 @@ The project uses manual autolinking because `autolinkLibrariesFromCommand()` fai
 android/build/generated/autolinking/autolinking.json
 ```
 
-If build fails with autolinking errors, recreate this file with the proper JSON structure containing dependencies and project info.
-
 ### Required Environment Variables
 ```powershell
 $env:ANDROID_HOME = "C:\Users\DELL\AppData\Local\Android\Sdk"
 $env:Path += ";$env:ANDROID_HOME\platform-tools"
 ```
 
-### settings.gradle Configuration
-The project uses manual module linking instead of autolinking:
-```gradle
-include ':react-native-screens'
-project(':react-native-screens').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-screens/android')
-
-include ':react-native-safe-area-context'
-project(':react-native-safe-area-context').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-safe-area-context/android')
-```
-
 ## Current State
 
 ### Completed
 - Project setup with React Native 0.82.1
-- Login screen UI
-- Signup screen UI
-- Navigation between screens
-- Android build configuration
-- Firebase & Google Sign-In integration
-- Google OAuth authentication working
-- ML folder structure setup
-- Coconut Mite detection model v7 trained (82.54% accuracy, anti-overfit optimized)
-- Coconut Caterpillar detection model trained (98.91% accuracy)
-- Flask API for model serving (supports both mite and caterpillar)
-- React Native API client service
-- Multiple mite model iterations (v4-v7) to reduce overfitting
+- Login/Signup screens with Firebase Auth
+- Google OAuth authentication
+- Pest Detection Screen with three options (All Pests, Mite, Caterpillar)
+- Coconut Mite detection model v10 (91.44% accuracy, 3-class)
+- Coconut Caterpillar detection model v2 (97.47% accuracy, 3-class)
+- Flask API v4.0 with smart combined logic
+- Non-coconut image rejection
+- React Native API client service v4.0
+- Mobile app fully integrated with ML API
 
 ### Next Steps (Planned)
 1. Dashboard screen after login
 2. MongoDB backend integration
 3. Train White Fly detection model
-4. Integrate pest detection with mobile app
-5. Drone data visualization
-6. Health monitoring features
-7. Yield prediction display
+4. Drone data visualization
+5. Health monitoring features
+6. Yield prediction display
 
 ## Troubleshooting
+
+### Flask Server Multiple Instances
+Kill all Python processes before restarting:
+```powershell
+tasklist | findstr -i python
+taskkill /PID <PID> /F
+```
+
+### Metro Cache Issues
+```powershell
+npx react-native start --reset-cache
+```
 
 ### Build Fails with Autolinking Error
 1. Create directory: `mkdir -p android/build/generated/autolinking`
 2. Create autolinking.json with proper structure
 3. Run build again
 
-### Emulator Not Detected
-```powershell
-adb devices  # Should show connected emulator
-```
-
-### Metro Permission Error
-Run PowerShell as Administrator or use:
-```powershell
-node node_modules\@react-native-community\cli\build\bin.js start --reset-cache
-```
-
-### NDK Issues
-If NDK installation is corrupted:
-```powershell
-Remove-Item -Recurse -Force "C:\Users\DELL\AppData\Local\Android\Sdk\ndk\27.1.12297006"
-# Then rebuild - NDK will be reinstalled automatically
-```
-
 ### Google Sign-In DEVELOPER_ERROR
-If Google Sign-In fails with DEVELOPER_ERROR:
 1. Verify SHA-1 fingerprint: `cd android && .\gradlew signingReport`
 2. Check Google Cloud Console has Android OAuth client with correct package name & SHA-1
 3. Ensure `google-services.json` has matching `client_type: 1` entry
-4. Web Client ID in `src/config/googleAuth.js` must match Google Cloud Console
 
 ### Port 8081 Already in Use
 ```powershell

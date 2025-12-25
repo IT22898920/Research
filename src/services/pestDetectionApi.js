@@ -1,7 +1,15 @@
 /**
- * Pest Detection API Service v2.0
+ * Pest Detection API Service v4.0
  * Connects to Flask ML API for pest detection
- * Supports: Coconut Mite, Caterpillar, All Pests
+ *
+ * Models:
+ * - Mite: v10 (3-class: coconut_mite, healthy, not_coconut) - 91.44% accuracy
+ * - Caterpillar: v2 (3-class: caterpillar, healthy, not_coconut) - 97.47% accuracy
+ *
+ * Features:
+ * - Both models can detect non-coconut images
+ * - Smart combined logic for "All Pests" detection
+ * - One coherent answer with recommendations
  */
 
 // API Configuration
@@ -165,7 +173,12 @@ export const detectCaterpillar = async (imageUri) => {
 };
 
 /**
- * Detect ALL pests (Mite + Caterpillar)
+ * Detect ALL pests (Mite + Caterpillar) with Smart Combined Logic
+ *
+ * Response includes:
+ * - results: individual model results
+ * - summary: combined decision with status, label, message, recommendation
+ * - models_used: version info for both models
  */
 export const detectAllPests = async (imageUri) => {
   try {
@@ -187,6 +200,7 @@ export const detectAllPests = async (imageUri) => {
         success: true,
         results: data.results,
         summary: data.summary,
+        modelsUsed: data.models_used,
         timestamp: data.timestamp,
       };
     } else {

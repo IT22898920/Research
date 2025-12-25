@@ -112,16 +112,20 @@ export default function PestDetectionScreen({navigation}) {
   const getResultColor = () => {
     if (!result) return '#666';
     if (selectedPestType === PEST_TYPES.ALL) {
+      if (!result.summary?.is_valid_image) return '#ff9800'; // Orange for invalid
       return result.summary?.is_healthy ? '#2e7d32' : '#d32f2f';
     }
+    if (!result.prediction?.is_valid_image) return '#ff9800'; // Orange for invalid
     return result.prediction?.is_infected ? '#d32f2f' : '#2e7d32';
   };
 
   const getResultIcon = () => {
     if (!result) return '🔍';
     if (selectedPestType === PEST_TYPES.ALL) {
+      if (!result.summary?.is_valid_image) return '❓'; // Not a coconut
       return result.summary?.is_healthy ? '✅' : '🐛';
     }
+    if (!result.prediction?.is_valid_image) return '❓'; // Not a coconut
     return result.prediction?.is_infected ? '🐛' : '✅';
   };
 
@@ -183,6 +187,45 @@ export default function PestDetectionScreen({navigation}) {
   const renderSingleResult = () => {
     if (!result?.prediction) return null;
 
+    const isValidImage = result.prediction?.is_valid_image !== false;
+
+    // Handle non-coconut images
+    if (!isValidImage) {
+      return (
+        <View style={[styles.resultContainer, {borderColor: '#ff9800'}]}>
+          <Text style={styles.resultIcon}>❓</Text>
+          <Text style={[styles.resultTitle, {color: '#ff9800'}]}>
+            {result.prediction?.label || 'Not a Coconut Image'}
+          </Text>
+          <Text style={styles.confidenceText}>
+            Confidence: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
+          </Text>
+
+          <View style={styles.invalidImageBox}>
+            <Text style={styles.invalidImageTitle}>Image Not Recognized</Text>
+            <Text style={styles.invalidImageText}>
+              {result.prediction?.message || 'Please upload a clear image of coconut fruit, flower, or leaf for accurate pest detection.'}
+            </Text>
+          </View>
+
+          {result.probabilities && (
+            <View style={styles.probabilitiesContainer}>
+              <Text style={styles.probabilitiesTitle}>Probabilities:</Text>
+              {Object.entries(result.probabilities).map(([label, prob]) => (
+                <View key={label} style={styles.probabilityRow}>
+                  <Text style={styles.probabilityLabel}>{label}:</Text>
+                  <View style={styles.probabilityBarContainer}>
+                    <View style={[styles.probabilityBar, {width: `${(prob || 0) * 100}%`, backgroundColor: label === 'not_coconut' ? '#ff9800' : '#2e7d32'}]} />
+                  </View>
+                  <Text style={styles.probabilityValue}>{((prob || 0) * 100).toFixed(1)}%</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.resultContainer, {borderColor: getResultColor()}]}>
         <Text style={styles.resultIcon}>{getResultIcon()}</Text>
@@ -223,7 +266,37 @@ export default function PestDetectionScreen({navigation}) {
   };
 
   const renderAllPestsResult = () => {
-    if (!result?.results) return null;
+    if (!result?.results && !result?.summary) return null;
+
+    const isValidImage = result.summary?.is_valid_image !== false;
+
+    // Handle non-coconut images
+    if (!isValidImage) {
+      return (
+        <View style={[styles.resultContainer, {borderColor: '#ff9800'}]}>
+          <Text style={styles.resultIcon}>❓</Text>
+          <Text style={[styles.resultTitle, {color: '#ff9800'}]}>
+            {result.summary?.label || 'Not a Coconut Image'}
+          </Text>
+
+          <View style={styles.invalidImageBox}>
+            <Text style={styles.invalidImageTitle}>Image Not Recognized</Text>
+            <Text style={styles.invalidImageText}>
+              {result.summary?.message || 'Please upload a clear image of coconut fruit, flower, or leaf for accurate pest detection.'}
+            </Text>
+          </View>
+
+          {result.summary?.recommendation && (
+            <View style={styles.recommendationBox}>
+              <Text style={styles.recommendationTitle}>Recommendation</Text>
+              <Text style={styles.recommendationText}>
+                {result.summary.recommendation}
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
 
     return (
       <View style={[styles.resultContainer, {borderColor: getResultColor()}]}>
@@ -232,55 +305,71 @@ export default function PestDetectionScreen({navigation}) {
           {result.summary?.label || (result.summary?.is_healthy ? 'Healthy' : 'Pest Detected')}
         </Text>
 
-      {/* Individual Results */}
-      <View style={styles.allResultsContainer}>
-        {/* Mite Result */}
-        {result.results?.mite && (
-          <View style={styles.pestResultCard}>
-            <Text style={styles.pestResultIcon}>🕷️</Text>
-            <Text style={styles.pestResultName}>Coconut Mite</Text>
-            <Text
-              style={[
-                styles.pestResultStatus,
-                {color: result.results.mite.is_infected ? '#d32f2f' : '#2e7d32'},
-              ]}>
-              {result.results.mite.is_infected ? 'DETECTED' : 'Not Found'}
-            </Text>
-            <Text style={styles.pestResultConfidence}>
-              {((result.results.mite.confidence || 0) * 100).toFixed(1)}%
-            </Text>
-          </View>
+        {/* Display API message if available */}
+        {result.summary?.message && (
+          <Text style={styles.summaryMessage}>{result.summary.message}</Text>
         )}
 
-        {/* Caterpillar Result */}
-        {result.results?.caterpillar && (
-          <View style={styles.pestResultCard}>
-            <Text style={styles.pestResultIcon}>🐛</Text>
-            <Text style={styles.pestResultName}>Caterpillar</Text>
-            <Text
-              style={[
-                styles.pestResultStatus,
-                {color: result.results.caterpillar.is_infected ? '#d32f2f' : '#2e7d32'},
-              ]}>
-              {result.results.caterpillar.is_infected ? 'DETECTED' : 'Not Found'}
-            </Text>
-            <Text style={styles.pestResultConfidence}>
-              {((result.results.caterpillar.confidence || 0) * 100).toFixed(1)}%
-            </Text>
-          </View>
-        )}
-      </View>
+        {/* Individual Results */}
+        <View style={styles.allResultsContainer}>
+          {/* Mite Result */}
+          {result.results?.mite && (
+            <View style={styles.pestResultCard}>
+              <Text style={styles.pestResultIcon}>🕷️</Text>
+              <Text style={styles.pestResultName}>Coconut Mite</Text>
+              <Text
+                style={[
+                  styles.pestResultStatus,
+                  {color: result.results.mite.class === 'not_coconut' ? '#ff9800' : result.results.mite.is_infected ? '#d32f2f' : '#2e7d32'},
+                ]}>
+                {result.results.mite.class === 'not_coconut' ? 'N/A' : result.results.mite.is_infected ? 'DETECTED' : 'Not Found'}
+              </Text>
+              <Text style={styles.pestResultConfidence}>
+                {((result.results.mite.confidence || 0) * 100).toFixed(1)}%
+              </Text>
+            </View>
+          )}
 
-      {/* Warning if pests detected */}
-      {result.summary && !result.summary.is_healthy && (
-        <View style={styles.warningBox}>
-          <Text style={styles.warningTitle}>⚠️ Action Required</Text>
-          <Text style={styles.warningText}>
-            Detected: {result.summary.pests_detected?.join(', ') || 'Unknown pest'}.
-            Consider applying appropriate pest control measures.
-          </Text>
+          {/* Caterpillar Result */}
+          {result.results?.caterpillar && (
+            <View style={styles.pestResultCard}>
+              <Text style={styles.pestResultIcon}>🐛</Text>
+              <Text style={styles.pestResultName}>Caterpillar</Text>
+              <Text
+                style={[
+                  styles.pestResultStatus,
+                  {color: result.results.caterpillar.class === 'not_coconut' ? '#ff9800' : result.results.caterpillar.is_infected ? '#d32f2f' : '#2e7d32'},
+                ]}>
+                {result.results.caterpillar.class === 'not_coconut' ? 'N/A' : result.results.caterpillar.is_infected ? 'DETECTED' : 'Not Found'}
+              </Text>
+              <Text style={styles.pestResultConfidence}>
+                {((result.results.caterpillar.confidence || 0) * 100).toFixed(1)}%
+              </Text>
+            </View>
+          )}
         </View>
-      )}
+
+        {/* Recommendation from API */}
+        {result.summary?.recommendation && (
+          <View style={[styles.recommendationBox, !result.summary?.is_healthy && styles.warningRecommendation]}>
+            <Text style={[styles.recommendationTitle, !result.summary?.is_healthy && styles.warningRecommendationTitle]}>
+              {result.summary?.is_healthy ? '✓ Recommendation' : '⚠️ Action Required'}
+            </Text>
+            <Text style={[styles.recommendationText, !result.summary?.is_healthy && styles.warningRecommendationText]}>
+              {result.summary.recommendation}
+            </Text>
+          </View>
+        )}
+
+        {/* Pests detected list */}
+        {result.summary?.pests_detected && result.summary.pests_detected.length > 0 && (
+          <View style={styles.pestsDetectedBox}>
+            <Text style={styles.pestsDetectedTitle}>Detected Pests:</Text>
+            <Text style={styles.pestsDetectedText}>
+              {result.summary.pests_detected.join(', ')}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -344,9 +433,10 @@ export default function PestDetectionScreen({navigation}) {
       <View style={styles.infoContainer}>
         <Text style={styles.infoTitle}>About This Feature</Text>
         <Text style={styles.infoText}>
-          AI-powered pest detection using MobileNetV2 and EfficientNetB0 models.{'\n'}
-          • Mite Detection: 95%+ accuracy{'\n'}
-          • Caterpillar Detection: 99%+ accuracy
+          AI-powered pest detection using EfficientNetB0 and MobileNetV2 models.{'\n'}
+          • Mite Detection (v10): 91.44% accuracy{'\n'}
+          • Caterpillar Detection (v2): 97.47% accuracy{'\n'}
+          • Both models detect non-coconut images
         </Text>
       </View>
     </ScrollView>
@@ -615,5 +705,82 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1976d2',
     lineHeight: 20,
+  },
+  // New styles for invalid image handling
+  invalidImageBox: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#fff8e1',
+    borderRadius: 10,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ffcc02',
+  },
+  invalidImageTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f57c00',
+    marginBottom: 5,
+  },
+  invalidImageText: {
+    fontSize: 13,
+    color: '#ef6c00',
+    lineHeight: 18,
+  },
+  // Recommendation box styles
+  recommendationBox: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 10,
+    width: '100%',
+  },
+  recommendationTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 5,
+  },
+  recommendationText: {
+    fontSize: 13,
+    color: '#1b5e20',
+    lineHeight: 18,
+  },
+  warningRecommendation: {
+    backgroundColor: '#fff3e0',
+  },
+  warningRecommendationTitle: {
+    color: '#e65100',
+  },
+  warningRecommendationText: {
+    color: '#bf360c',
+  },
+  // Summary message style
+  summaryMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  // Pests detected box
+  pestsDetectedBox: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#ffebee',
+    borderRadius: 8,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pestsDetectedTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#c62828',
+    marginRight: 5,
+  },
+  pestsDetectedText: {
+    fontSize: 12,
+    color: '#d32f2f',
+    flex: 1,
   },
 });
