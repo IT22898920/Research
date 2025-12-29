@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,49 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import {useLanguage} from '../context/LanguageContext';
+import {setApiKey, getApiKey} from '../services/treatmentApi';
 
 export default function SettingsScreen({navigation}) {
   const {currentLanguage, languages, changeLanguage, t} = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    checkApiKey();
+  }, []);
+
+  const checkApiKey = async () => {
+    const key = await getApiKey();
+    setHasApiKey(!!key);
+    if (key) {
+      setApiKeyInput(key);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setApiKeyModalVisible(false);
+      Alert.alert(t('common.success'), 'Groq API Key saved!');
+    } else {
+      Alert.alert(t('common.error'), 'Please enter a valid API key');
+    }
+  };
+
+  const handleClearApiKey = async () => {
+    await setApiKey('');
+    setApiKeyInput('');
+    setHasApiKey(false);
+    setApiKeyModalVisible(false);
+    Alert.alert(t('common.success'), 'Groq API Key removed');
+  };
 
   const getCurrentLanguageName = () => {
     const lang = languages.find((l) => l.code === currentLanguage);
@@ -46,6 +83,24 @@ export default function SettingsScreen({navigation}) {
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>{t('settings.selectLanguage')}</Text>
               <Text style={styles.settingValue}>{getCurrentLanguageName()}</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* AI Settings Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>AI Settings</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setApiKeyModalVisible(true)}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Groq API Key</Text>
+              <Text style={styles.settingValue}>
+                {hasApiKey ? '••••••••' + apiKeyInput.slice(-4) : 'Not configured'}
+              </Text>
             </View>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
@@ -131,6 +186,57 @@ export default function SettingsScreen({navigation}) {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setLanguageModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* API Key Modal */}
+      <Modal
+        visible={apiKeyModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setApiKeyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Groq API Key</Text>
+
+            <Text style={styles.apiKeyDescription}>
+              Enter your Groq API key for AI-powered treatment recommendations. Get free key from console.groq.com
+            </Text>
+
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="gsk_..."
+              placeholderTextColor="#666"
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSaveApiKey}
+            >
+              <Text style={styles.saveButtonText}>{t('pestDetection.saveApiKey')}</Text>
+            </TouchableOpacity>
+
+            {hasApiKey && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={handleClearApiKey}
+              >
+                <Text style={styles.clearButtonText}>Clear API Key</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setApiKeyModalVisible(false)}
             >
               <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
@@ -289,5 +395,45 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  apiKeyDescription: {
+    color: '#aaa',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  apiKeyInput: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 10,
+    padding: 15,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  saveButton: {
+    backgroundColor: '#e94560',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  clearButton: {
+    backgroundColor: '#333',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  clearButtonText: {
+    color: '#ff6b6b',
+    fontSize: 14,
   },
 });

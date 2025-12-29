@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {
@@ -17,23 +19,78 @@ import {
   detectAllPests,
   PEST_TYPES,
 } from '../services/pestDetectionApi';
+import {
+  getTreatmentRecommendations,
+  setApiKey,
+  isApiKeyConfigured,
+} from '../services/treatmentApi';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function PestDetectionScreen({navigation}) {
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
   const [selectedPestType, setSelectedPestType] = useState(PEST_TYPES.ALL);
 
+  // Treatment states
+  const [treatment, setTreatment] = useState(null);
+  const [isLoadingTreatment, setIsLoadingTreatment] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   useEffect(() => {
     checkApi();
+    checkApiKeyStatus();
   }, []);
 
   const checkApi = async () => {
     const health = await checkApiHealth();
     setApiStatus(health.success ? 'online' : 'offline');
+  };
+
+  const checkApiKeyStatus = async () => {
+    const configured = await isApiKeyConfigured();
+    setHasApiKey(configured);
+  };
+
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setShowApiKeyModal(false);
+      setApiKeyInput('');
+      Alert.alert(t('common.success'), 'API Key saved successfully');
+    }
+  };
+
+  const fetchTreatment = async (pestType, severity, confidence) => {
+    setIsLoadingTreatment(true);
+    setTreatment(null);
+
+    try {
+      const response = await getTreatmentRecommendations({
+        pestType: pestType,
+        severity: severity?.level || 'moderate',
+        confidence: confidence || 0.7,
+        language: currentLanguage,
+      });
+
+      if (response.success) {
+        setTreatment({...response.data, source: 'ai'});
+      } else if (response.fallback) {
+        setTreatment({...response.fallback, source: 'fallback'});
+      } else {
+        Alert.alert(t('common.error'), response.error || 'Failed to get treatment');
+      }
+    } catch (error) {
+      console.error('Treatment fetch error:', error);
+      Alert.alert(t('common.error'), error.message);
+    } finally {
+      setIsLoadingTreatment(false);
+    }
   };
 
   const selectImage = () => {
@@ -129,6 +186,72 @@ export default function PestDetectionScreen({navigation}) {
     }
     if (!result.prediction?.is_valid_image) return '❓'; // Not a coconut
     return result.prediction?.is_infected ? '🐛' : '✅';
+  };
+
+  // Severity calculation based on confidence score
+  const getSeverity = (confidence, isInfected) => {
+    if (!isInfected) return null;
+
+    const confidencePercent = confidence * 100;
+
+    if (confidencePercent < 70) {
+      return {
+        level: 'mild',
+        label: t('pestDetection.severityMild'),
+        description: t('pestDetection.severityMildDesc'),
+        color: '#4caf50', // Green
+        icon: '🟢',
+        percent: Math.round((confidencePercent - 50) / 20 * 30), // 0-30%
+      };
+    } else if (confidencePercent < 85) {
+      return {
+        level: 'moderate',
+        label: t('pestDetection.severityModerate'),
+        description: t('pestDetection.severityModerateDesc'),
+        color: '#ff9800', // Orange
+        icon: '🟡',
+        percent: Math.round(30 + (confidencePercent - 70) / 15 * 30), // 30-60%
+      };
+    } else {
+      return {
+        level: 'severe',
+        label: t('pestDetection.severitySevere'),
+        description: t('pestDetection.severitySevereDesc'),
+        color: '#f44336', // Red
+        icon: '🔴',
+        percent: Math.round(60 + (confidencePercent - 85) / 15 * 40), // 60-100%
+      };
+    }
+  };
+
+  // Render severity indicator component
+  const renderSeverityIndicator = (severity) => {
+    if (!severity) return null;
+
+    return (
+      <View style={styles.severityContainer}>
+        <View style={styles.severityHeader}>
+          <Text style={styles.severityLabel}>{t('pestDetection.severity')}:</Text>
+          <View style={[styles.severityBadge, {backgroundColor: severity.color}]}>
+            <Text style={styles.severityBadgeText}>{severity.icon} {severity.label}</Text>
+          </View>
+        </View>
+        <View style={styles.severityBarContainer}>
+          <View style={styles.severityBarBackground}>
+            <View
+              style={[
+                styles.severityBarFill,
+                {width: `${severity.percent}%`, backgroundColor: severity.color}
+              ]}
+            />
+          </View>
+          <Text style={styles.severityPercent}>{severity.percent}%</Text>
+        </View>
+        <Text style={[styles.severityDescription, {color: severity.color}]}>
+          {severity.description}
+        </Text>
+      </View>
+    );
   };
 
   const renderPestTypeSelector = () => (
@@ -228,6 +351,8 @@ export default function PestDetectionScreen({navigation}) {
       );
     }
 
+    const severity = getSeverity(result.prediction?.confidence || 0, result.prediction?.is_infected);
+
     return (
       <View style={[styles.resultContainer, {borderColor: getResultColor()}]}>
         <Text style={styles.resultIcon}>{getResultIcon()}</Text>
@@ -237,6 +362,9 @@ export default function PestDetectionScreen({navigation}) {
         <Text style={styles.confidenceText}>
           {t('pestDetection.confidence')}: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
         </Text>
+
+        {/* Severity Indicator - Only show when infected */}
+        {renderSeverityIndicator(severity)}
 
         {result.probabilities && (
           <View style={styles.probabilitiesContainer}>
@@ -329,6 +457,14 @@ export default function PestDetectionScreen({navigation}) {
               <Text style={styles.pestResultConfidence}>
                 {((result.results.mite.confidence || 0) * 100).toFixed(1)}%
               </Text>
+              {/* Mite Severity */}
+              {result.results.mite.is_infected && (
+                <View style={[styles.miniSeverityBadge, {backgroundColor: getSeverity(result.results.mite.confidence, true)?.color}]}>
+                  <Text style={styles.miniSeverityText}>
+                    {getSeverity(result.results.mite.confidence, true)?.icon} {getSeverity(result.results.mite.confidence, true)?.label}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -347,9 +483,26 @@ export default function PestDetectionScreen({navigation}) {
               <Text style={styles.pestResultConfidence}>
                 {((result.results.caterpillar.confidence || 0) * 100).toFixed(1)}%
               </Text>
+              {/* Caterpillar Severity */}
+              {result.results.caterpillar.is_infected && (
+                <View style={[styles.miniSeverityBadge, {backgroundColor: getSeverity(result.results.caterpillar.confidence, true)?.color}]}>
+                  <Text style={styles.miniSeverityText}>
+                    {getSeverity(result.results.caterpillar.confidence, true)?.icon} {getSeverity(result.results.caterpillar.confidence, true)?.label}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
+
+        {/* Overall Severity Summary */}
+        {!result.summary?.is_healthy && (
+          <View style={styles.overallSeverityContainer}>
+            <Text style={styles.overallSeverityTitle}>{t('pestDetection.severity')} {t('pestDetection.result')}</Text>
+            {result.results?.mite?.is_infected && renderSeverityIndicator(getSeverity(result.results.mite.confidence, true))}
+            {result.results?.caterpillar?.is_infected && renderSeverityIndicator(getSeverity(result.results.caterpillar.confidence, true))}
+          </View>
+        )}
 
         {/* Recommendation from API */}
         {result.summary?.recommendation && (
@@ -376,8 +529,247 @@ export default function PestDetectionScreen({navigation}) {
     );
   };
 
+  // Get urgency color
+  const getUrgencyColor = (urgency) => {
+    switch (urgency) {
+      case 'low': return '#4caf50';
+      case 'medium': return '#ff9800';
+      case 'high': return '#f44336';
+      case 'critical': return '#9c27b0';
+      default: return '#666';
+    }
+  };
+
+  // Get urgency label
+  const getUrgencyLabel = (urgency) => {
+    switch (urgency) {
+      case 'low': return t('pestDetection.urgencyLow');
+      case 'medium': return t('pestDetection.urgencyMedium');
+      case 'high': return t('pestDetection.urgencyHigh');
+      case 'critical': return t('pestDetection.urgencyCritical');
+      default: return urgency;
+    }
+  };
+
+  // Render treatment button
+  const renderTreatmentButton = () => {
+    // Only show if pest is detected
+    const isInfected = selectedPestType === PEST_TYPES.ALL
+      ? !result?.summary?.is_healthy
+      : result?.prediction?.is_infected;
+
+    if (!result || !isInfected) return null;
+
+    const getPestTypeForTreatment = () => {
+      if (selectedPestType === PEST_TYPES.MITE) return 'coconut_mite';
+      if (selectedPestType === PEST_TYPES.CATERPILLAR) return 'caterpillar';
+      // For ALL, pick the first detected pest
+      if (result?.results?.mite?.is_infected) return 'coconut_mite';
+      if (result?.results?.caterpillar?.is_infected) return 'caterpillar';
+      return 'coconut_mite';
+    };
+
+    const getConfidenceForTreatment = () => {
+      if (selectedPestType !== PEST_TYPES.ALL) {
+        return result?.prediction?.confidence || 0.7;
+      }
+      if (result?.results?.mite?.is_infected) return result.results.mite.confidence;
+      if (result?.results?.caterpillar?.is_infected) return result.results.caterpillar.confidence;
+      return 0.7;
+    };
+
+    const severity = getSeverity(getConfidenceForTreatment(), true);
+
+    return (
+      <TouchableOpacity
+        style={[styles.treatmentButton, isLoadingTreatment && styles.buttonDisabled]}
+        onPress={() => fetchTreatment(getPestTypeForTreatment(), severity, getConfidenceForTreatment())}
+        disabled={isLoadingTreatment}>
+        {isLoadingTreatment ? (
+          <View style={styles.treatmentButtonContent}>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={styles.treatmentButtonText}>{t('pestDetection.loadingTreatment')}</Text>
+          </View>
+        ) : (
+          <View style={styles.treatmentButtonContent}>
+            <Text style={styles.treatmentButtonIcon}>💊</Text>
+            <Text style={styles.treatmentButtonText}>{t('pestDetection.getTreatment')}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  // Render treatment results
+  const renderTreatmentResults = () => {
+    if (!treatment) return null;
+
+    return (
+      <View style={styles.treatmentContainer}>
+        <View style={styles.treatmentHeader}>
+          <Text style={styles.treatmentTitle}>💊 {t('pestDetection.treatmentPlan')}</Text>
+          {treatment.source === 'ai' ? (
+            <View style={styles.aiPoweredBadge}>
+              <Text style={styles.aiPoweredText}>🤖 {t('pestDetection.poweredByAI')}</Text>
+            </View>
+          ) : (
+            <View style={styles.fallbackBadge}>
+              <Text style={styles.fallbackText}>📋 {t('pestDetection.usingFallback')}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Summary */}
+        {treatment.summary && (
+          <Text style={styles.treatmentSummary}>{treatment.summary}</Text>
+        )}
+
+        {/* Urgency */}
+        {treatment.urgency && (
+          <View style={[styles.urgencyBadge, {backgroundColor: getUrgencyColor(treatment.urgency)}]}>
+            <Text style={styles.urgencyText}>{getUrgencyLabel(treatment.urgency)}</Text>
+          </View>
+        )}
+
+        {/* Treatments */}
+        {treatment.treatments && treatment.treatments.length > 0 && (
+          <View style={styles.treatmentsSection}>
+            {treatment.treatments.map((item, index) => (
+              <View key={index} style={styles.treatmentCard}>
+                <View style={styles.treatmentCardHeader}>
+                  <Text style={styles.treatmentCardIcon}>
+                    {item.type === 'chemical' ? '🧪' : item.type === 'organic' ? '🌿' : '🌾'}
+                  </Text>
+                  <View style={styles.treatmentCardTitleContainer}>
+                    <Text style={styles.treatmentCardType}>
+                      {item.type === 'chemical' ? t('pestDetection.chemicalTreatment') :
+                       item.type === 'organic' ? t('pestDetection.organicTreatment') :
+                       t('pestDetection.culturalTreatment')}
+                    </Text>
+                    <Text style={styles.treatmentCardName}>{item.name}</Text>
+                  </View>
+                </View>
+                {item.description && (
+                  <Text style={styles.treatmentCardDesc}>{item.description}</Text>
+                )}
+                <View style={styles.treatmentCardDetails}>
+                  {item.dosage && (
+                    <View style={styles.treatmentDetail}>
+                      <Text style={styles.treatmentDetailLabel}>{t('pestDetection.dosage')}:</Text>
+                      <Text style={styles.treatmentDetailValue}>{item.dosage}</Text>
+                    </View>
+                  )}
+                  {item.frequency && (
+                    <View style={styles.treatmentDetail}>
+                      <Text style={styles.treatmentDetailLabel}>{t('pestDetection.frequency')}:</Text>
+                      <Text style={styles.treatmentDetailValue}>{item.frequency}</Text>
+                    </View>
+                  )}
+                  {item.duration && (
+                    <View style={styles.treatmentDetail}>
+                      <Text style={styles.treatmentDetailLabel}>{t('pestDetection.duration')}:</Text>
+                      <Text style={styles.treatmentDetailValue}>{item.duration}</Text>
+                    </View>
+                  )}
+                  {item.cost_estimate && (
+                    <View style={styles.treatmentDetail}>
+                      <Text style={styles.treatmentDetailLabel}>{t('pestDetection.estimatedCost')}:</Text>
+                      <Text style={styles.treatmentDetailValue}>{item.cost_estimate}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Preventive Measures */}
+        {treatment.preventive_measures && treatment.preventive_measures.length > 0 && (
+          <View style={styles.preventiveSection}>
+            <Text style={styles.sectionTitle}>🛡️ {t('pestDetection.preventiveMeasures')}</Text>
+            {treatment.preventive_measures.map((measure, index) => (
+              <View key={index} style={styles.listItem}>
+                <Text style={styles.listBullet}>•</Text>
+                <Text style={styles.listText}>{measure}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Safety Precautions */}
+        {treatment.safety_precautions && treatment.safety_precautions.length > 0 && (
+          <View style={styles.safetySection}>
+            <Text style={styles.sectionTitle}>⚠️ {t('pestDetection.safetyPrecautions')}</Text>
+            {treatment.safety_precautions.map((precaution, index) => (
+              <View key={index} style={styles.listItem}>
+                <Text style={styles.listBullet}>•</Text>
+                <Text style={styles.listText}>{precaution}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Recovery & Expert */}
+        <View style={styles.recoverySection}>
+          {treatment.expected_recovery && (
+            <View style={styles.recoveryItem}>
+              <Text style={styles.recoveryLabel}>⏱️ {t('pestDetection.expectedRecovery')}:</Text>
+              <Text style={styles.recoveryValue}>{treatment.expected_recovery}</Text>
+            </View>
+          )}
+          {treatment.when_to_seek_expert && (
+            <View style={styles.recoveryItem}>
+              <Text style={styles.recoveryLabel}>👨‍⚕️ {t('pestDetection.whenToSeekExpert')}:</Text>
+              <Text style={styles.recoveryValue}>{treatment.when_to_seek_expert}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // Render API Key Modal
+  const renderApiKeyModal = () => (
+    <Modal
+      visible={showApiKeyModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowApiKeyModal(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>{t('pestDetection.apiKeyRequired')}</Text>
+          <Text style={styles.modalDescription}>{t('pestDetection.apiKeyDescription')}</Text>
+          <TextInput
+            style={styles.apiKeyInput}
+            placeholder={t('pestDetection.apiKeyPlaceholder')}
+            placeholderTextColor="#999"
+            value={apiKeyInput}
+            onChangeText={setApiKeyInput}
+            secureTextEntry
+            autoCapitalize="none"
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowApiKeyModal(false)}>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={handleSaveApiKey}>
+              <Text style={styles.modalSaveText}>{t('pestDetection.saveApiKey')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <ScrollView style={styles.container}>
+      {/* API Key Modal */}
+      {renderApiKeyModal()}
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -430,6 +822,12 @@ export default function PestDetectionScreen({navigation}) {
 
       {/* Results */}
       {result && (selectedPestType === PEST_TYPES.ALL ? renderAllPestsResult() : renderSingleResult())}
+
+      {/* Treatment Button */}
+      {renderTreatmentButton()}
+
+      {/* Treatment Results */}
+      {renderTreatmentResults()}
 
       {/* Info Section */}
       <View style={styles.infoContainer}>
@@ -784,5 +1182,341 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#d32f2f',
     flex: 1,
+  },
+  // Severity indicator styles
+  severityContainer: {
+    width: '100%',
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  severityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  severityLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  severityBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  severityBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  severityBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  severityBarBackground: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  severityBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  severityPercent: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    minWidth: 45,
+  },
+  severityDescription: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 5,
+  },
+  // Mini severity badge for pest cards
+  miniSeverityBadge: {
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  miniSeverityText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  // Overall severity container
+  overallSeverityContainer: {
+    width: '100%',
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+  },
+  overallSeverityTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  // Treatment styles
+  treatmentButton: {
+    margin: 15,
+    padding: 15,
+    backgroundColor: '#1565c0',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  treatmentButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  treatmentButtonIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  treatmentButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  treatmentContainer: {
+    margin: 15,
+    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#1565c0',
+  },
+  treatmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  treatmentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1565c0',
+  },
+  aiPoweredBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  aiPoweredText: {
+    fontSize: 10,
+    color: '#1565c0',
+    fontWeight: 'bold',
+  },
+  fallbackBadge: {
+    backgroundColor: '#fff3e0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  fallbackText: {
+    fontSize: 10,
+    color: '#ff9800',
+    fontWeight: 'bold',
+  },
+  treatmentSummary: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  urgencyBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 15,
+  },
+  urgencyText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  treatmentsSection: {
+    marginBottom: 15,
+  },
+  treatmentCard: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+  },
+  treatmentCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  treatmentCardIcon: {
+    fontSize: 30,
+    marginRight: 10,
+  },
+  treatmentCardTitleContainer: {
+    flex: 1,
+  },
+  treatmentCardType: {
+    fontSize: 11,
+    color: '#666',
+    textTransform: 'uppercase',
+  },
+  treatmentCardName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  treatmentCardDesc: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  treatmentCardDetails: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+  },
+  treatmentDetail: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  treatmentDetailLabel: {
+    fontSize: 12,
+    color: '#666',
+    width: 100,
+  },
+  treatmentDetailValue: {
+    fontSize: 12,
+    color: '#333',
+    flex: 1,
+    fontWeight: '500',
+  },
+  preventiveSection: {
+    backgroundColor: '#e8f5e9',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  safetySection: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  listItem: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  listBullet: {
+    fontSize: 12,
+    color: '#666',
+    marginRight: 8,
+  },
+  listText: {
+    fontSize: 12,
+    color: '#333',
+    flex: 1,
+    lineHeight: 18,
+  },
+  recoverySection: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 15,
+  },
+  recoveryItem: {
+    marginBottom: 10,
+  },
+  recoveryLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 3,
+  },
+  recoveryValue: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    maxWidth: 350,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  apiKeyInput: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 15,
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 15,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalCancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginRight: 10,
+  },
+  modalCancelText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  modalSaveButton: {
+    backgroundColor: '#1565c0',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
