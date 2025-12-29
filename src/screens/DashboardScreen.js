@@ -8,8 +8,10 @@ import {
 } from 'react-native';
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function DashboardScreen({navigation, route}) {
+  const {t} = useLanguage();
   const user = route.params?.user;
 
   const handleLogout = async () => {
@@ -41,28 +43,28 @@ export default function DashboardScreen({navigation, route}) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome!</Text>
-        <Text style={styles.appTitle}>Coconut Health Monitor</Text>
+        <Text style={styles.welcomeText}>{t('dashboard.welcome')}!</Text>
+        <Text style={styles.appTitle}>{t('common.appName')}</Text>
       </View>
 
       <View style={styles.userCard}>
         {user?.photoURL && (
           <Image source={{uri: user.photoURL}} style={styles.userPhoto} />
         )}
-        <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
+        <Text style={styles.userName}>{user?.displayName || t('userManagement.user')}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
       </View>
 
       <View style={styles.featuresContainer}>
-        <Text style={styles.sectionTitle}>Features</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
 
         <TouchableOpacity
           style={styles.featureCardActive}
           onPress={() => navigation.navigate('PestDetection')}>
           <Text style={styles.featureIcon}>🐛</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Pest Detection</Text>
-            <Text style={styles.featureSubtext}>AI-powered coconut mite detection</Text>
+            <Text style={styles.featureText}>{t('pestDetection.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('pestDetection.detectAll')}</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
@@ -70,7 +72,7 @@ export default function DashboardScreen({navigation, route}) {
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Drone Monitoring</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.droneFleet')}</Text>
             <Text style={styles.featureSubtext}>Coming soon</Text>
           </View>
         </View>
@@ -78,14 +80,25 @@ export default function DashboardScreen({navigation, route}) {
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>📊</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Yield Prediction</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.analytics')}</Text>
             <Text style={styles.featureSubtext}>Coming soon</Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.featureIcon}>⚙️</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('settings.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('settings.language')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
+        <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import {configureGoogleSignIn, signInWithGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function LoginScreen({navigation}) {
+  const {t} = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -120,14 +122,14 @@ export default function LoginScreen({navigation}) {
       style={styles.container}>
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>🌴</Text>
-        <Text style={styles.title}>Coconut Health Monitor</Text>
+        <Text style={styles.title}>{t('common.appName')}</Text>
         <Text style={styles.subtitle}>AI-Powered Drone Monitoring System</Text>
       </View>
 
       <View style={styles.formContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder={t('auth.email')}
           placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
@@ -138,7 +140,7 @@ export default function LoginScreen({navigation}) {
 
         <TextInput
           style={styles.input}
-          placeholder="Password"
+          placeholder={t('auth.password')}
           placeholderTextColor="#999"
           value={password}
           onChangeText={text => setPassword(text)}
@@ -156,7 +158,7 @@ export default function LoginScreen({navigation}) {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Login</Text>
+            <Text style={styles.buttonText}>{t('auth.login')}</Text>
           )}
         </TouchableOpacity>
 
@@ -175,7 +177,7 @@ export default function LoginScreen({navigation}) {
           ) : (
             <>
               <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              <Text style={styles.googleButtonText}>{t('auth.googleSignIn')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -185,7 +187,7 @@ export default function LoginScreen({navigation}) {
           onPress={() => navigation.navigate('Signup')}
           disabled={isLoading || isGoogleLoading}>
           <Text style={styles.linkText}>
-            Don't have an account? <Text style={styles.linkBold}>Sign Up</Text>
+            {t('auth.noAccount')} <Text style={styles.linkBold}>{t('auth.signup')}</Text>
           </Text>
         </TouchableOpacity>
       </View>

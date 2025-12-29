@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import {configureGoogleSignIn, signInWithGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function SignupScreen({navigation}) {
+  const {t} = useLanguage();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -111,14 +113,14 @@ export default function SignupScreen({navigation}) {
         showsVerticalScrollIndicator={false}>
         <View style={styles.headerContainer}>
           <Text style={styles.logoText}>🌴</Text>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join the smart farming revolution</Text>
+          <Text style={styles.title}>{t('auth.signup')}</Text>
+          <Text style={styles.subtitle}>{t('common.appName')}</Text>
         </View>
 
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Full Name *"
+            placeholder={t('auth.displayName') + ' *'}
             placeholderTextColor="#999"
             value={fullName}
             onChangeText={setFullName}
@@ -127,7 +129,7 @@ export default function SignupScreen({navigation}) {
 
           <TextInput
             style={styles.input}
-            placeholder="Email *"
+            placeholder={t('auth.email') + ' *'}
             placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
@@ -138,17 +140,7 @@ export default function SignupScreen({navigation}) {
 
           <TextInput
             style={styles.input}
-            placeholder="Phone Number"
-            placeholderTextColor="#999"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-            editable={!isLoading && !isGoogleLoading}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Farm Location"
+            placeholder={t('farm.location')}
             placeholderTextColor="#999"
             value={farmLocation}
             onChangeText={setFarmLocation}
@@ -157,7 +149,7 @@ export default function SignupScreen({navigation}) {
 
           <TextInput
             style={styles.input}
-            placeholder="Password *"
+            placeholder={t('auth.password') + ' *'}
             placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
@@ -167,7 +159,7 @@ export default function SignupScreen({navigation}) {
 
           <TextInput
             style={styles.input}
-            placeholder="Confirm Password *"
+            placeholder={t('auth.confirmPassword') + ' *'}
             placeholderTextColor="#999"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
@@ -182,7 +174,7 @@ export default function SignupScreen({navigation}) {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Register</Text>
+              <Text style={styles.buttonText}>{t('auth.signup')}</Text>
             )}
           </TouchableOpacity>
 
@@ -201,7 +193,7 @@ export default function SignupScreen({navigation}) {
             ) : (
               <>
                 <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
+                <Text style={styles.googleButtonText}>{t('auth.googleSignIn')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -211,7 +203,7 @@ export default function SignupScreen({navigation}) {
             onPress={() => navigation.navigate('Login')}
             disabled={isLoading || isGoogleLoading}>
             <Text style={styles.linkText}>
-              Already have an account? <Text style={styles.linkBold}>Login</Text>
+              {t('auth.haveAccount')} <Text style={styles.linkBold}>{t('auth.login')}</Text>
             </Text>
           </TouchableOpacity>
         </View>

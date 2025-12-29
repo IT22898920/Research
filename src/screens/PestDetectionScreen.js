@@ -17,8 +17,10 @@ import {
   detectAllPests,
   PEST_TYPES,
 } from '../services/pestDetectionApi';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function PestDetectionScreen({navigation}) {
+  const {t} = useLanguage();
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -35,10 +37,10 @@ export default function PestDetectionScreen({navigation}) {
   };
 
   const selectImage = () => {
-    Alert.alert('Select Image', 'Choose how to select an image', [
-      {text: 'Camera', onPress: () => openCamera()},
-      {text: 'Gallery', onPress: () => openGallery()},
-      {text: 'Cancel', style: 'cancel'},
+    Alert.alert(t('pestDetection.selectImage'), t('pestDetection.selectImage'), [
+      {text: t('pestDetection.takePhoto'), onPress: () => openCamera()},
+      {text: t('pestDetection.chooseGallery'), onPress: () => openGallery()},
+      {text: t('common.cancel'), style: 'cancel'},
     ]);
   };
 
@@ -131,7 +133,7 @@ export default function PestDetectionScreen({navigation}) {
 
   const renderPestTypeSelector = () => (
     <View style={styles.pestTypeContainer}>
-      <Text style={styles.pestTypeTitle}>Select Detection Type:</Text>
+      <Text style={styles.pestTypeTitle}>{t('pestDetection.title')}:</Text>
       <View style={styles.pestTypeButtons}>
         <TouchableOpacity
           style={[
@@ -145,7 +147,7 @@ export default function PestDetectionScreen({navigation}) {
               styles.pestTypeText,
               selectedPestType === PEST_TYPES.ALL && styles.pestTypeTextActive,
             ]}>
-            All Pests
+            {t('pestDetection.detectAll')}
           </Text>
         </TouchableOpacity>
 
@@ -161,7 +163,7 @@ export default function PestDetectionScreen({navigation}) {
               styles.pestTypeText,
               selectedPestType === PEST_TYPES.MITE && styles.pestTypeTextActive,
             ]}>
-            Mite
+            {t('pestDetection.coconutMite')}
           </Text>
         </TouchableOpacity>
 
@@ -177,7 +179,7 @@ export default function PestDetectionScreen({navigation}) {
               styles.pestTypeText,
               selectedPestType === PEST_TYPES.CATERPILLAR && styles.pestTypeTextActive,
             ]}>
-            Caterpillar
+            {t('pestDetection.caterpillar')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -195,22 +197,22 @@ export default function PestDetectionScreen({navigation}) {
         <View style={[styles.resultContainer, {borderColor: '#ff9800'}]}>
           <Text style={styles.resultIcon}>❓</Text>
           <Text style={[styles.resultTitle, {color: '#ff9800'}]}>
-            {result.prediction?.label || 'Not a Coconut Image'}
+            {result.prediction?.label || t('pestDetection.notCoconut')}
           </Text>
           <Text style={styles.confidenceText}>
-            Confidence: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
+            {t('pestDetection.confidence')}: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
           </Text>
 
           <View style={styles.invalidImageBox}>
-            <Text style={styles.invalidImageTitle}>Image Not Recognized</Text>
+            <Text style={styles.invalidImageTitle}>{t('pestDetection.imageNotRecognized')}</Text>
             <Text style={styles.invalidImageText}>
-              {result.prediction?.message || 'Please upload a clear image of coconut fruit, flower, or leaf for accurate pest detection.'}
+              {result.prediction?.message || t('pestDetection.uploadClearImage')}
             </Text>
           </View>
 
           {result.probabilities && (
             <View style={styles.probabilitiesContainer}>
-              <Text style={styles.probabilitiesTitle}>Probabilities:</Text>
+              <Text style={styles.probabilitiesTitle}>{t('pestDetection.probabilities')}:</Text>
               {Object.entries(result.probabilities).map(([label, prob]) => (
                 <View key={label} style={styles.probabilityRow}>
                   <Text style={styles.probabilityLabel}>{label}:</Text>
@@ -230,15 +232,15 @@ export default function PestDetectionScreen({navigation}) {
       <View style={[styles.resultContainer, {borderColor: getResultColor()}]}>
         <Text style={styles.resultIcon}>{getResultIcon()}</Text>
         <Text style={[styles.resultTitle, {color: getResultColor()}]}>
-          {result.prediction?.label || (result.prediction?.is_infected ? 'Pest Detected' : 'Healthy')}
+          {result.prediction?.label || (result.prediction?.is_infected ? t('pestDetection.infected') : t('pestDetection.healthy'))}
         </Text>
         <Text style={styles.confidenceText}>
-          Confidence: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
+          {t('pestDetection.confidence')}: {((result.prediction?.confidence || 0) * 100).toFixed(1)}%
         </Text>
 
         {result.probabilities && (
           <View style={styles.probabilitiesContainer}>
-            <Text style={styles.probabilitiesTitle}>Probabilities:</Text>
+            <Text style={styles.probabilitiesTitle}>{t('pestDetection.probabilities')}:</Text>
             {Object.entries(result.probabilities).map(([label, prob]) => (
               <View key={label} style={styles.probabilityRow}>
                 <Text style={styles.probabilityLabel}>{label}:</Text>
@@ -253,11 +255,11 @@ export default function PestDetectionScreen({navigation}) {
 
         {result.prediction?.is_infected && (
           <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>⚠️ Action Required</Text>
+            <Text style={styles.warningTitle}>⚠️ {t('pestDetection.actionRequired')}</Text>
             <Text style={styles.warningText}>
               {result.pestType === PEST_TYPES.MITE
-                ? 'Coconut mite infection detected. Consider applying appropriate pesticide treatment.'
-                : 'Caterpillar damage detected. Consider applying appropriate pest control measures.'}
+                ? t('pestDetection.coconutMite') + ' - ' + t('pestDetection.detected')
+                : t('pestDetection.caterpillar') + ' - ' + t('pestDetection.detected')}
             </Text>
           </View>
         )}
@@ -276,19 +278,19 @@ export default function PestDetectionScreen({navigation}) {
         <View style={[styles.resultContainer, {borderColor: '#ff9800'}]}>
           <Text style={styles.resultIcon}>❓</Text>
           <Text style={[styles.resultTitle, {color: '#ff9800'}]}>
-            {result.summary?.label || 'Not a Coconut Image'}
+            {result.summary?.label || t('pestDetection.notCoconut')}
           </Text>
 
           <View style={styles.invalidImageBox}>
-            <Text style={styles.invalidImageTitle}>Image Not Recognized</Text>
+            <Text style={styles.invalidImageTitle}>{t('pestDetection.imageNotRecognized')}</Text>
             <Text style={styles.invalidImageText}>
-              {result.summary?.message || 'Please upload a clear image of coconut fruit, flower, or leaf for accurate pest detection.'}
+              {result.summary?.message || t('pestDetection.uploadClearImage')}
             </Text>
           </View>
 
           {result.summary?.recommendation && (
             <View style={styles.recommendationBox}>
-              <Text style={styles.recommendationTitle}>Recommendation</Text>
+              <Text style={styles.recommendationTitle}>{t('pestDetection.recommendation')}</Text>
               <Text style={styles.recommendationText}>
                 {result.summary.recommendation}
               </Text>
@@ -302,7 +304,7 @@ export default function PestDetectionScreen({navigation}) {
       <View style={[styles.resultContainer, {borderColor: getResultColor()}]}>
         <Text style={styles.resultIcon}>{getResultIcon()}</Text>
         <Text style={[styles.resultTitle, {color: getResultColor()}]}>
-          {result.summary?.label || (result.summary?.is_healthy ? 'Healthy' : 'Pest Detected')}
+          {result.summary?.label || (result.summary?.is_healthy ? t('pestDetection.healthy') : t('pestDetection.infected'))}
         </Text>
 
         {/* Display API message if available */}
@@ -316,13 +318,13 @@ export default function PestDetectionScreen({navigation}) {
           {result.results?.mite && (
             <View style={styles.pestResultCard}>
               <Text style={styles.pestResultIcon}>🕷️</Text>
-              <Text style={styles.pestResultName}>Coconut Mite</Text>
+              <Text style={styles.pestResultName}>{t('pestDetection.coconutMite')}</Text>
               <Text
                 style={[
                   styles.pestResultStatus,
                   {color: result.results.mite.class === 'not_coconut' ? '#ff9800' : result.results.mite.is_infected ? '#d32f2f' : '#2e7d32'},
                 ]}>
-                {result.results.mite.class === 'not_coconut' ? 'N/A' : result.results.mite.is_infected ? 'DETECTED' : 'Not Found'}
+                {result.results.mite.class === 'not_coconut' ? 'N/A' : result.results.mite.is_infected ? t('pestDetection.detected') : t('pestDetection.notFound')}
               </Text>
               <Text style={styles.pestResultConfidence}>
                 {((result.results.mite.confidence || 0) * 100).toFixed(1)}%
@@ -334,13 +336,13 @@ export default function PestDetectionScreen({navigation}) {
           {result.results?.caterpillar && (
             <View style={styles.pestResultCard}>
               <Text style={styles.pestResultIcon}>🐛</Text>
-              <Text style={styles.pestResultName}>Caterpillar</Text>
+              <Text style={styles.pestResultName}>{t('pestDetection.caterpillar')}</Text>
               <Text
                 style={[
                   styles.pestResultStatus,
                   {color: result.results.caterpillar.class === 'not_coconut' ? '#ff9800' : result.results.caterpillar.is_infected ? '#d32f2f' : '#2e7d32'},
                 ]}>
-                {result.results.caterpillar.class === 'not_coconut' ? 'N/A' : result.results.caterpillar.is_infected ? 'DETECTED' : 'Not Found'}
+                {result.results.caterpillar.class === 'not_coconut' ? 'N/A' : result.results.caterpillar.is_infected ? t('pestDetection.detected') : t('pestDetection.notFound')}
               </Text>
               <Text style={styles.pestResultConfidence}>
                 {((result.results.caterpillar.confidence || 0) * 100).toFixed(1)}%
@@ -353,7 +355,7 @@ export default function PestDetectionScreen({navigation}) {
         {result.summary?.recommendation && (
           <View style={[styles.recommendationBox, !result.summary?.is_healthy && styles.warningRecommendation]}>
             <Text style={[styles.recommendationTitle, !result.summary?.is_healthy && styles.warningRecommendationTitle]}>
-              {result.summary?.is_healthy ? '✓ Recommendation' : '⚠️ Action Required'}
+              {result.summary?.is_healthy ? '✓ ' + t('pestDetection.recommendation') : '⚠️ ' + t('pestDetection.actionRequired')}
             </Text>
             <Text style={[styles.recommendationText, !result.summary?.is_healthy && styles.warningRecommendationText]}>
               {result.summary.recommendation}
@@ -364,7 +366,7 @@ export default function PestDetectionScreen({navigation}) {
         {/* Pests detected list */}
         {result.summary?.pests_detected && result.summary.pests_detected.length > 0 && (
           <View style={styles.pestsDetectedBox}>
-            <Text style={styles.pestsDetectedTitle}>Detected Pests:</Text>
+            <Text style={styles.pestsDetectedTitle}>{t('pestDetection.pestsDetected')}:</Text>
             <Text style={styles.pestsDetectedText}>
               {result.summary.pests_detected.join(', ')}
             </Text>
@@ -379,9 +381,9 @@ export default function PestDetectionScreen({navigation}) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
+          <Text style={styles.backButton}>← {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Pest Detection</Text>
+        <Text style={styles.title}>{t('pestDetection.title')}</Text>
         <View
           style={[
             styles.statusBadge,
@@ -403,7 +405,7 @@ export default function PestDetectionScreen({navigation}) {
         ) : (
           <View style={styles.placeholderContainer}>
             <Text style={styles.placeholderIcon}>🌴</Text>
-            <Text style={styles.placeholderText}>Select a coconut image to analyze</Text>
+            <Text style={styles.placeholderText}>{t('pestDetection.selectImage')}</Text>
           </View>
         )}
       </View>
@@ -411,7 +413,7 @@ export default function PestDetectionScreen({navigation}) {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.selectButton} onPress={selectImage}>
-          <Text style={styles.selectButtonText}>📷 Select Image</Text>
+          <Text style={styles.selectButtonText}>📷 {t('pestDetection.selectImage')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -421,7 +423,7 @@ export default function PestDetectionScreen({navigation}) {
           {isAnalyzing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.analyzeButtonText}>🔬 Analyze for Pests</Text>
+            <Text style={styles.analyzeButtonText}>🔬 {t('pestDetection.detectAll')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -431,12 +433,12 @@ export default function PestDetectionScreen({navigation}) {
 
       {/* Info Section */}
       <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>About This Feature</Text>
+        <Text style={styles.infoTitle}>{t('pestDetection.aboutFeature')}</Text>
         <Text style={styles.infoText}>
-          AI-powered pest detection using EfficientNetB0 and MobileNetV2 models.{'\n'}
-          • Mite Detection (v10): 91.44% accuracy{'\n'}
-          • Caterpillar Detection (v2): 97.47% accuracy{'\n'}
-          • Both models detect non-coconut images
+          {t('pestDetection.aboutDescription')}{'\n'}
+          • {t('pestDetection.miteAccuracy')}{'\n'}
+          • {t('pestDetection.caterpillarAccuracy')}{'\n'}
+          • {t('pestDetection.detectsNonCoconut')}
         </Text>
       </View>
     </ScrollView>
