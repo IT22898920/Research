@@ -17,6 +17,9 @@ import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import ScanDetailScreen from './src/screens/ScanDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +41,9 @@ function App(): React.JSX.Element {
             <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />
+            <Stack.Screen name="ScanDetail" component={ScanDetailScreen} />
+            <Stack.Screen name="Analytics" component={AnalyticsScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

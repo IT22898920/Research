@@ -24,6 +24,7 @@ import {
   setApiKey,
   isApiKeyConfigured,
 } from '../services/treatmentApi';
+import {scanAPI} from '../services/scanApi';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function PestDetectionScreen({navigation}) {
@@ -54,6 +55,84 @@ export default function PestDetectionScreen({navigation}) {
   const checkApiKeyStatus = async () => {
     const configured = await isApiKeyConfigured();
     setHasApiKey(configured);
+  };
+
+  // Save scan result to database (non-blocking)
+  const saveScanToDatabase = async (scanResult, scanType) => {
+    try {
+      let scanData;
+
+      if (scanType === PEST_TYPES.ALL) {
+        const miteResult = scanResult.results?.mite;
+        const caterpillarResult = scanResult.results?.caterpillar;
+        const isInfected = !scanResult.summary?.is_healthy;
+
+        // Get severity from the highest confidence infected pest
+        let severity = null;
+        if (miteResult?.is_infected) {
+          const sev = getSeverity(miteResult.confidence, true);
+          if (sev) severity = {level: sev.level, percent: sev.percent};
+        } else if (caterpillarResult?.is_infected) {
+          const sev = getSeverity(caterpillarResult.confidence, true);
+          if (sev) severity = {level: sev.level, percent: sev.percent};
+        }
+
+        scanData = {
+          scanType: 'all',
+          isInfected: isInfected,
+          isValidImage: scanResult.summary?.is_valid_image !== false,
+          results: {
+            mite: miteResult
+              ? {
+                  detected: miteResult.is_infected || false,
+                  confidence: miteResult.confidence || 0,
+                  class: miteResult.class || miteResult.label,
+                }
+              : null,
+            caterpillar: caterpillarResult
+              ? {
+                  detected: caterpillarResult.is_infected || false,
+                  confidence: caterpillarResult.confidence || 0,
+                  class: caterpillarResult.class || caterpillarResult.label,
+                }
+              : null,
+          },
+          pestsDetected: scanResult.summary?.pests_detected || [],
+          severity: severity,
+        };
+      } else {
+        const prediction = scanResult.prediction;
+        const isInfected = prediction?.is_infected || false;
+        const severity = getSeverity(prediction?.confidence || 0, isInfected);
+
+        scanData = {
+          scanType: scanType === PEST_TYPES.MITE ? 'mite' : 'caterpillar',
+          isInfected: isInfected,
+          isValidImage: prediction?.is_valid_image !== false,
+          results: {
+            [scanType === PEST_TYPES.MITE ? 'mite' : 'caterpillar']: {
+              detected: isInfected,
+              confidence: prediction?.confidence || 0,
+              class: prediction?.class || prediction?.label,
+            },
+          },
+          pestsDetected: isInfected
+            ? [scanType === PEST_TYPES.MITE ? 'coconut_mite' : 'caterpillar']
+            : [],
+          severity: severity
+            ? {level: severity.level, percent: severity.percent}
+            : null,
+        };
+      }
+
+      // Get base64 image if available for Cloudinary upload
+      const imageBase64 = selectedImage?.base64 || null;
+      await scanAPI.saveScan(scanData, imageBase64);
+      console.log('Scan saved to database successfully');
+    } catch (error) {
+      console.error('Error saving scan to database:', error);
+      // Don't show error to user - scan saving is secondary
+    }
   };
 
   const handleSaveApiKey = async () => {
@@ -103,14 +182,14 @@ export default function PestDetectionScreen({navigation}) {
 
   const openCamera = () => {
     launchCamera(
-      {mediaType: 'photo', quality: 0.8, maxWidth: 1024, maxHeight: 1024},
+      {mediaType: 'photo', quality: 0.8, maxWidth: 1024, maxHeight: 1024, includeBase64: true},
       handleImageResponse,
     );
   };
 
   const openGallery = () => {
     launchImageLibrary(
-      {mediaType: 'photo', quality: 0.8, maxWidth: 1024, maxHeight: 1024},
+      {mediaType: 'photo', quality: 0.8, maxWidth: 1024, maxHeight: 1024, includeBase64: true},
       handleImageResponse,
     );
   };
@@ -158,6 +237,8 @@ export default function PestDetectionScreen({navigation}) {
 
       if (response.success) {
         setResult({...response, pestType: selectedPestType});
+        // Save scan to database (non-blocking)
+        saveScanToDatabase(response, selectedPestType);
       } else {
         Alert.alert('Analysis Failed', response.error || 'Could not analyze image');
       }

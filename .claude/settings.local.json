@@ -75,7 +75,8 @@
       "Bash(set:*)",
       "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\")",
       "Bash(tree:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node src/server.js:*)"
     ]
   }
 }

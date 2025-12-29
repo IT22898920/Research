@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import {scanAPI} from '../services/scanApi';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function AdminDashboardScreen({navigation, route}) {
@@ -17,9 +18,33 @@ export default function AdminDashboardScreen({navigation, route}) {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalScans: 0,
-    activeDevices: 0,
+    infectedScans: 0,
+    infectionRate: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setIsLoading(true);
+      const response = await scanAPI.getAnalytics(30);
+      if (response.data?.overview) {
+        setStats({
+          totalUsers: response.data.overview.totalUsers || 0,
+          totalScans: response.data.overview.totalScans || 0,
+          infectedScans: response.data.overview.infectedScans || 0,
+          infectionRate: response.data.overview.infectionRate || 0,
+        });
+      }
+    } catch (error) {
+      console.log('Failed to load admin stats:', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -58,21 +83,29 @@ export default function AdminDashboardScreen({navigation, route}) {
 
       {/* Stats Section */}
       <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>{t('dashboard.adminPanel')}</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.totalUsers}</Text>
-            <Text style={styles.statLabel}>{t('userManagement.totalUsers')}</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.totalScans')}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#e94560" />
+        ) : (
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{stats.totalScans}</Text>
+              <Text style={styles.statLabel}>{t('dashboard.totalScans')}</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, {color: '#f44336'}]}>
+                {stats.infectedScans}
+              </Text>
+              <Text style={styles.statLabel}>{t('dashboard.infectedTrees')}</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, {color: '#4caf50'}]}>
+                {parseFloat(stats.infectionRate || 0).toFixed(1)}%
+              </Text>
+              <Text style={styles.statLabel}>Infection Rate</Text>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.totalScans}</Text>
-            <Text style={styles.statLabel}>{t('dashboard.totalScans')}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.activeDevices}</Text>
-            <Text style={styles.statLabel}>{t('adminFeatures.droneFleet')}</Text>
-          </View>
-        </View>
+        )}
       </View>
 
       {/* Admin Features */}
@@ -98,7 +131,9 @@ export default function AdminDashboardScreen({navigation, route}) {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.featureCard}>
+        <TouchableOpacity
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('Analytics', {isAdmin: true})}>
           <Text style={styles.featureIcon}>📊</Text>
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>{t('adminFeatures.analytics')}</Text>

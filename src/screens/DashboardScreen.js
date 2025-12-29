@@ -77,13 +77,16 @@ export default function DashboardScreen({navigation, route}) {
           </View>
         </View>
 
-        <View style={styles.featureCard}>
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('ScanHistory')}>
           <Text style={styles.featureIcon}>📊</Text>
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>{t('adminFeatures.analytics')}</Text>
-            <Text style={styles.featureSubtext}>Coming soon</Text>
+            <Text style={styles.featureSubtext}>View scan history & stats</Text>
           </View>
-        </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.featureCardActive}
