@@ -74,7 +74,9 @@
       "Bash(taskkill:*)",
       "Bash(set:*)",
       "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\")",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(tasklist /FI \"PID eq 7644\" /V)"
     ]
   }
 }
