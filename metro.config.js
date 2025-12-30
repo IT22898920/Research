@@ -11,12 +11,7 @@ const config = {
     blockList: [
       // Exclude backend folder from Metro bundler
       /backend\/.*/,
-    ],
-  },
-  watcher: {
-    additionalExclusions: [
-      // Exclude backend folder from file watcher
-      /backend/,
+      /\.git\/.*/,
     ],
   },
 };
