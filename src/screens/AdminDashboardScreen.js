@@ -9,15 +9,42 @@ import {
 } from 'react-native';
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import {scanAPI} from '../services/scanApi';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function AdminDashboardScreen({navigation, route}) {
+  const {t} = useLanguage();
   const user = route.params?.user;
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalScans: 0,
-    activeDevices: 0,
+    infectedScans: 0,
+    infectionRate: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setIsLoading(true);
+      const response = await scanAPI.getAnalytics(30);
+      if (response.data?.overview) {
+        setStats({
+          totalUsers: response.data.overview.totalUsers || 0,
+          totalScans: response.data.overview.totalScans || 0,
+          infectedScans: response.data.overview.infectedScans || 0,
+          infectionRate: response.data.overview.infectionRate || 0,
+        });
+      }
+    } catch (error) {
+      console.log('Failed to load admin stats:', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -42,40 +69,48 @@ export default function AdminDashboardScreen({navigation, route}) {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Admin Panel</Text>
-        <Text style={styles.appTitle}>Coconut Health Monitor</Text>
+        <Text style={styles.welcomeText}>{t('dashboard.adminPanel')}</Text>
+        <Text style={styles.appTitle}>{t('common.appName')}</Text>
       </View>
 
       <View style={styles.userCard}>
         <View style={styles.adminBadge}>
-          <Text style={styles.adminBadgeText}>ADMIN</Text>
+          <Text style={styles.adminBadgeText}>{t('userManagement.admin').toUpperCase()}</Text>
         </View>
-        <Text style={styles.userName}>{user?.displayName || 'Admin'}</Text>
+        <Text style={styles.userName}>{user?.displayName || t('userManagement.admin')}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
       </View>
 
       {/* Stats Section */}
       <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Dashboard Statistics</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.totalUsers}</Text>
-            <Text style={styles.statLabel}>Total Users</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.totalScans')}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#e94560" />
+        ) : (
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{stats.totalScans}</Text>
+              <Text style={styles.statLabel}>{t('dashboard.totalScans')}</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, {color: '#f44336'}]}>
+                {stats.infectedScans}
+              </Text>
+              <Text style={styles.statLabel}>{t('dashboard.infectedTrees')}</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, {color: '#4caf50'}]}>
+                {parseFloat(stats.infectionRate || 0).toFixed(1)}%
+              </Text>
+              <Text style={styles.statLabel}>Infection Rate</Text>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.totalScans}</Text>
-            <Text style={styles.statLabel}>Total Scans</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.activeDevices}</Text>
-            <Text style={styles.statLabel}>Active Drones</Text>
-          </View>
-        </View>
+        )}
       </View>
 
       {/* Admin Features */}
       <View style={styles.featuresContainer}>
-        <Text style={styles.sectionTitle}>Admin Features</Text>
+        <Text style={styles.sectionTitle}>{t('adminFeatures.title')}</Text>
 
         <TouchableOpacity
           style={styles.featureCard}
@@ -83,46 +118,51 @@ export default function AdminDashboardScreen({navigation, route}) {
         >
           <Text style={styles.featureIcon}>👥</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>User Management</Text>
-            <Text style={styles.featureSubtext}>Manage users and permissions</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.userManagement')}</Text>
+            <Text style={styles.featureSubtext}>{t('adminFeatures.userManagementDesc')}</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Drone Fleet</Text>
-            <Text style={styles.featureSubtext}>Monitor and manage drones</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.droneFleet')}</Text>
+            <Text style={styles.featureSubtext}>{t('adminFeatures.droneFleetDesc')}</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.featureCard}>
+        <TouchableOpacity
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('Analytics', {isAdmin: true})}>
           <Text style={styles.featureIcon}>📊</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Analytics</Text>
-            <Text style={styles.featureSubtext}>View system analytics</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.analytics')}</Text>
+            <Text style={styles.featureSubtext}>{t('adminFeatures.analyticsDesc')}</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.featureCard}>
           <Text style={styles.featureIcon}>🌴</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Farm Management</Text>
-            <Text style={styles.featureSubtext}>Manage all farms and trees</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.farmManagement')}</Text>
+            <Text style={styles.featureSubtext}>{t('adminFeatures.farmManagementDesc')}</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.featureCard}>
+        <TouchableOpacity
+          style={styles.featureCard}
+          onPress={() => navigation.navigate('Settings')}
+        >
           <Text style={styles.featureIcon}>⚙️</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>System Settings</Text>
-            <Text style={styles.featureSubtext}>Configure system parameters</Text>
+            <Text style={styles.featureText}>{t('adminFeatures.settings')}</Text>
+            <Text style={styles.featureSubtext}>{t('adminFeatures.settingsDesc')}</Text>
           </View>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
+        <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

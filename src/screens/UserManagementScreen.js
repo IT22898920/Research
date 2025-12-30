@@ -12,8 +12,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import {userAPI} from '../services/userApi';
+import {useLanguage} from '../context/LanguageContext';
 
 export default function UserManagementScreen({navigation}) {
+  const {t} = useLanguage();
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -172,10 +174,10 @@ export default function UserManagementScreen({navigation}) {
         <Text style={styles.userEmail}>{item.email}</Text>
         <View style={styles.badgeRow}>
           <View style={[styles.badge, item.role === 'admin' ? styles.adminBadge : styles.userBadge]}>
-            <Text style={styles.badgeText}>{item.role?.toUpperCase()}</Text>
+            <Text style={styles.badgeText}>{item.role === 'admin' ? t('userManagement.admin').toUpperCase() : t('userManagement.user').toUpperCase()}</Text>
           </View>
           <View style={[styles.badge, item.isActive ? styles.activeBadge : styles.inactiveBadge]}>
-            <Text style={styles.badgeText}>{item.isActive ? 'ACTIVE' : 'INACTIVE'}</Text>
+            <Text style={styles.badgeText}>{item.isActive ? t('userManagement.active').toUpperCase() : t('userManagement.inactive').toUpperCase()}</Text>
           </View>
         </View>
       </View>
@@ -184,13 +186,13 @@ export default function UserManagementScreen({navigation}) {
           style={styles.editButton}
           onPress={() => handleEditPress(item)}
         >
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.editButtonText}>{t('common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => handleDeletePress(item)}
         >
-          <Text style={styles.deleteButtonText}>Delete</Text>
+          <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -203,7 +205,7 @@ export default function UserManagementScreen({navigation}) {
         onPress={() => handlePageChange(pagination.currentPage - 1)}
         disabled={pagination.currentPage === 1}
       >
-        <Text style={styles.pageButtonText}>Prev</Text>
+        <Text style={styles.pageButtonText}>{t('common.prev')}</Text>
       </TouchableOpacity>
       <Text style={styles.pageInfo}>
         {pagination.currentPage} / {pagination.totalPages}
@@ -213,7 +215,7 @@ export default function UserManagementScreen({navigation}) {
         onPress={() => handlePageChange(pagination.currentPage + 1)}
         disabled={!pagination.hasMore}
       >
-        <Text style={styles.pageButtonText}>Next</Text>
+        <Text style={styles.pageButtonText}>{t('common.next')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -223,9 +225,9 @@ export default function UserManagementScreen({navigation}) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>User Management</Text>
+        <Text style={styles.headerTitle}>{t('userManagement.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -233,19 +235,19 @@ export default function UserManagementScreen({navigation}) {
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{stats.totalUsers}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+          <Text style={styles.statLabel}>{t('userManagement.totalUsers')}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={[styles.statNumber, {color: '#4ade80'}]}>{stats.activeUsers}</Text>
-          <Text style={styles.statLabel}>Active</Text>
+          <Text style={styles.statLabel}>{t('userManagement.active')}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={[styles.statNumber, {color: '#e94560'}]}>{stats.adminUsers}</Text>
-          <Text style={styles.statLabel}>Admins</Text>
+          <Text style={styles.statLabel}>{t('userManagement.adminUsers')}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={[styles.statNumber, {color: '#60a5fa'}]}>{stats.regularUsers}</Text>
-          <Text style={styles.statLabel}>Users</Text>
+          <Text style={styles.statLabel}>{t('userManagement.regularUsers')}</Text>
         </View>
       </View>
 
@@ -253,7 +255,7 @@ export default function UserManagementScreen({navigation}) {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name or email..."
+          placeholder={t('userManagement.searchPlaceholder')}
           placeholderTextColor="#666"
           value={search}
           onChangeText={setSearch}
@@ -266,25 +268,25 @@ export default function UserManagementScreen({navigation}) {
           style={[styles.filterChip, roleFilter === '' && styles.filterChipActive]}
           onPress={() => setRoleFilter('')}
         >
-          <Text style={[styles.filterChipText, roleFilter === '' && styles.filterChipTextActive]}>All Roles</Text>
+          <Text style={[styles.filterChipText, roleFilter === '' && styles.filterChipTextActive]}>{t('userManagement.allRoles')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, roleFilter === 'admin' && styles.filterChipActive]}
           onPress={() => setRoleFilter('admin')}
         >
-          <Text style={[styles.filterChipText, roleFilter === 'admin' && styles.filterChipTextActive]}>Admin</Text>
+          <Text style={[styles.filterChipText, roleFilter === 'admin' && styles.filterChipTextActive]}>{t('userManagement.admin')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, roleFilter === 'user' && styles.filterChipActive]}
           onPress={() => setRoleFilter('user')}
         >
-          <Text style={[styles.filterChipText, roleFilter === 'user' && styles.filterChipTextActive]}>User</Text>
+          <Text style={[styles.filterChipText, roleFilter === 'user' && styles.filterChipTextActive]}>{t('userManagement.user')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, statusFilter === 'true' && styles.filterChipActive]}
           onPress={() => setStatusFilter(statusFilter === 'true' ? '' : 'true')}
         >
-          <Text style={[styles.filterChipText, statusFilter === 'true' && styles.filterChipTextActive]}>Active</Text>
+          <Text style={[styles.filterChipText, statusFilter === 'true' && styles.filterChipTextActive]}>{t('userManagement.active')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -309,7 +311,7 @@ export default function UserManagementScreen({navigation}) {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No users found</Text>
+              <Text style={styles.emptyText}>{t('userManagement.noUsers')}</Text>
             </View>
           }
           ListFooterComponent={users.length > 0 ? renderPagination : null}
@@ -325,39 +327,39 @@ export default function UserManagementScreen({navigation}) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit User</Text>
+            <Text style={styles.modalTitle}>{t('userManagement.editUser')}</Text>
             <Text style={styles.modalUserName}>{selectedUser?.displayName}</Text>
             <Text style={styles.modalUserEmail}>{selectedUser?.email}</Text>
 
-            <Text style={styles.modalLabel}>Role</Text>
+            <Text style={styles.modalLabel}>{t('userManagement.role')}</Text>
             <View style={styles.roleSelector}>
               <TouchableOpacity
                 style={[styles.roleOption, editRole === 'user' && styles.roleOptionActive]}
                 onPress={() => setEditRole('user')}
               >
-                <Text style={[styles.roleOptionText, editRole === 'user' && styles.roleOptionTextActive]}>User</Text>
+                <Text style={[styles.roleOptionText, editRole === 'user' && styles.roleOptionTextActive]}>{t('userManagement.user')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.roleOption, editRole === 'admin' && styles.roleOptionActive]}
                 onPress={() => setEditRole('admin')}
               >
-                <Text style={[styles.roleOptionText, editRole === 'admin' && styles.roleOptionTextActive]}>Admin</Text>
+                <Text style={[styles.roleOptionText, editRole === 'admin' && styles.roleOptionTextActive]}>{t('userManagement.admin')}</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>Status</Text>
+            <Text style={styles.modalLabel}>{t('userManagement.status')}</Text>
             <View style={styles.roleSelector}>
               <TouchableOpacity
                 style={[styles.roleOption, editIsActive && styles.roleOptionActive]}
                 onPress={() => setEditIsActive(true)}
               >
-                <Text style={[styles.roleOptionText, editIsActive && styles.roleOptionTextActive]}>Active</Text>
+                <Text style={[styles.roleOptionText, editIsActive && styles.roleOptionTextActive]}>{t('userManagement.active')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.roleOption, !editIsActive && styles.roleOptionActive]}
                 onPress={() => setEditIsActive(false)}
               >
-                <Text style={[styles.roleOptionText, !editIsActive && styles.roleOptionTextActive]}>Inactive</Text>
+                <Text style={[styles.roleOptionText, !editIsActive && styles.roleOptionTextActive]}>{t('userManagement.inactive')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -367,7 +369,7 @@ export default function UserManagementScreen({navigation}) {
                 onPress={() => setEditModalVisible(false)}
                 disabled={isSubmitting}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.saveButton}
@@ -377,7 +379,7 @@ export default function UserManagementScreen({navigation}) {
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Text style={styles.saveButtonText}>{t('common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -394,13 +396,13 @@ export default function UserManagementScreen({navigation}) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete User</Text>
+            <Text style={styles.modalTitle}>{t('userManagement.deleteUser')}</Text>
             <Text style={styles.deleteWarning}>
-              Are you sure you want to delete this user?
+              {t('userManagement.deleteConfirm')}
             </Text>
             <Text style={styles.modalUserName}>{selectedUser?.displayName}</Text>
             <Text style={styles.modalUserEmail}>{selectedUser?.email}</Text>
-            <Text style={styles.deleteNote}>This action cannot be undone.</Text>
+            <Text style={styles.deleteNote}>{t('userManagement.deleteWarning')}</Text>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -408,7 +410,7 @@ export default function UserManagementScreen({navigation}) {
                 onPress={() => setDeleteModalVisible(false)}
                 disabled={isSubmitting}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmDeleteButton}
@@ -418,7 +420,7 @@ export default function UserManagementScreen({navigation}) {
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmDeleteButtonText}>Delete</Text>
+                  <Text style={styles.confirmDeleteButtonText}>{t('common.delete')}</Text>
                 )}
               </TouchableOpacity>
             </View>
