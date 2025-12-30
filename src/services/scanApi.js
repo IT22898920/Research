@@ -79,4 +79,28 @@ export const scanAPI = {
   },
 };
 
+// Notification API
+export const notificationAPI = {
+  // Update FCM token on server
+  updateFCMToken: async (fcmToken) => {
+    return apiRequest('/notifications/token', {
+      method: 'POST',
+      body: JSON.stringify({ fcmToken }),
+    });
+  },
+
+  // Get notification settings
+  getSettings: async () => {
+    return apiRequest('/notifications/settings');
+  },
+
+  // Update notification settings
+  updateSettings: async (enabled) => {
+    return apiRequest('/notifications/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    });
+  },
+};
+
 export default scanAPI;

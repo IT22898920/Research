@@ -25,6 +25,7 @@ import {
   isApiKeyConfigured,
 } from '../services/treatmentApi';
 import {scanAPI} from '../services/scanApi';
+import {showPestDetectionNotification} from '../services/notificationService';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function PestDetectionScreen({navigation}) {
@@ -127,8 +128,17 @@ export default function PestDetectionScreen({navigation}) {
 
       // Get base64 image if available for Cloudinary upload
       const imageBase64 = selectedImage?.base64 || null;
-      await scanAPI.saveScan(scanData, imageBase64);
+      const savedScan = await scanAPI.saveScan(scanData, imageBase64);
       console.log('Scan saved to database successfully');
+
+      // Show notification if pest was detected
+      if (scanData.isInfected && scanData.pestsDetected?.length > 0) {
+        const pestName = scanData.pestsDetected.includes('coconut_mite')
+          ? 'Coconut Mite'
+          : 'Caterpillar';
+        const severity = scanData.severity?.level || 'moderate';
+        showPestDetectionNotification(pestName, severity, savedScan?.data?._id);
+      }
     } catch (error) {
       console.error('Error saving scan to database:', error);
       // Don't show error to user - scan saving is secondary

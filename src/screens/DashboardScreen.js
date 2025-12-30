@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,18 @@ import {
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
 import {useLanguage} from '../context/LanguageContext';
+import {syncFCMToken} from '../services/notificationService';
 
 export default function DashboardScreen({navigation, route}) {
   const {t} = useLanguage();
   const user = route.params?.user;
+
+  // Sync FCM token with server after login
+  useEffect(() => {
+    syncFCMToken().catch(err =>
+      console.log('FCM token sync error:', err.message),
+    );
+  }, []);
 
   const handleLogout = async () => {
     try {
