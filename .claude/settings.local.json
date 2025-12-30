@@ -75,6 +75,8 @@
       "Bash(set:*)",
       "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\")",
       "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(tasklist /FI \"PID eq 7644\" /V)",
       "Bash(npm install:*)",
       "Bash(node src/server.js:*)",
       "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\(''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\coconut-app-cd914-firebase-adminsdk-fbsvc-1c56f671da.json''\\)\\)\")",
