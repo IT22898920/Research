@@ -1,0 +1,78 @@
+{
+  "model_name": "unified_caterpillar_whitefly_v2",
+  "version": "v2",
+  "architecture": "EfficientNetB0",
+  "classes": [
+    "caterpillar",
+    "healthy",
+    "not_coconut",
+    "white_fly"
+  ],
+  "num_classes": 4,
+  "input_size": [
+    224,
+    224,
+    3
+  ],
+  "training_date": "2026-01-02 01:52:29",
+  "test_accuracy": 0.5617977380752563,
+  "test_loss": 0.7420470714569092,
+  "macro_precision": 0.29126742160278746,
+  "macro_recall": 0.33772282921219093,
+  "macro_f1": 0.2916959064327485,
+  "per_class_metrics": {
+    "caterpillar": {
+      "precision": 0.6071428571428571,
+      "recall": 0.3617021276595745,
+      "f1-score": 0.4533333333333333,
+      "support": 47
+    },
+    "healthy": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 45
+    },
+    "not_coconut": {
+      "precision": 0.5579268292682927,
+      "recall": 0.9891891891891892,
+      "f1-score": 0.7134502923976608,
+      "support": 185
+    },
+    "white_fly": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 79
+    }
+  },
+  "training_config": {
+    "model_name": "unified_caterpillar_whitefly_v2",
+    "img_size": [
+      224,
+      224
+    ],
+    "batch_size": 32,
+    "classes": [
+      "caterpillar",
+      "healthy",
+      "not_coconut",
+      "white_fly"
+    ],
+    "phase1_epochs": 20,
+    "phase2_epochs": 30,
+    "learning_rate_phase1": 0.001,
+    "learning_rate_phase2": 1e-05,
+    "focal_gamma": 2.5,
+    "label_smoothing": 0.1,
+    "dropout_rate": 0.4
+  },
+  "dataset_info": {
+    "total_images": 17405,
+    "train_images": 16590,
+    "validation_images": 459,
+    "test_images": 356,
+    "note": "No duplicate healthy/not_coconut data - from caterpillar dataset only"
+  },
+  "training_time_minutes": 197.37398916666666
+}

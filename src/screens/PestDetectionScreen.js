@@ -16,6 +16,7 @@ import {
   checkApiHealth,
   detectMite,
   detectCaterpillar,
+  detectWhiteFly,
   detectAllPests,
   PEST_TYPES,
 } from '../services/pestDetectionApi';
@@ -66,6 +67,7 @@ export default function PestDetectionScreen({navigation}) {
       if (scanType === PEST_TYPES.ALL) {
         const miteResult = scanResult.results?.mite;
         const caterpillarResult = scanResult.results?.caterpillar;
+        const whiteFlyResult = scanResult.results?.white_fly;
         const isInfected = !scanResult.summary?.is_healthy;
 
         // Get severity from the highest confidence infected pest
@@ -75,6 +77,9 @@ export default function PestDetectionScreen({navigation}) {
           if (sev) severity = {level: sev.level, percent: sev.percent};
         } else if (caterpillarResult?.is_infected) {
           const sev = getSeverity(caterpillarResult.confidence, true);
+          if (sev) severity = {level: sev.level, percent: sev.percent};
+        } else if (whiteFlyResult?.is_infected) {
+          const sev = getSeverity(whiteFlyResult.confidence, true);
           if (sev) severity = {level: sev.level, percent: sev.percent};
         }
 
@@ -97,6 +102,13 @@ export default function PestDetectionScreen({navigation}) {
                   class: caterpillarResult.class || caterpillarResult.label,
                 }
               : null,
+            white_fly: whiteFlyResult
+              ? {
+                  detected: whiteFlyResult.is_infected || false,
+                  confidence: whiteFlyResult.confidence || 0,
+                  class: whiteFlyResult.class || whiteFlyResult.label,
+                }
+              : null,
           },
           pestsDetected: scanResult.summary?.pests_detected || [],
           severity: severity,
@@ -106,20 +118,26 @@ export default function PestDetectionScreen({navigation}) {
         const isInfected = prediction?.is_infected || false;
         const severity = getSeverity(prediction?.confidence || 0, isInfected);
 
+        // Map scan type to result key and pest name
+        const scanTypeMap = {
+          [PEST_TYPES.MITE]: {key: 'mite', pest: 'coconut_mite'},
+          [PEST_TYPES.CATERPILLAR]: {key: 'caterpillar', pest: 'caterpillar'},
+          [PEST_TYPES.WHITE_FLY]: {key: 'white_fly', pest: 'white_fly'},
+        };
+        const typeInfo = scanTypeMap[scanType] || {key: 'mite', pest: 'coconut_mite'};
+
         scanData = {
-          scanType: scanType === PEST_TYPES.MITE ? 'mite' : 'caterpillar',
+          scanType: typeInfo.key,
           isInfected: isInfected,
           isValidImage: prediction?.is_valid_image !== false,
           results: {
-            [scanType === PEST_TYPES.MITE ? 'mite' : 'caterpillar']: {
+            [typeInfo.key]: {
               detected: isInfected,
               confidence: prediction?.confidence || 0,
               class: prediction?.class || prediction?.label,
             },
           },
-          pestsDetected: isInfected
-            ? [scanType === PEST_TYPES.MITE ? 'coconut_mite' : 'caterpillar']
-            : [],
+          pestsDetected: isInfected ? [typeInfo.pest] : [],
           severity: severity
             ? {level: severity.level, percent: severity.percent}
             : null,
@@ -133,9 +151,14 @@ export default function PestDetectionScreen({navigation}) {
 
       // Show notification if pest was detected
       if (scanData.isInfected && scanData.pestsDetected?.length > 0) {
-        const pestName = scanData.pestsDetected.includes('coconut_mite')
-          ? 'Coconut Mite'
-          : 'Caterpillar';
+        let pestName = 'Pest';
+        if (scanData.pestsDetected.includes('coconut_mite')) {
+          pestName = 'Coconut Mite';
+        } else if (scanData.pestsDetected.includes('caterpillar')) {
+          pestName = 'Caterpillar';
+        } else if (scanData.pestsDetected.includes('white_fly')) {
+          pestName = 'White Fly';
+        }
         const severity = scanData.severity?.level || 'moderate';
         showPestDetectionNotification(pestName, severity, savedScan?.data?._id);
       }
@@ -238,6 +261,9 @@ export default function PestDetectionScreen({navigation}) {
           break;
         case PEST_TYPES.CATERPILLAR:
           response = await detectCaterpillar(selectedImage.uri);
+          break;
+        case PEST_TYPES.WHITE_FLY:
+          response = await detectWhiteFly(selectedImage.uri);
           break;
         case PEST_TYPES.ALL:
         default:
@@ -396,6 +422,22 @@ export default function PestDetectionScreen({navigation}) {
             {t('pestDetection.caterpillar')}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.pestTypeButton,
+            selectedPestType === PEST_TYPES.WHITE_FLY && styles.pestTypeButtonActive,
+          ]}
+          onPress={() => setSelectedPestType(PEST_TYPES.WHITE_FLY)}>
+          <Text style={styles.pestTypeIcon}>🦟</Text>
+          <Text
+            style={[
+              styles.pestTypeText,
+              selectedPestType === PEST_TYPES.WHITE_FLY && styles.pestTypeTextActive,
+            ]}>
+            {t('pestDetection.whiteFly') || 'White Fly'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -478,7 +520,9 @@ export default function PestDetectionScreen({navigation}) {
             <Text style={styles.warningText}>
               {result.pestType === PEST_TYPES.MITE
                 ? t('pestDetection.coconutMite') + ' - ' + t('pestDetection.detected')
-                : t('pestDetection.caterpillar') + ' - ' + t('pestDetection.detected')}
+                : result.pestType === PEST_TYPES.CATERPILLAR
+                ? t('pestDetection.caterpillar') + ' - ' + t('pestDetection.detected')
+                : (t('pestDetection.whiteFly') || 'White Fly') + ' - ' + t('pestDetection.detected')}
             </Text>
           </View>
         )}
@@ -584,6 +628,32 @@ export default function PestDetectionScreen({navigation}) {
               )}
             </View>
           )}
+
+          {/* White Fly Result */}
+          {result.results?.white_fly && (
+            <View style={styles.pestResultCard}>
+              <Text style={styles.pestResultIcon}>🦟</Text>
+              <Text style={styles.pestResultName}>{t('pestDetection.whiteFly') || 'White Fly'}</Text>
+              <Text
+                style={[
+                  styles.pestResultStatus,
+                  {color: result.results.white_fly.class === 'not_coconut' ? '#ff9800' : result.results.white_fly.is_infected ? '#d32f2f' : '#2e7d32'},
+                ]}>
+                {result.results.white_fly.class === 'not_coconut' ? 'N/A' : result.results.white_fly.is_infected ? t('pestDetection.detected') : t('pestDetection.notFound')}
+              </Text>
+              <Text style={styles.pestResultConfidence}>
+                {((result.results.white_fly.confidence || 0) * 100).toFixed(1)}%
+              </Text>
+              {/* White Fly Severity */}
+              {result.results.white_fly.is_infected && (
+                <View style={[styles.miniSeverityBadge, {backgroundColor: getSeverity(result.results.white_fly.confidence, true)?.color}]}>
+                  <Text style={styles.miniSeverityText}>
+                    {getSeverity(result.results.white_fly.confidence, true)?.icon} {getSeverity(result.results.white_fly.confidence, true)?.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Overall Severity Summary */}
@@ -592,6 +662,7 @@ export default function PestDetectionScreen({navigation}) {
             <Text style={styles.overallSeverityTitle}>{t('pestDetection.severity')} {t('pestDetection.result')}</Text>
             {result.results?.mite?.is_infected && renderSeverityIndicator(getSeverity(result.results.mite.confidence, true))}
             {result.results?.caterpillar?.is_infected && renderSeverityIndicator(getSeverity(result.results.caterpillar.confidence, true))}
+            {result.results?.white_fly?.is_infected && renderSeverityIndicator(getSeverity(result.results.white_fly.confidence, true))}
           </View>
         )}
 
@@ -654,9 +725,11 @@ export default function PestDetectionScreen({navigation}) {
     const getPestTypeForTreatment = () => {
       if (selectedPestType === PEST_TYPES.MITE) return 'coconut_mite';
       if (selectedPestType === PEST_TYPES.CATERPILLAR) return 'caterpillar';
+      if (selectedPestType === PEST_TYPES.WHITE_FLY) return 'white_fly';
       // For ALL, pick the first detected pest
       if (result?.results?.mite?.is_infected) return 'coconut_mite';
       if (result?.results?.caterpillar?.is_infected) return 'caterpillar';
+      if (result?.results?.white_fly?.is_infected) return 'white_fly';
       return 'coconut_mite';
     };
 
@@ -666,6 +739,7 @@ export default function PestDetectionScreen({navigation}) {
       }
       if (result?.results?.mite?.is_infected) return result.results.mite.confidence;
       if (result?.results?.caterpillar?.is_infected) return result.results.caterpillar.confidence;
+      if (result?.results?.white_fly?.is_infected) return result.results.white_fly.confidence;
       return 0.7;
     };
 
@@ -927,6 +1001,7 @@ export default function PestDetectionScreen({navigation}) {
           {t('pestDetection.aboutDescription')}{'\n'}
           • {t('pestDetection.miteAccuracy')}{'\n'}
           • {t('pestDetection.caterpillarAccuracy')}{'\n'}
+          • {t('pestDetection.whiteFlyAccuracy') || 'White Fly: 98.06% accuracy'}{'\n'}
           • {t('pestDetection.detectsNonCoconut')}
         </Text>
       </View>

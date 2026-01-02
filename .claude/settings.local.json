@@ -81,7 +81,18 @@
       "Bash(node src/server.js:*)",
       "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\(''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\coconut-app-cd914-firebase-adminsdk-fbsvc-1c56f671da.json''\\)\\)\")",
       "Bash(mkdir:*)",
-      "Bash(.gradlew clean:*)"
+      "Bash(.gradlew clean:*)",
+      "mcp__ide__executeCode",
+      "Bash(python train_white_fly.py:*)",
+      "Bash(python fix_notebook.py:*)",
+      "Bash(powershell -Command \"\\(Get-Content 11_white_fly_v1_training.ipynb | Select-String ''image/png''\\).Count\")",
+      "Bash(powershell -Command \"\\(Get-Item 11_white_fly_v1_training.ipynb\\).Length / 1MB\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data'' -Directory -Recurse | Select-Object FullName\")",
+      "Bash(more:*)",
+      "Bash(timeout 30 python:*)",
+      "Bash(timeout 35 python:*)",
+      "Bash(timeout /t 20 /nobreak)",
+      "Bash(if exist __pycache__ rmdir /s /q __pycache__)"
     ]
   }
 }

@@ -21,9 +21,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - Python 3.13
 - TensorFlow 2.20.0
 - EfficientNetB0 (Transfer Learning) - Coconut Mite model v10
-- MobileNetV2 (Transfer Learning) - Coconut Caterpillar model v2
-- Flask 3.1.2 (API Server v4.0)
+- MobileNetV2 (Transfer Learning) - Unified Caterpillar & White Fly model v1
+- Flask 3.1.2 (API Server v6.0)
 - Focal Loss for handling class imbalance
+- Cross-validation logic for improved accuracy
 - Pillow, NumPy, Matplotlib, Seaborn, Scikit-learn
 
 ## Package & Firebase Info
@@ -45,10 +46,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 ### Screens
 - `src/screens/LoginScreen.js` - User login UI
 - `src/screens/SignupScreen.js` - User registration UI
-- `src/screens/PestDetectionScreen.js` - Pest detection with All Pests, Mite, Caterpillar options
+- `src/screens/PestDetectionScreen.js` - Pest detection with All Pests, Mite, Caterpillar, White Fly options
 
 ### Services
-- `src/services/pestDetectionApi.js` - React Native API client (v4.0)
+- `src/services/pestDetectionApi.js` - React Native API client (v5.0)
 
 ### Android Configuration
 - `android/settings.gradle` - Module configuration (autolinking disabled, manual linking used)
@@ -56,9 +57,9 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `android/build/generated/autolinking/autolinking.json` - Manual autolinking config (required!)
 
 ### ML & API Files
-- `ml/api/app.py` - Flask API v4.0 for model serving
+- `ml/api/app.py` - Flask API v6.0 for model serving
 - `ml/models/coconut_mite_v10/` - Latest Mite detection model (3-class)
-- `ml/models/coconut_caterpillar_v2/` - Latest Caterpillar detection model (3-class)
+- `ml/models/unified_caterpillar_whitefly_v1/` - Unified Caterpillar & White Fly model (4-class)
 - `ml/notebooks/` - Jupyter notebooks for model training
 
 ## Build Commands (Windows PowerShell)
@@ -121,21 +122,22 @@ python test_api.py
   - `models/coconut_mite_v10/model_info.json`
 - **API Endpoint:** `/predict/mite`
 
-### Coconut Caterpillar Detection Model (v2 - Latest)
+### Unified Caterpillar & White Fly Detection Model (v1 - Latest)
 - **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
-- **Version:** v2 (3-class)
-- **Test Accuracy:** 97.47%
-- **Macro F1 Score:** 96.30%
-- **Classes:** `caterpillar`, `healthy`, `not_coconut`
+- **Version:** v1 (4-class)
+- **Test Accuracy:** 96.08%
+- **Macro F1 Score:** 92.38%
+- **Classes:** `caterpillar`, `healthy`, `not_coconut`, `white_fly`
 - **Input Size:** 224x224x3
 - **Per-Class Metrics:**
-  - caterpillar: 91.49% recall
-  - healthy: 100% recall
-  - not_coconut: 98.38% recall
+  - caterpillar: 95.74% recall
+  - healthy: 93.33% recall
+  - not_coconut: 98.92% recall
+  - white_fly: 86.08% recall
 - **Files:**
-  - `models/coconut_caterpillar_v2/best_model.keras`
-  - `models/coconut_caterpillar_v2/model_info.json`
-- **API Endpoint:** `/predict/caterpillar`
+  - `models/unified_caterpillar_whitefly_v1/best_model.keras`
+  - `models/unified_caterpillar_whitefly_v1/model_info.json`
+- **API Endpoints:** `/predict/caterpillar`, `/predict/white_fly`, `/predict/unified`
 
 ### Model Version History
 
@@ -146,16 +148,12 @@ python test_api.py
 | v8-v9 | ~88% | 3 | Added not_coconut |
 | **v10** | **91.44%** | **3** | **Current - Focal Loss, optimized** |
 
-#### Coconut Caterpillar
+#### Unified Caterpillar & White Fly
 | Version | Accuracy | Classes | Notes |
 |---------|----------|---------|-------|
-| v1 | 98.91% | 2 | Binary classification |
-| **v2** | **97.47%** | **3** | **Current - Added not_coconut** |
+| **v1** | **96.08%** | **4** | **Current - Combined caterpillar + white_fly** |
 
-### Pending Models
-- White Fly Detection (not trained yet)
-
-## API Endpoints (v4.0)
+## API Endpoints (v6.0)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -163,16 +161,22 @@ python test_api.py
 | `/health` | GET | Health check with model status |
 | `/models` | GET | List all loaded models |
 | `/predict/mite` | POST | Mite detection (3-class) |
-| `/predict/caterpillar` | POST | Caterpillar detection (3-class) |
+| `/predict/caterpillar` | POST | Caterpillar detection (4-class unified) |
+| `/predict/white_fly` | POST | White Fly detection (4-class unified) |
+| `/predict/unified` | POST | Unified model detection (4-class) |
 | `/predict/all` | POST | All pests detection with smart combined logic |
 | `/predict` | POST | Legacy endpoint (redirects to mite) |
 
-## Smart Combined Logic (v7)
+## Smart Combined Logic with Cross-Validation
 
-The `/predict/all` endpoint uses intelligent decision logic:
+The `/predict/all` endpoint uses intelligent decision logic with cross-validation:
 
 ```
 Valid Detection = Model predicts (healthy OR pest) WITH >40% confidence
+
+Cross-Validation Rule:
+- If unified model says "healthy" with >80% confidence, ignore mite false positives
+- This prevents mite model errors from overriding correct unified model predictions
 
 Rejection Rules:
 - If ANY model confidently detects a valid coconut class (>40%) → Accept image
@@ -180,10 +184,13 @@ Rejection Rules:
 ```
 
 **Examples:**
-| Scenario | Mite Result | Caterpillar Result | Final Decision |
-|----------|-------------|-------------------|----------------|
-| Healthy leaf | not_coconut 99% | healthy 98% | ✅ Healthy (trust caterpillar) |
+| Scenario | Mite Result | Unified Result | Final Decision |
+|----------|-------------|----------------|----------------|
+| Healthy leaf | coconut_mite 30% | healthy 96% | ✅ Healthy (cross-validation) |
+| Healthy leaf | not_coconut 99% | healthy 98% | ✅ Healthy (trust unified) |
 | Mite infection | coconut_mite 55% | not_coconut 65% | ✅ Mite Infected (trust mite) |
+| Caterpillar damage | not_coconut 90% | caterpillar 95% | ✅ Caterpillar (trust unified) |
+| White Fly damage | not_coconut 90% | white_fly 92% | ✅ White Fly (trust unified) |
 | Garden scene | coconut_mite 39% | not_coconut 99% | ❌ Not valid (<40% confidence) |
 
 ## Important Notes
@@ -212,21 +219,21 @@ $env:Path += ";$env:ANDROID_HOME\platform-tools"
 - Project setup with React Native 0.82.1
 - Login/Signup screens with Firebase Auth
 - Google OAuth authentication
-- Pest Detection Screen with three options (All Pests, Mite, Caterpillar)
+- Pest Detection Screen with four options (All Pests, Mite, Caterpillar, White Fly)
 - Coconut Mite detection model v10 (91.44% accuracy, 3-class)
-- Coconut Caterpillar detection model v2 (97.47% accuracy, 3-class)
-- Flask API v4.0 with smart combined logic
+- Unified Caterpillar & White Fly model v1 (96.08% accuracy, 4-class)
+- Flask API v6.0 with smart combined logic and cross-validation
 - Non-coconut image rejection
-- React Native API client service v4.0
+- Cross-validation between models for improved accuracy
+- React Native API client service v5.0
 - Mobile app fully integrated with ML API
 
 ### Next Steps (Planned)
 1. Dashboard screen after login
 2. MongoDB backend integration
-3. Train White Fly detection model
-4. Drone data visualization
-5. Health monitoring features
-6. Yield prediction display
+3. Drone data visualization
+4. Health monitoring features
+5. Yield prediction display
 
 ## Troubleshooting
 

@@ -1,0 +1,69 @@
+{
+  "model_name": "white_fly_3class_v1",
+  "version": "1.0",
+  "architecture": "MobileNetV2",
+  "input_size": [
+    224,
+    224,
+    3
+  ],
+  "classes": [
+    "healthy",
+    "not_coconut",
+    "white_fly"
+  ],
+  "num_classes": 3,
+  "loss_function": "focal_loss",
+  "focal_loss_params": {
+    "gamma": 2.0,
+    "alpha": 0.25
+  },
+  "training": {
+    "phase1_epochs": 13,
+    "phase2_epochs": 15,
+    "total_epochs": 28,
+    "batch_size": 32,
+    "phase1_learning_rate": 0.001,
+    "phase2_learning_rate": 1e-05,
+    "training_time_minutes": 111.97,
+    "final_train_accuracy": 0.9804554581642151,
+    "final_val_accuracy": 0.9854721426963806
+  },
+  "evaluation": {
+    "test_accuracy": 0.9805825242718447,
+    "macro_f1_score": 0.9705361360193098,
+    "per_class_metrics": {
+      "healthy": {
+        "precision": 0.9347826086956522,
+        "recall": 0.9555555555555556,
+        "f1_score": 0.945054945054945,
+        "support": 45
+      },
+      "not_coconut": {
+        "precision": 0.9945652173913043,
+        "recall": 0.9891891891891892,
+        "f1_score": 0.991869918699187,
+        "support": 185
+      },
+      "white_fly": {
+        "precision": 0.9746835443037974,
+        "recall": 0.9746835443037974,
+        "f1_score": 0.9746835443037974,
+        "support": 79
+      }
+    }
+  },
+  "dataset": {
+    "train_samples": 12075,
+    "val_samples": 413,
+    "test_samples": 309
+  },
+  "anti_overfitting_measures": [
+    "Data augmentation (training only)",
+    "Dropout layers (0.5 and 0.3)",
+    "Early stopping",
+    "Learning rate reduction",
+    "Class weights for imbalanced data",
+    "2-phase training with frozen base"
+  ]
+}
