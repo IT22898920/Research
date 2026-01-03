@@ -98,6 +98,17 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
+          onPress={() => navigation.navigate('Chat')}>
+          <Text style={styles.featureIcon}>💬</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('chat.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('chat.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
           onPress={() => navigation.navigate('Settings')}>
           <Text style={styles.featureIcon}>⚙️</Text>
           <View style={styles.featureContent}>

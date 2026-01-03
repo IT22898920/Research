@@ -9,12 +9,80 @@ This API serves trained models for:
 import os
 import json
 import numpy as np
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 import io
 import tensorflow as tf
 from datetime import datetime
+
+# Create a requests session with retry logic for Groq API
+def create_groq_session():
+    """Create a requests session with retry logic for transient failures"""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,  # Total number of retries
+        backoff_factor=0.5,  # Wait 0.5, 1.0, 2.0 seconds between retries
+        status_forcelist=[429, 500, 502, 503, 504],  # Retry on these status codes
+        allowed_methods=["POST", "GET"],  # Allow retries on POST
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+# Global session for Groq API calls
+groq_session = create_groq_session()
+
+# Groq API Configuration for AI Chatbot
+GROQ_API_KEY = "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"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# Coconut Health Expert System Prompt
+COCONUT_EXPERT_PROMPT = """You are a friendly and knowledgeable Coconut Health Expert Assistant for Sri Lankan farmers. Your role is to help farmers and agricultural workers with:
+
+1. **Pest Identification & Treatment**: Coconut mite (පොල් මයිටාව/தென்னை பேன்), black-headed caterpillar (කළු හිස් දළඹුවා/கருந்தலை புழு), white fly (සුදු මැස්සා/வெள்ளை ஈ), rhinoceros beetle, red palm weevil, etc.
+2. **Disease Management**: Bud rot, leaf rot, stem bleeding, root wilt, etc.
+3. **Farming Best Practices**: Irrigation, fertilization, harvesting techniques
+4. **General Coconut Care**: Plant health, nutrition, growth stages
+
+CRITICAL LANGUAGE RULES - FOLLOW EXACTLY:
+
+1. **Sinhala Unicode Script (සිංහල)**: If user writes in Sinhala script like "මට පොල් මයිටාව ගැන දැනගන්න ඕනේ", respond FULLY in Sinhala Unicode script.
+   Example response: "ආයුබෝවන්! පොල් මයිටාව පාලනය කිරීමට නීම් තෙල්, සබන් ද්‍රාවණය හෝ වෙනත් කෘමිනාශක භාවිතා කළ හැක."
+
+2. **Romanized Sinhala (Singlish)**: If user writes Sinhala words using English letters like "coconut mite eka gena denaganna one mata" or "pol gaha", respond FULLY in Sinhala Unicode script (NOT romanized).
+   Example: User says "mite treatment eka mokakda" → Respond in proper Sinhala: "පොල් මයිටාව සඳහා නීම් තෙල් භාවිතා කරන්න..."
+
+3. **Tamil Script (தமிழ்)**: If user writes in Tamil script, respond FULLY in Tamil Unicode script.
+   Example response: "வணக்கம்! தென்னை பேன் சிகிச்சைக்கு வேப்பெண்ணெய் பயன்படுத்தலாம்."
+
+4. **English**: If user writes in English, respond in English.
+
+NEVER MIX LANGUAGES IN A SINGLE RESPONSE!
+- Do NOT write half Sinhala and half English
+- Do NOT write romanized Sinhala (like "oyata harima purudu")
+- Always use proper Unicode script for Sinhala/Tamil responses
+- Keep the ENTIRE response in ONE language
+
+Guidelines:
+- Give clear, practical advice that farmers can follow
+- Use simple, everyday language that farmers understand
+- Provide step-by-step treatment instructions when asked
+- If asked about non-coconut topics, politely redirect to coconut-related help
+- Keep responses concise but helpful (max 200 words unless detailed explanation needed)
+- Always be encouraging and supportive to farmers
+- Include both scientific and local names for pests when helpful
+
+Common Sinhala terms: පොහොර (fertilizer), වතුර දැමීම (watering), කොළ (leaves), ගෙඩි (fruits), පළිබෝධ (pests), මයිටාව (mite), දළඹුවා (caterpillar), සුදු මැස්සා (white fly)
+Common Tamil terms: உரம் (fertilizer), நீர்ப்பாசனம் (irrigation), இலைகள் (leaves), பழங்கள் (fruits), பூச்சிகள் (pests)
+
+Remember: You're helping real Sri Lankan farmers protect their coconut trees and livelihoods!"""
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -753,6 +821,175 @@ def predict_all():
 def predict_legacy():
     """Legacy endpoint - redirects to mite detection"""
     return predict_mite()
+
+
+# ============================================================
+# AI CHATBOT ENDPOINT (Groq API)
+# ============================================================
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    """
+    AI Chatbot endpoint using Groq API
+    Specialized for coconut health and farming advice
+
+    Request body:
+    {
+        "message": "How do I treat mite infection?",
+        "history": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hello! How can I help?"}
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'message' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Message is required'
+            }), 400
+
+        user_message = data.get('message', '').strip()
+        chat_history = data.get('history', [])
+
+        if not user_message:
+            return jsonify({
+                'success': False,
+                'error': 'Message cannot be empty'
+            }), 400
+
+        # Build messages array with system prompt and history
+        messages = [
+            {"role": "system", "content": COCONUT_EXPERT_PROMPT}
+        ]
+
+        # Add chat history (last 10 messages to avoid token limit)
+        for msg in chat_history[-10:]:
+            messages.append({
+                "role": msg.get('role', 'user'),
+                "content": msg.get('content', '')
+            })
+
+        # Add current user message
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+
+        # Call Groq API with retry session
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 1024,
+            "top_p": 1,
+            "stream": False
+        }
+
+        # Use session with retry logic for better connection handling
+        global groq_session
+        try:
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+        except (requests.exceptions.ConnectionError, ConnectionResetError) as conn_err:
+            # Connection was reset, create a new session and retry once
+            print(f"Connection reset, retrying with new session: {conn_err}")
+            groq_session = create_groq_session()
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+
+        if response.status_code != 200:
+            error_msg = response.json().get('error', {}).get('message', 'Unknown error')
+            return jsonify({
+                'success': False,
+                'error': f'Groq API error: {error_msg}'
+            }), 500
+
+        result = response.json()
+        assistant_message = result['choices'][0]['message']['content']
+
+        return jsonify({
+            'success': True,
+            'response': assistant_message,
+            'model': GROQ_MODEL,
+            'usage': result.get('usage', {})
+        })
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'success': False,
+            'error': 'Request timeout. Please try again.'
+        }), 504
+    except (requests.exceptions.ConnectionError, ConnectionResetError) as e:
+        # Reset the session for next request
+        groq_session = create_groq_session()
+        return jsonify({
+            'success': False,
+            'error': 'Connection error. Please try again.'
+        }), 503
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            'success': False,
+            'error': f'Network error: {str(e)}'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
+
+
+@app.route('/chat/health', methods=['GET'])
+def chat_health():
+    """Check if chat service is available"""
+    global groq_session
+    try:
+        # Quick test to Groq API using session with retry
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": "Hi"}],
+            "max_tokens": 5
+        }
+
+        try:
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=10)
+        except (requests.exceptions.ConnectionError, ConnectionResetError):
+            # Reset session and retry
+            groq_session = create_groq_session()
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            return jsonify({
+                'success': True,
+                'status': 'online',
+                'model': GROQ_MODEL,
+                'message': 'Chat service is ready'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'status': 'error',
+                'message': 'Groq API not responding'
+            }), 503
+
+    except Exception as e:
+        groq_session = create_groq_session()  # Reset for next request
+        return jsonify({
+            'success': False,
+            'status': 'offline',
+            'message': str(e)
+        }), 503
+
 
 # Error handlers
 @app.errorhandler(404)
