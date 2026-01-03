@@ -1,0 +1,4 @@
+,healthy,Leaf Rot,Leaf_Spot,Total
+train,5000,5000,5000,15000
+val,76,168,164,408
+test,77,167,163,407
