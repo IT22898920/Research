@@ -92,7 +92,17 @@
       "Bash(timeout 30 python:*)",
       "Bash(timeout 35 python:*)",
       "Bash(timeout /t 20 /nobreak)",
-      "Bash(if exist __pycache__ rmdir /s /q __pycache__)"
+      "Bash(if exist __pycache__ rmdir /s /q __pycache__)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(del \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\test_response.json\" \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\test_tamil.json\")",
+      "Bash(adb shell pm:*)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm clear com.android.providers.media)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell rm -rf /data/local/tmp/*)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm uninstall com.coconuthealthmonitorNew)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm trim-caches 500M)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h /data)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")"
     ]
   }
 }

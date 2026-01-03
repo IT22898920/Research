@@ -21,6 +21,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ScanDetailScreen from './src/screens/ScanDetailScreen';
+import ChatScreen from './src/screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />
             <Stack.Screen name="ScanDetail" component={ScanDetailScreen} />
             <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
