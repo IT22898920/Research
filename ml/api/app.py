@@ -2,19 +2,87 @@
 Coconut Health Monitor - Flask API for Pest Detection
 ======================================================
 This API serves trained models for:
-- Coconut Mite Detection
-- Coconut Caterpillar Detection
+- Coconut Mite Detection (v10 - separate 3-class model)
+- Unified Caterpillar & White Fly Detection (v1 - combined 4-class model)
 """
 
 import os
 import json
 import numpy as np
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 import io
 import tensorflow as tf
 from datetime import datetime
+
+# Create a requests session with retry logic for Groq API
+def create_groq_session():
+    """Create a requests session with retry logic for transient failures"""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,  # Total number of retries
+        backoff_factor=0.5,  # Wait 0.5, 1.0, 2.0 seconds between retries
+        status_forcelist=[429, 500, 502, 503, 504],  # Retry on these status codes
+        allowed_methods=["POST", "GET"],  # Allow retries on POST
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+# Global session for Groq API calls
+groq_session = create_groq_session()
+
+# Groq API Configuration for AI Chatbot
+GROQ_API_KEY = "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"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# Coconut Health Expert System Prompt
+COCONUT_EXPERT_PROMPT = """You are a friendly and knowledgeable Coconut Health Expert Assistant for Sri Lankan farmers. Your role is to help farmers and agricultural workers with:
+
+1. **Pest Identification & Treatment**: Coconut mite (පොල් මයිටාව/தென்னை பேன்), black-headed caterpillar (කළු හිස් දළඹුවා/கருந்தலை புழு), white fly (සුදු මැස්සා/வெள்ளை ஈ), rhinoceros beetle, red palm weevil, etc.
+2. **Disease Management**: Bud rot, leaf rot, stem bleeding, root wilt, etc.
+3. **Farming Best Practices**: Irrigation, fertilization, harvesting techniques
+4. **General Coconut Care**: Plant health, nutrition, growth stages
+
+CRITICAL LANGUAGE RULES - FOLLOW EXACTLY:
+
+1. **Sinhala Unicode Script (සිංහල)**: If user writes in Sinhala script like "මට පොල් මයිටාව ගැන දැනගන්න ඕනේ", respond FULLY in Sinhala Unicode script.
+   Example response: "ආයුබෝවන්! පොල් මයිටාව පාලනය කිරීමට නීම් තෙල්, සබන් ද්‍රාවණය හෝ වෙනත් කෘමිනාශක භාවිතා කළ හැක."
+
+2. **Romanized Sinhala (Singlish)**: If user writes Sinhala words using English letters like "coconut mite eka gena denaganna one mata" or "pol gaha", respond FULLY in Sinhala Unicode script (NOT romanized).
+   Example: User says "mite treatment eka mokakda" → Respond in proper Sinhala: "පොල් මයිටාව සඳහා නීම් තෙල් භාවිතා කරන්න..."
+
+3. **Tamil Script (தமிழ்)**: If user writes in Tamil script, respond FULLY in Tamil Unicode script.
+   Example response: "வணக்கம்! தென்னை பேன் சிகிச்சைக்கு வேப்பெண்ணெய் பயன்படுத்தலாம்."
+
+4. **English**: If user writes in English, respond in English.
+
+NEVER MIX LANGUAGES IN A SINGLE RESPONSE!
+- Do NOT write half Sinhala and half English
+- Do NOT write romanized Sinhala (like "oyata harima purudu")
+- Always use proper Unicode script for Sinhala/Tamil responses
+- Keep the ENTIRE response in ONE language
+
+Guidelines:
+- Give clear, practical advice that farmers can follow
+- Use simple, everyday language that farmers understand
+- Provide step-by-step treatment instructions when asked
+- If asked about non-coconut topics, politely redirect to coconut-related help
+- Keep responses concise but helpful (max 200 words unless detailed explanation needed)
+- Always be encouraging and supportive to farmers
+- Include both scientific and local names for pests when helpful
+
+Common Sinhala terms: පොහොර (fertilizer), වතුර දැමීම (watering), කොළ (leaves), ගෙඩි (fruits), පළිබෝධ (pests), මයිටාව (mite), දළඹුවා (caterpillar), සුදු මැස්සා (white fly)
+Common Tamil terms: உரம் (fertilizer), நீர்ப்பாசனம் (irrigation), இலைகள் (leaves), பழங்கள் (fruits), பூச்சிகள் (pests)
+
+Remember: You're helping real Sri Lankan farmers protect their coconut trees and livelihoods!"""
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -28,7 +96,6 @@ MITE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v10', 'best_model.
 MITE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v10', 'model_info.json')
 
 # Mite v10 optimal threshold (from threshold tuning)
-# Lower threshold = more sensitive to mites (catch more, but may have false positives)
 MITE_THRESHOLD = 0.10
 MITE_BOOST_FACTOR = 0.5 / MITE_THRESHOLD  # 5x boost for mite class
 
@@ -38,12 +105,19 @@ MITE_CLASSES = ['coconut_mite', 'healthy', 'not_coconut']
 # Minimum confidence threshold for valid predictions
 MIN_CONFIDENCE_THRESHOLD = 0.50
 
-# Caterpillar model paths (v2 - 3-class with Focal Loss)
-CATERPILLAR_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_caterpillar_v2', 'best_model.keras')
-CATERPILLAR_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_caterpillar_v2', 'model_info.json')
+# Unified Caterpillar & White Fly model paths (v1 - 4-class with Focal Loss)
+UNIFIED_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'unified_caterpillar_whitefly_v1', 'best_model.keras')
+UNIFIED_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'unified_caterpillar_whitefly_v1', 'model_info.json')
 
-# Caterpillar v2 class indices
-CATERPILLAR_CLASSES = ['caterpillar', 'healthy', 'not_coconut']
+# Unified model class indices (alphabetical order from ImageDataGenerator)
+UNIFIED_CLASSES = ['caterpillar', 'healthy', 'not_coconut', 'white_fly']
+
+# Disease Detection model paths (v2 - 4-class with Focal Loss)
+DISEASE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 'best_model.keras')
+DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 'model_info.json')
+
+# Disease model class indices (alphabetical order from ImageDataGenerator)
+DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
 # Leaf Health model paths (v1 - 2-class)
 LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
@@ -57,7 +131,7 @@ models = {}
 model_infos = {}
 
 def focal_loss(gamma=2.0, alpha=0.25):
-    """Custom focal loss for loading v10 model"""
+    """Custom focal loss for loading models"""
     def focal_loss_fn(y_true, y_pred):
         epsilon = tf.keras.backend.epsilon()
         y_pred = tf.keras.backend.clip(y_pred, epsilon, 1.0 - epsilon)
@@ -79,13 +153,11 @@ def load_models():
     try:
         print("\n[1] Loading Coconut Mite model (v10 - 3-class)...")
 
-        # Load model with custom focal loss
         models['mite'] = tf.keras.models.load_model(
             MITE_MODEL_PATH,
             custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
         )
 
-        # Try to load model info (may be incomplete due to JSON error during training)
         try:
             with open(MITE_MODEL_INFO_PATH, 'r') as f:
                 model_infos['mite'] = json.load(f)
@@ -98,7 +170,7 @@ def load_models():
 
         print(f"    Version: v10 (3-class, Focal Loss)")
         print(f"    Classes: {MITE_CLASSES}")
-        print(f"    Accuracy: 91.44% (with threshold tuning)")
+        print(f"    Accuracy: 91.44%")
         print(f"    Mite Recall: 79%")
         print(f"    Threshold: {MITE_THRESHOLD} (boost factor: {MITE_BOOST_FACTOR}x)")
         print("    Status: LOADED")
@@ -107,36 +179,71 @@ def load_models():
         models['mite'] = None
         model_infos['mite'] = None
 
-    # Load Caterpillar Model (v2 - 3-class with Focal Loss)
+    # Load Unified Caterpillar & White Fly Model (v1 - 4-class with Focal Loss)
     try:
-        print("\n[2] Loading Coconut Caterpillar model (v2 - 3-class)...")
+        print("\n[2] Loading Unified Caterpillar & White Fly model (v1 - 4-class)...")
 
-        # Load model with custom focal loss
-        models['caterpillar'] = tf.keras.models.load_model(
-            CATERPILLAR_MODEL_PATH,
+        models['unified'] = tf.keras.models.load_model(
+            UNIFIED_MODEL_PATH,
             custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
         )
 
-        # Try to load model info
         try:
-            with open(CATERPILLAR_MODEL_INFO_PATH, 'r') as f:
-                model_infos['caterpillar'] = json.load(f)
+            with open(UNIFIED_MODEL_INFO_PATH, 'r') as f:
+                model_infos['unified'] = json.load(f)
         except:
-            model_infos['caterpillar'] = {
-                'version': 'v2_3class',
-                'classes': CATERPILLAR_CLASSES,
-                'performance': {'test_accuracy': 0.9747, 'caterpillar_recall': 0.9149}
+            model_infos['unified'] = {
+                'version': 'v1_4class',
+                'classes': UNIFIED_CLASSES,
+                'performance': {
+                    'test_accuracy': 0.9608,
+                    'caterpillar_recall': 0.9574,
+                    'white_fly_recall': 0.8608
+                }
             }
 
-        print(f"    Version: v2 (3-class, Focal Loss)")
-        print(f"    Classes: {CATERPILLAR_CLASSES}")
-        print(f"    Accuracy: 97.47%")
-        print(f"    Caterpillar Recall: 91.49%")
+        print(f"    Version: v1 (4-class, Focal Loss)")
+        print(f"    Classes: {UNIFIED_CLASSES}")
+        print(f"    Accuracy: 96.08%")
+        print(f"    Caterpillar Recall: 95.74%")
+        print(f"    White Fly Recall: 86.08%")
         print("    Status: LOADED")
     except Exception as e:
-        print(f"    ERROR loading caterpillar model: {e}")
-        models['caterpillar'] = None
-        model_infos['caterpillar'] = None
+        print(f"    ERROR loading unified model: {e}")
+        models['unified'] = None
+        model_infos['unified'] = None
+
+    # Load Disease Detection Model (v2 - 4-class with Focal Loss)
+    try:
+        print("\n[3] Loading Disease Detection model (v2 - 4-class)...")
+
+        models['disease'] = tf.keras.models.load_model(
+            DISEASE_MODEL_PATH,
+            custom_objects={'FocalLoss': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(DISEASE_MODEL_INFO_PATH, 'r') as f:
+                model_infos['disease'] = json.load(f)
+        except:
+            model_infos['disease'] = {
+                'version': 'v2_4class',
+                'classes': DISEASE_CLASSES,
+                'performance': {
+                    'test_accuracy': 0.9869,
+                    'macro_f1': 0.9800
+                }
+            }
+
+        print(f"    Version: v2 (4-class, Focal Loss)")
+        print(f"    Classes: {DISEASE_CLASSES}")
+        print(f"    Accuracy: 98.69%")
+        print(f"    Macro F1: 98.00%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading disease model: {e}")
+        models['disease'] = None
+        model_infos['disease'] = None
 
     # Load Leaf Health Model (v1 - 2-class)
     try:
@@ -180,27 +287,34 @@ def preprocess_image_mite(image_bytes):
     if img.mode != 'RGB':
         img = img.convert('RGB')
 
-    # v10 uses 224x224 input
     img = img.resize((224, 224), Image.Resampling.LANCZOS)
     img_array = np.array(img, dtype=np.float32)
-
-    # v10 uses simple 0-1 normalization (same as training)
     img_array = img_array / 255.0
 
     return np.expand_dims(img_array, axis=0)
 
-def preprocess_image_caterpillar(image_bytes):
-    """Preprocess image for caterpillar model v2 (0-1 scaling, 224x224)"""
+def preprocess_image_unified(image_bytes):
+    """Preprocess image for unified model (0-1 scaling, 224x224)"""
     img = Image.open(io.BytesIO(image_bytes))
 
     if img.mode != 'RGB':
         img = img.convert('RGB')
 
-    # v2 uses 224x224 input (same as mite model)
     img = img.resize((224, 224), Image.Resampling.LANCZOS)
     img_array = np.array(img, dtype=np.float32)
+    img_array = img_array / 255.0
 
-    # Simple 0-1 normalization (same as training)
+    return np.expand_dims(img_array, axis=0)
+
+def preprocess_image_disease(image_bytes):
+    """Preprocess image for disease model (0-1 scaling, 224x224)"""
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img = img.resize((224, 224), Image.Resampling.LANCZOS)
+    img_array = np.array(img, dtype=np.float32)
     img_array = img_array / 255.0
 
     return np.expand_dims(img_array, axis=0)
@@ -209,18 +323,23 @@ def preprocess_image_caterpillar(image_bytes):
 def home():
     """API home endpoint"""
     return jsonify({
-        'service': 'Coconut Health Monitor - Pest Detection API',
-        'version': '4.0.0',
+        'service': 'Coconut Health Monitor - Pest & Disease Detection API',
+        'version': '7.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
                 'version': 'v10 (3-class, Focal Loss)',
                 'accuracy': '91.44%'
             },
-            'caterpillar': {
-                'status': 'loaded' if models.get('caterpillar') is not None else 'not loaded',
-                'version': 'v2 (3-class, Focal Loss)',
-                'accuracy': '97.47%'
+            'unified': {
+                'status': 'loaded' if models.get('unified') is not None else 'not loaded',
+                'version': 'v1 (4-class: caterpillar, healthy, not_coconut, white_fly)',
+                'accuracy': '96.08%'
+            },
+            'disease': {
+                'status': 'loaded' if models.get('disease') is not None else 'not loaded',
+                'version': 'v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount)',
+                'accuracy': '98.69%'
             }
         },
         'endpoints': {
@@ -228,7 +347,10 @@ def home():
             '/health': 'Health check',
             '/models': 'List all available models',
             '/predict/mite': 'POST - Detect coconut mite infection (3-class)',
-            '/predict/caterpillar': 'POST - Detect caterpillar damage (3-class)',
+            '/predict/caterpillar': 'POST - Detect caterpillar damage (uses unified 4-class model)',
+            '/predict/white_fly': 'POST - Detect white fly damage (uses unified 4-class model)',
+            '/predict/unified': 'POST - Unified caterpillar & white fly detection (4-class)',
+            '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -240,7 +362,8 @@ def health_check():
         'status': 'healthy',
         'models': {
             'mite': models.get('mite') is not None,
-            'caterpillar': models.get('caterpillar') is not None
+            'unified': models.get('unified') is not None,
+            'disease': models.get('disease') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -262,14 +385,25 @@ def list_models():
             'loaded': models.get('mite') is not None
         }
 
-    if model_infos.get('caterpillar'):
-        result['caterpillar'] = {
-            'name': 'Coconut Caterpillar Detection Model',
-            'version': 'v2 (3-class, Focal Loss)',
-            'classes': CATERPILLAR_CLASSES,
-            'accuracy': 0.9747,
-            'caterpillar_recall': 0.9149,
-            'loaded': models.get('caterpillar') is not None
+    if model_infos.get('unified'):
+        result['unified'] = {
+            'name': 'Unified Caterpillar & White Fly Detection Model',
+            'version': 'v1 (4-class, Focal Loss)',
+            'classes': UNIFIED_CLASSES,
+            'accuracy': 0.9608,
+            'caterpillar_recall': 0.9574,
+            'white_fly_recall': 0.8608,
+            'loaded': models.get('unified') is not None
+        }
+
+    if model_infos.get('disease'):
+        result['disease'] = {
+            'name': 'Coconut Leaf Disease Detection Model',
+            'version': 'v2 (4-class, Focal Loss)',
+            'classes': DISEASE_CLASSES,
+            'accuracy': 0.9869,
+            'macro_f1': 0.9800,
+            'loaded': models.get('disease') is not None
         }
 
     return jsonify(result)
@@ -293,24 +427,19 @@ def predict_mite():
         processed_image = preprocess_image_mite(image_bytes)
 
         # v10 3-class classification: softmax output
-        # Classes: ['coconut_mite', 'healthy', 'not_coconut']
         predictions = models['mite'].predict(processed_image, verbose=0)[0]
 
         # Apply threshold adjustment (boost mite probability)
         adjusted_probs = predictions.copy()
-        mite_idx = 0  # coconut_mite index
-        adjusted_probs[mite_idx] = adjusted_probs[mite_idx] * MITE_BOOST_FACTOR
+        adjusted_probs[0] = adjusted_probs[0] * MITE_BOOST_FACTOR
 
         # Get predicted class
         predicted_idx = int(np.argmax(adjusted_probs))
         predicted_class = MITE_CLASSES[predicted_idx]
-
-        # Get confidence (from original probabilities)
         confidence = float(predictions[predicted_idx])
         is_mite = predicted_class == 'coconut_mite'
         is_valid = predicted_class != 'not_coconut'
 
-        # Build response
         probabilities = {
             'coconut_mite': float(predictions[0]),
             'healthy': float(predictions[1]),
@@ -328,9 +457,7 @@ def predict_mite():
                     'is_infected': False,
                     'is_valid_image': False,
                     'label': 'Not a valid coconut image',
-                    'message': 'The uploaded image does not appear to be a coconut. Please upload a clear image of a coconut fruit or leaf.',
-                    'threshold_used': MITE_THRESHOLD,
-                    'boost_factor': MITE_BOOST_FACTOR
+                    'message': 'The uploaded image does not appear to be a coconut. Please upload a clear image of a coconut fruit or leaf.'
                 },
                 'probabilities': probabilities,
                 'timestamp': datetime.now().isoformat()
@@ -345,9 +472,7 @@ def predict_mite():
                 'confidence': confidence,
                 'is_infected': is_mite,
                 'is_valid_image': True,
-                'label': 'Coconut Mite Infected' if is_mite else 'Healthy',
-                'threshold_used': MITE_THRESHOLD,
-                'boost_factor': MITE_BOOST_FACTOR
+                'label': 'Coconut Mite Infected' if is_mite else 'Healthy'
             },
             'probabilities': probabilities,
             'timestamp': datetime.now().isoformat()
@@ -356,12 +481,12 @@ def predict_mite():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/predict/caterpillar', methods=['POST'])
-def predict_caterpillar():
-    """Detect caterpillar damage (v2 model - 3-class classification)"""
+@app.route('/predict/unified', methods=['POST'])
+def predict_unified():
+    """Unified caterpillar & white fly detection (v1 - 4-class model)"""
 
-    if models.get('caterpillar') is None:
-        return jsonify({'error': 'Caterpillar model not loaded'}), 500
+    if models.get('unified') is None:
+        return jsonify({'error': 'Unified model not loaded'}), 500
 
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
@@ -372,32 +497,105 @@ def predict_caterpillar():
 
     try:
         image_bytes = file.read()
-        processed_image = preprocess_image_caterpillar(image_bytes)
+        processed_image = preprocess_image_unified(image_bytes)
 
-        # v2 3-class classification: softmax output
-        # Classes: ['caterpillar', 'healthy', 'not_coconut']
-        predictions = models['caterpillar'].predict(processed_image, verbose=0)[0]
+        # 4-class classification: softmax output
+        # Classes: ['caterpillar', 'healthy', 'not_coconut', 'white_fly']
+        predictions = models['unified'].predict(processed_image, verbose=0)[0]
 
         # Get predicted class
         predicted_idx = int(np.argmax(predictions))
-        predicted_class = CATERPILLAR_CLASSES[predicted_idx]
+        predicted_class = UNIFIED_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_caterpillar = predicted_class == 'caterpillar'
+        is_white_fly = predicted_class == 'white_fly'
+        is_infected = is_caterpillar or is_white_fly
+        is_valid = predicted_class != 'not_coconut'
+
+        probabilities = {
+            'caterpillar': float(predictions[0]),
+            'healthy': float(predictions[1]),
+            'not_coconut': float(predictions[2]),
+            'white_fly': float(predictions[3])
+        }
+
+        # Determine label
+        if not is_valid:
+            label = 'Not a valid coconut image'
+            message = 'The uploaded image does not appear to be a coconut. Please upload a clear image of a coconut leaf.'
+        elif is_caterpillar:
+            label = 'Caterpillar Damage Detected'
+            message = 'This coconut shows signs of caterpillar damage.'
+        elif is_white_fly:
+            label = 'White Fly Damage Detected'
+            message = 'This coconut shows signs of white fly infestation.'
+        else:
+            label = 'Healthy'
+            message = 'No pest damage detected.'
+
+        return jsonify({
+            'success': True,
+            'pest_type': 'unified',
+            'model_version': 'v1',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_infected': is_infected,
+                'is_caterpillar': is_caterpillar,
+                'is_white_fly': is_white_fly,
+                'is_valid_image': is_valid,
+                'label': label,
+                'message': message
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/caterpillar', methods=['POST'])
+def predict_caterpillar():
+    """Detect caterpillar damage (uses unified 4-class model)"""
+
+    if models.get('unified') is None:
+        return jsonify({'error': 'Unified model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_unified(image_bytes)
+
+        # 4-class classification
+        predictions = models['unified'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = UNIFIED_CLASSES[predicted_idx]
         confidence = float(predictions[predicted_idx])
 
         is_caterpillar = predicted_class == 'caterpillar'
         is_valid = predicted_class != 'not_coconut'
 
-        # Build response
         probabilities = {
             'caterpillar': float(predictions[0]),
             'healthy': float(predictions[1]),
-            'not_coconut': float(predictions[2])
+            'not_coconut': float(predictions[2]),
+            'white_fly': float(predictions[3])
         }
 
         if not is_valid:
             return jsonify({
                 'success': True,
                 'pest_type': 'caterpillar',
-                'model_version': 'v2',
+                'model_version': 'unified_v1',
                 'prediction': {
                     'class': 'not_coconut',
                     'confidence': confidence,
@@ -413,13 +611,168 @@ def predict_caterpillar():
         return jsonify({
             'success': True,
             'pest_type': 'caterpillar',
-            'model_version': 'v2',
+            'model_version': 'unified_v1',
             'prediction': {
                 'class': predicted_class,
                 'confidence': confidence,
                 'is_infected': is_caterpillar,
                 'is_valid_image': True,
-                'label': 'Caterpillar Damage Detected' if is_caterpillar else 'Healthy'
+                'label': 'Caterpillar Damage Detected' if is_caterpillar else ('White Fly Detected' if predicted_class == 'white_fly' else 'Healthy')
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/white_fly', methods=['POST'])
+def predict_white_fly():
+    """Detect white fly damage (uses unified 4-class model)"""
+
+    if models.get('unified') is None:
+        return jsonify({'error': 'Unified model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_unified(image_bytes)
+
+        # 4-class classification
+        predictions = models['unified'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = UNIFIED_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_white_fly = predicted_class == 'white_fly'
+        is_valid = predicted_class != 'not_coconut'
+
+        probabilities = {
+            'caterpillar': float(predictions[0]),
+            'healthy': float(predictions[1]),
+            'not_coconut': float(predictions[2]),
+            'white_fly': float(predictions[3])
+        }
+
+        if not is_valid:
+            return jsonify({
+                'success': True,
+                'pest_type': 'white_fly',
+                'model_version': 'unified_v1',
+                'prediction': {
+                    'class': 'not_coconut',
+                    'confidence': confidence,
+                    'is_infected': False,
+                    'is_valid_image': False,
+                    'label': 'Not a valid coconut image',
+                    'message': 'The uploaded image does not appear to be a coconut. Please upload a clear image of a coconut leaf.'
+                },
+                'probabilities': probabilities,
+                'timestamp': datetime.now().isoformat()
+            })
+
+        return jsonify({
+            'success': True,
+            'pest_type': 'white_fly',
+            'model_version': 'unified_v1',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_infected': is_white_fly,
+                'is_valid_image': True,
+                'label': 'White Fly Damage Detected' if is_white_fly else ('Caterpillar Detected' if predicted_class == 'caterpillar' else 'Healthy')
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/disease', methods=['POST'])
+def predict_disease():
+    """Detect coconut leaf diseases (v2 model - 4-class classification)
+
+    Classes: Leaf Rot, Leaf_Spot, healthy, not_cocount
+    """
+
+    if models.get('disease') is None:
+        return jsonify({'error': 'Disease model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_disease(image_bytes)
+
+        # 4-class classification: softmax output
+        # Classes: ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
+        predictions = models['disease'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = DISEASE_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_leaf_rot = predicted_class == 'Leaf Rot'
+        is_leaf_spot = predicted_class == 'Leaf_Spot'
+        is_diseased = is_leaf_rot or is_leaf_spot
+        is_healthy = predicted_class == 'healthy'
+        is_valid = predicted_class != 'not_cocount'
+
+        probabilities = {
+            'leaf_rot': float(predictions[0]),
+            'leaf_spot': float(predictions[1]),
+            'healthy': float(predictions[2]),
+            'not_coconut': float(predictions[3])
+        }
+
+        # Determine label and message
+        if not is_valid:
+            label = 'Not a valid coconut leaf image'
+            message = 'The uploaded image does not appear to be a coconut leaf. Please upload a clear image of a coconut leaf.'
+            status = 'invalid'
+        elif is_leaf_rot:
+            label = 'Leaf Rot Disease Detected'
+            message = 'This coconut leaf shows signs of Leaf Rot disease. Early treatment is recommended.'
+            status = 'diseased'
+        elif is_leaf_spot:
+            label = 'Leaf Spot Disease Detected'
+            message = 'This coconut leaf shows signs of Leaf Spot disease. Apply appropriate fungicide treatment.'
+            status = 'diseased'
+        else:
+            label = 'Healthy Leaf'
+            message = 'No disease detected. This coconut leaf appears to be healthy.'
+            status = 'healthy'
+
+        return jsonify({
+            'success': True,
+            'detection_type': 'disease',
+            'model_version': 'v2',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_diseased': is_diseased,
+                'is_leaf_rot': is_leaf_rot,
+                'is_leaf_spot': is_leaf_spot,
+                'is_healthy': is_healthy,
+                'is_valid_image': is_valid,
+                'label': label,
+                'message': message,
+                'status': status
             },
             'probabilities': probabilities,
             'timestamp': datetime.now().isoformat()
@@ -432,10 +785,7 @@ def predict_caterpillar():
 def predict_all():
     """
     Run all available pest detection models on the image.
-    Smart Combined Logic:
-    1. If EITHER model says "not_coconut" with high confidence → reject as not coconut
-    2. Check each pest independently
-    3. Return ONE coherent answer with all detections
+    Uses: Mite v10 (3-class) + Unified v1 (4-class for caterpillar & white fly)
     """
 
     if 'image' not in request.files:
@@ -449,29 +799,21 @@ def predict_all():
     results = {}
     detected_pests = []
 
-    # Track not_coconut confidence from each model
-    not_coconut_confidences = []
-
-    # Run Mite Detection (v10 - 3-class classification)
+    # Run Mite Detection (v10 - 3-class)
     if models.get('mite') is not None:
         try:
             processed = preprocess_image_mite(image_bytes)
             predictions = models['mite'].predict(processed, verbose=0)[0]
 
-            # Apply threshold adjustment (boost mite probability)
+            # Apply threshold adjustment
             adjusted_probs = predictions.copy()
             adjusted_probs[0] = adjusted_probs[0] * MITE_BOOST_FACTOR
 
-            # Get predicted class
             predicted_idx = int(np.argmax(adjusted_probs))
             predicted_class = MITE_CLASSES[predicted_idx]
             confidence = float(predictions[predicted_idx])
             is_mite = predicted_class == 'coconut_mite'
             is_valid = predicted_class != 'not_coconut'
-
-            # Track not_coconut probability
-            not_coconut_prob = float(predictions[2])  # not_coconut is index 2
-            not_coconut_confidences.append(('mite', not_coconut_prob))
 
             results['mite'] = {
                 'class': predicted_class,
@@ -489,61 +831,114 @@ def predict_all():
         except Exception as e:
             results['mite'] = {'error': str(e)}
 
-    # Run Caterpillar Detection (v2 - 3-class classification)
-    if models.get('caterpillar') is not None:
+    # Run Unified Detection (v1 - 4-class for caterpillar & white fly)
+    if models.get('unified') is not None:
         try:
-            processed = preprocess_image_caterpillar(image_bytes)
-            predictions = models['caterpillar'].predict(processed, verbose=0)[0]
+            processed = preprocess_image_unified(image_bytes)
+            predictions = models['unified'].predict(processed, verbose=0)[0]
 
-            # Get predicted class
             predicted_idx = int(np.argmax(predictions))
-            predicted_class = CATERPILLAR_CLASSES[predicted_idx]
+            predicted_class = UNIFIED_CLASSES[predicted_idx]
             confidence = float(predictions[predicted_idx])
             is_caterpillar = predicted_class == 'caterpillar'
+            is_white_fly = predicted_class == 'white_fly'
             is_valid = predicted_class != 'not_coconut'
 
-            # Track not_coconut probability
-            not_coconut_prob = float(predictions[2])  # not_coconut is index 2
-            not_coconut_confidences.append(('caterpillar', not_coconut_prob))
+            probabilities = {
+                'caterpillar': float(predictions[0]),
+                'healthy': float(predictions[1]),
+                'not_coconut': float(predictions[2]),
+                'white_fly': float(predictions[3])
+            }
 
+            # Determine caterpillar-specific class and confidence
+            if predicted_class == 'not_coconut':
+                cat_class = 'not_coconut'
+                cat_confidence = float(predictions[2])  # not_coconut probability
+            elif is_caterpillar:
+                cat_class = 'caterpillar'
+                cat_confidence = float(predictions[0])  # caterpillar probability
+            else:
+                cat_class = 'healthy'
+                cat_confidence = float(predictions[1])  # healthy probability
+
+            # Determine white_fly-specific class and confidence
+            if predicted_class == 'not_coconut':
+                wf_class = 'not_coconut'
+                wf_confidence = float(predictions[2])  # not_coconut probability
+            elif is_white_fly:
+                wf_class = 'white_fly'
+                wf_confidence = float(predictions[3])  # white_fly probability
+            else:
+                wf_class = 'healthy'
+                wf_confidence = float(predictions[1])  # healthy probability
+
+            # Store as separate results for backward compatibility
             results['caterpillar'] = {
-                'class': predicted_class,
-                'confidence': confidence,
+                'class': cat_class,
+                'confidence': cat_confidence,
                 'is_infected': is_caterpillar,
                 'is_valid_image': is_valid,
-                'probabilities': {
-                    'caterpillar': float(predictions[0]),
-                    'healthy': float(predictions[1]),
-                    'not_coconut': float(predictions[2])
-                }
+                'probabilities': probabilities
             }
+
+            results['white_fly'] = {
+                'class': wf_class,
+                'confidence': wf_confidence,
+                'is_infected': is_white_fly,
+                'is_valid_image': is_valid,
+                'probabilities': probabilities
+            }
+
             if is_caterpillar and is_valid:
                 detected_pests.append('Caterpillar')
+            if is_white_fly and is_valid:
+                detected_pests.append('White Fly')
+
+            # Cross-validation: If unified model confidently says "healthy",
+            # remove mite detection (unified model is more reliable for healthy leaves)
+            unified_healthy_confidence = float(predictions[1])  # healthy probability
+            if unified_healthy_confidence > 0.80 and 'Coconut Mite' in detected_pests:
+                # Unified model is confident this is healthy, don't trust mite detection
+                detected_pests.remove('Coconut Mite')
+                # Update mite result to show healthy instead
+                if 'mite' in results:
+                    results['mite']['class'] = 'healthy'
+                    results['mite']['confidence'] = unified_healthy_confidence
+                    results['mite']['is_infected'] = False
+
         except Exception as e:
             results['caterpillar'] = {'error': str(e)}
+            results['white_fly'] = {'error': str(e)}
 
-    # Smart Combined Decision Logic (v7 - Confidence Threshold)
-    # Valid coconut detection requires >40% confidence in valid class
-    # Only reject if no confident valid detection found
-
-    # Check if any model found a valid coconut with >40% confidence
+    # Smart Combined Decision Logic
+    MIN_CONFIDENCE = 0.40
     valid_coconut_found = False
-    MIN_CONFIDENCE = 0.40  # Minimum confidence to trust a valid detection
 
-    for model_name in ['mite', 'caterpillar']:
-        if model_name in results and 'error' not in results[model_name]:
-            predicted_class = results[model_name].get('class', '')
-            confidence = results[model_name].get('confidence', 0)
-            # If model predicts healthy or a pest WITH >40% confidence, it's valid
-            if predicted_class in ['healthy', 'coconut_mite', 'caterpillar'] and confidence > MIN_CONFIDENCE:
-                valid_coconut_found = True
-                break
+    # Check mite result
+    if 'mite' in results and 'error' not in results['mite']:
+        predicted_class = results['mite'].get('class', '')
+        confidence = results['mite'].get('confidence', 0)
+        if predicted_class in ['healthy', 'coconut_mite'] and confidence > MIN_CONFIDENCE:
+            valid_coconut_found = True
 
-    # Reject if no confident valid detection found
+    # Check unified result - caterpillar
+    if 'caterpillar' in results and 'error' not in results['caterpillar']:
+        predicted_class = results['caterpillar'].get('class', '')
+        confidence = results['caterpillar'].get('confidence', 0)
+        if predicted_class in ['healthy', 'caterpillar'] and confidence > MIN_CONFIDENCE:
+            valid_coconut_found = True
+
+    # Check unified result - white fly
+    if 'white_fly' in results and 'error' not in results['white_fly']:
+        predicted_class = results['white_fly'].get('class', '')
+        confidence = results['white_fly'].get('confidence', 0)
+        if predicted_class in ['healthy', 'white_fly'] and confidence > MIN_CONFIDENCE:
+            valid_coconut_found = True
+
     should_reject = not valid_coconut_found
 
     if should_reject:
-        # Not a valid coconut image
         summary = {
             'is_valid_image': False,
             'is_healthy': False,
@@ -554,22 +949,31 @@ def predict_all():
             'recommendation': 'Please upload a clearer image of a coconut'
         }
     elif len(detected_pests) > 0:
-        # Pests detected
-        if len(detected_pests) == 2:
+        if len(detected_pests) >= 2:
             status = 'Multiple Pests Detected'
-            label = 'Both Mite and Caterpillar damage detected'
-            message = 'WARNING: This coconut shows signs of both mite infection and caterpillar damage.'
-            recommendation = 'Immediate treatment recommended. Consider both mite spray and caterpillar control measures.'
+            label = f'{", ".join(detected_pests)} damage detected'
+            message = f'WARNING: This coconut shows signs of multiple pest infections: {", ".join(detected_pests)}.'
+            recommendation = 'Immediate treatment recommended. Apply comprehensive pest control measures.'
         elif 'Coconut Mite' in detected_pests:
             status = 'Mite Infection Detected'
             label = 'Coconut Mite Infected'
             message = 'This coconut shows signs of mite infection.'
             recommendation = 'Apply mite treatment spray and monitor affected trees.'
-        else:
+        elif 'Caterpillar' in detected_pests:
             status = 'Caterpillar Damage Detected'
             label = 'Caterpillar Damage Found'
             message = 'This coconut shows signs of caterpillar damage.'
             recommendation = 'Apply caterpillar control measures and inspect nearby trees.'
+        elif 'White Fly' in detected_pests:
+            status = 'White Fly Damage Detected'
+            label = 'White Fly Infestation Found'
+            message = 'This coconut shows signs of white fly infestation.'
+            recommendation = 'Apply white fly control measures such as neem oil spray.'
+        else:
+            status = 'Pest Detected'
+            label = detected_pests[0]
+            message = f'This coconut shows signs of {detected_pests[0]} infection.'
+            recommendation = 'Apply appropriate pest control measures.'
 
         summary = {
             'is_valid_image': True,
@@ -581,7 +985,6 @@ def predict_all():
             'recommendation': recommendation
         }
     else:
-        # Healthy coconut
         summary = {
             'is_valid_image': True,
             'is_healthy': True,
@@ -598,10 +1001,11 @@ def predict_all():
         'summary': summary,
         'models_used': {
             'mite': 'v10 (3-class, 91.44% accuracy)',
-            'caterpillar': 'v2 (3-class, 97.47% accuracy)'
+            'unified': 'v1 (4-class, 96.08% accuracy - caterpillar & white fly)'
         },
         'timestamp': datetime.now().isoformat()
     })
+
 
 # Leaf Health Detection Endpoint
 @app.route('/predict/leaf-health', methods=['POST'])
@@ -816,10 +1220,182 @@ def get_unhealthy_conditions_details():
     return UNHEALTHY_LEAF_CONDITIONS
 
 # Legacy endpoint for backward compatibility
+
+# Legacy endpoint
+
 @app.route('/predict', methods=['POST'])
 def predict_legacy():
     """Legacy endpoint - redirects to mite detection"""
     return predict_mite()
+
+
+# ============================================================
+# AI CHATBOT ENDPOINT (Groq API)
+# ============================================================
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    """
+    AI Chatbot endpoint using Groq API
+    Specialized for coconut health and farming advice
+
+    Request body:
+    {
+        "message": "How do I treat mite infection?",
+        "history": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hello! How can I help?"}
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'message' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Message is required'
+            }), 400
+
+        user_message = data.get('message', '').strip()
+        chat_history = data.get('history', [])
+
+        if not user_message:
+            return jsonify({
+                'success': False,
+                'error': 'Message cannot be empty'
+            }), 400
+
+        # Build messages array with system prompt and history
+        messages = [
+            {"role": "system", "content": COCONUT_EXPERT_PROMPT}
+        ]
+
+        # Add chat history (last 10 messages to avoid token limit)
+        for msg in chat_history[-10:]:
+            messages.append({
+                "role": msg.get('role', 'user'),
+                "content": msg.get('content', '')
+            })
+
+        # Add current user message
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+
+        # Call Groq API with retry session
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 1024,
+            "top_p": 1,
+            "stream": False
+        }
+
+        # Use session with retry logic for better connection handling
+        global groq_session
+        try:
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+        except (requests.exceptions.ConnectionError, ConnectionResetError) as conn_err:
+            # Connection was reset, create a new session and retry once
+            print(f"Connection reset, retrying with new session: {conn_err}")
+            groq_session = create_groq_session()
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+
+        if response.status_code != 200:
+            error_msg = response.json().get('error', {}).get('message', 'Unknown error')
+            return jsonify({
+                'success': False,
+                'error': f'Groq API error: {error_msg}'
+            }), 500
+
+        result = response.json()
+        assistant_message = result['choices'][0]['message']['content']
+
+        return jsonify({
+            'success': True,
+            'response': assistant_message,
+            'model': GROQ_MODEL,
+            'usage': result.get('usage', {})
+        })
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'success': False,
+            'error': 'Request timeout. Please try again.'
+        }), 504
+    except (requests.exceptions.ConnectionError, ConnectionResetError) as e:
+        # Reset the session for next request
+        groq_session = create_groq_session()
+        return jsonify({
+            'success': False,
+            'error': 'Connection error. Please try again.'
+        }), 503
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            'success': False,
+            'error': f'Network error: {str(e)}'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }), 500
+
+
+@app.route('/chat/health', methods=['GET'])
+def chat_health():
+    """Check if chat service is available"""
+    global groq_session
+    try:
+        # Quick test to Groq API using session with retry
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": "Hi"}],
+            "max_tokens": 5
+        }
+
+        try:
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=10)
+        except (requests.exceptions.ConnectionError, ConnectionResetError):
+            # Reset session and retry
+            groq_session = create_groq_session()
+            response = groq_session.post(GROQ_API_URL, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            return jsonify({
+                'success': True,
+                'status': 'online',
+                'model': GROQ_MODEL,
+                'message': 'Chat service is ready'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'status': 'error',
+                'message': 'Groq API not responding'
+            }), 503
+
+    except Exception as e:
+        groq_session = create_groq_session()  # Reset for next request
+        return jsonify({
+            'success': False,
+            'status': 'offline',
+            'message': str(e)
+        }), 503
+
 
 # Error handlers
 @app.errorhandler(404)
@@ -831,8 +1407,8 @@ def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    # Load all models on startup
     load_models()
+
 
     # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
     print("\nStarting Coconut Health Monitor ML API v5.0...")
@@ -840,5 +1416,11 @@ if __name__ == '__main__':
     print("  Caterpillar Model: v2 (3-class, 97.47% accuracy, 91.49% caterpillar recall)")
     print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
     print("  Mite & Caterpillar models support 'not_coconut' class for image validation!")
+
+    print("\nStarting Coconut Health Monitor ML API v7.0...")
+    print("  Mite Model: v10 (3-class, 91.44% accuracy)")
+    print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
+    print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
+
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=False)

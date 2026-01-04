@@ -1,6 +1,7 @@
 const ScanResult = require('../models/ScanResult');
 const mongoose = require('mongoose');
 const { uploadImage, deleteImage } = require('../config/cloudinary');
+const { sendPestDetectionNotification } = require('../services/pushNotificationService');
 
 /**
  * @desc    Save a new scan result
@@ -36,13 +37,15 @@ exports.saveScanResult = async (req, res) => {
       }
     }
 
-    // Normalize pestsDetected to lowercase (API may return 'Caterpillar' instead of 'caterpillar')
+    // Normalize pestsDetected to lowercase (API may return 'Caterpillar', 'Coconut Mite', etc.)
     const normalizedPests = (pestsDetected || []).map(pest => {
-      const lower = pest.toLowerCase();
+      const lower = pest.toLowerCase().replace(/\s+/g, '_'); // Replace spaces with underscores
       if (lower === 'caterpillar') return 'caterpillar';
       if (lower === 'coconut_mite' || lower === 'mite') return 'coconut_mite';
       return lower;
     }).filter(p => ['coconut_mite', 'caterpillar'].includes(p));
+
+    console.log('📊 Scan data - isInfected:', isInfected, 'pestsDetected:', pestsDetected, 'normalized:', normalizedPests);
 
     const scanResult = await ScanResult.create({
       userId: req.user._id,
@@ -59,6 +62,23 @@ exports.saveScanResult = async (req, res) => {
     });
 
     console.log('✅ Scan saved successfully:', scanResult._id);
+
+    // Send push notification if pest was detected
+    if (isInfected && normalizedPests.length > 0) {
+      sendPestDetectionNotification(req.user._id, {
+        pestsDetected: normalizedPests,
+        severity,
+        scanId: scanResult._id,
+      }).then(result => {
+        if (result.success) {
+          console.log('📱 Push notification sent for scan:', scanResult._id);
+        } else {
+          console.log('📱 Push notification skipped:', result.reason);
+        }
+      }).catch(err => {
+        console.error('📱 Push notification error:', err.message);
+      });
+    }
 
     res.status(201).json({
       success: true,

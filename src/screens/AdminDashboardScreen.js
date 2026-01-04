@@ -11,6 +11,7 @@ import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
 import {scanAPI} from '../services/scanApi';
 import {useLanguage} from '../context/LanguageContext';
+import {syncFCMToken} from '../services/notificationService';
 
 export default function AdminDashboardScreen({navigation, route}) {
   const {t} = useLanguage();
@@ -25,6 +26,10 @@ export default function AdminDashboardScreen({navigation, route}) {
 
   useEffect(() => {
     loadStats();
+    // Sync FCM token with server after login
+    syncFCMToken().catch(err =>
+      console.log('FCM token sync error:', err.message),
+    );
   }, []);
 
   const loadStats = async () => {

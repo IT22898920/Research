@@ -11,10 +11,12 @@ A React Native mobile application that uses machine learning models to detect pe
 ## Features
 
 - **Coconut Mite Detection** - EfficientNetB0 model (91.44% accuracy)
-- **Coconut Caterpillar Detection** - MobileNetV2 model (97.47% accuracy)
-- **Smart All Pests Detection** - Combined analysis with intelligent decision logic
+- **Coconut Caterpillar Detection** - Unified MobileNetV2 model (96.08% accuracy)
+- **White Fly Detection** - Unified MobileNetV2 model (96.08% accuracy)
+- **Smart All Pests Detection** - Combined analysis with cross-validation logic
 - **Non-Coconut Image Rejection** - Filters out invalid images automatically
-- **Real-time Pest Prediction** - Flask API for instant results
+- **Cross-Validation** - Prevents false positives by validating between models
+- **Real-time Pest Prediction** - Flask API v6.0 for instant results
 - **Firebase Authentication** - Secure login with Google Sign-In
 
 ## Tech Stack
@@ -43,34 +45,34 @@ A React Native mobile application that uses machine learning models to detect pe
 - **Classes:** `coconut_mite`, `healthy`, `not_coconut`
 - **Features:** Focal Loss, Mite boost factor, Non-coconut rejection
 
-### Coconut Caterpillar Detection (v2)
+### Unified Caterpillar & White Fly Detection (v1)
 - **Architecture:** MobileNetV2 (Transfer Learning)
-- **Accuracy:** 97.47%
-- **Macro F1 Score:** 96.30%
-- **Classes:** `caterpillar`, `healthy`, `not_coconut`
+- **Accuracy:** 96.08%
+- **Macro F1 Score:** 92.38%
+- **Classes:** `caterpillar`, `healthy`, `not_coconut`, `white_fly`
+- **Features:** Focal Loss, 4-class classification, Cross-validation with Mite model
 
 ## Project Structure
 
 ```
 Research/
 ├── ml/
-│   ├── api/                         # Flask API server (v4.0)
-│   │   ├── app.py                   # API routes with smart logic
-│   │   └── test_api.py              # API tests
+│   ├── api/                                    # Flask API server (v6.0)
+│   │   ├── app.py                              # API routes with cross-validation
+│   │   └── test_api.py                         # API tests
 │   ├── models/
-│   │   ├── coconut_mite_v10/        # Latest mite model (3-class)
-│   │   └── coconut_caterpillar_v2/  # Latest caterpillar model (3-class)
+│   │   ├── coconut_mite_v10/                   # Mite model (3-class)
+│   │   └── unified_caterpillar_whitefly_v1/    # Unified model (4-class)
 │   └── notebooks/
-│       ├── 07_mite_3class_training.ipynb
 │       ├── 09_mite_v10_final_results.ipynb
-│       └── 10_caterpillar_v2_final_results.ipynb
+│       └── 12_unified_caterpillar_whitefly_v1.ipynb
 ├── src/
 │   ├── screens/
-│   │   └── PestDetectionScreen.js   # Main pest detection UI
+│   │   └── PestDetectionScreen.js              # Main pest detection UI
 │   └── services/
-│       └── pestDetectionApi.js      # API client (v4.0)
-├── android/                         # Android native code
-└── App.tsx                          # App entry point
+│       └── pestDetectionApi.js                 # API client (v5.0)
+├── android/                                    # Android native code
+└── App.tsx                                     # App entry point
 ```
 
 ## Quick Start
@@ -92,22 +94,28 @@ python app.py
 
 API will start on `http://localhost:5001`
 
-## API Endpoints (v4.0)
+## API Endpoints (v6.0)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | API health check with model status |
 | `/models` | GET | List all loaded models |
 | `/predict/mite` | POST | Detect coconut mite (3-class) |
-| `/predict/caterpillar` | POST | Detect caterpillar damage (3-class) |
-| `/predict/all` | POST | Smart combined pest detection |
+| `/predict/caterpillar` | POST | Detect caterpillar damage (4-class unified) |
+| `/predict/white_fly` | POST | Detect white fly damage (4-class unified) |
+| `/predict/unified` | POST | Unified model detection (4-class) |
+| `/predict/all` | POST | Smart combined pest detection with cross-validation |
 
-### Smart Combined Logic
+### Smart Combined Logic with Cross-Validation
 
-The `/predict/all` endpoint uses v7 decision logic:
+The `/predict/all` endpoint uses intelligent decision logic:
 
 ```
 Valid Detection = (healthy OR pest) WITH >40% confidence
+
+Cross-Validation:
+- If unified model says "healthy" >80% confidence, ignore mite false positives
+- Prevents mite model errors from overriding correct unified predictions
 
 Rules:
 - Accept if ANY model confidently detects valid coconut class (>40%)
@@ -115,11 +123,14 @@ Rules:
 ```
 
 **Example Scenarios:**
-| Image Type | Mite Says | Caterpillar Says | Result |
-|------------|-----------|------------------|--------|
-| Healthy leaf | not_coconut | healthy 98% | Healthy |
-| Infected coconut | mite 55% | not_coconut | Mite Infected |
-| Garden scene | mite 39% | not_coconut 99% | Not Valid |
+| Image Type | Mite Says | Unified Says | Result |
+|------------|-----------|--------------|--------|
+| Healthy leaf | mite 30% | healthy 96% | ✅ Healthy (cross-validation) |
+| Healthy leaf | not_coconut | healthy 98% | ✅ Healthy |
+| Mite infected | mite 55% | not_coconut | ✅ Mite Infected |
+| Caterpillar | not_coconut | caterpillar 95% | ✅ Caterpillar |
+| White Fly | not_coconut | white_fly 92% | ✅ White Fly |
+| Garden scene | mite 39% | not_coconut 99% | ❌ Not Valid |
 
 ## Model Training
 
@@ -127,9 +138,8 @@ Jupyter notebooks in `ml/notebooks/`:
 
 | Notebook | Description |
 |----------|-------------|
-| `07_mite_3class_training.ipynb` | Mite v8-v10 training |
 | `09_mite_v10_final_results.ipynb` | Mite v10 evaluation |
-| `10_caterpillar_v2_final_results.ipynb` | Caterpillar v2 evaluation |
+| `12_unified_caterpillar_whitefly_v1.ipynb` | Unified model training & evaluation |
 
 ## Model Version History
 
@@ -140,15 +150,14 @@ Jupyter notebooks in `ml/notebooks/`:
 | v8-v9 | ~88% | 3 | Deprecated |
 | **v10** | **91.44%** | **3** | **Current** |
 
-### Coconut Caterpillar
+### Unified Caterpillar & White Fly
 | Version | Accuracy | Classes | Status |
 |---------|----------|---------|--------|
-| v1 | 98.91% | 2 | Deprecated |
-| **v2** | **97.47%** | **3** | **Current** |
+| **v1** | **96.08%** | **4** | **Current** |
 
 ## API Response Format
 
-### Single Pest Detection (`/predict/mite` or `/predict/caterpillar`)
+### Single Pest Detection (`/predict/mite`, `/predict/caterpillar`, `/predict/white_fly`)
 ```json
 {
   "success": true,
@@ -173,15 +182,17 @@ Jupyter notebooks in `ml/notebooks/`:
 {
   "success": true,
   "results": {
-    "mite": { "class": "coconut_mite", "confidence": 0.55 },
-    "caterpillar": { "class": "not_coconut", "confidence": 0.65 }
+    "mite": { "class": "healthy", "confidence": 0.96 },
+    "caterpillar": { "class": "healthy", "confidence": 0.96 },
+    "white_fly": { "class": "healthy", "confidence": 0.96 }
   },
   "summary": {
     "is_valid_image": true,
-    "is_healthy": false,
-    "label": "Coconut Mite Infected",
-    "pests_detected": ["Coconut Mite"],
-    "recommendation": "Apply mite treatment spray and monitor affected trees."
+    "is_healthy": true,
+    "status": "Healthy",
+    "label": "Healthy Coconut",
+    "pests_detected": [],
+    "recommendation": "No treatment needed. Continue regular monitoring."
   }
 }
 ```

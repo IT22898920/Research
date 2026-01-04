@@ -1,0 +1,75 @@
+{
+  "model_name": "unified_caterpillar_whitefly_v1",
+  "version": "1.0",
+  "architecture": "MobileNetV2",
+  "input_size": [
+    224,
+    224,
+    3
+  ],
+  "classes": [
+    "caterpillar",
+    "healthy",
+    "not_coconut",
+    "white_fly"
+  ],
+  "num_classes": 4,
+  "loss_function": "focal_loss",
+  "focal_loss_params": {
+    "gamma": 2.0,
+    "alpha": 0.25
+  },
+  "training": {
+    "phase1_epochs": 15,
+    "phase2_epochs": 26,
+    "total_epochs": 41,
+    "batch_size": 32,
+    "phase1_learning_rate": 0.001,
+    "phase2_learning_rate": 1e-05,
+    "training_time_minutes": 394.14,
+    "final_train_accuracy": 0.9762657880783081,
+    "final_val_accuracy": 0.9647798538208008
+  },
+  "evaluation": {
+    "test_accuracy": 0.9607508778572083,
+    "test_loss": 0.016021180897951126,
+    "macro_precision": 0.9171187654750149,
+    "macro_recall": 0.9351822061760118,
+    "macro_f1_score": 0.9238239913363931,
+    "per_class_metrics": {
+      "caterpillar": {
+        "precision": 0.7894736842105263,
+        "recall": 0.9574468085106383,
+        "f1_score": 0.8653846153846154,
+        "support": 47
+      },
+      "healthy": {
+        "precision": 0.9655172413793104,
+        "recall": 0.9333333333333333,
+        "f1_score": 0.9491525423728814,
+        "support": 90
+      },
+      "not_coconut": {
+        "precision": 0.9945652173913043,
+        "recall": 0.9891891891891892,
+        "f1_score": 0.991869918699187,
+        "support": 370
+      },
+      "white_fly": {
+        "precision": 0.918918918918919,
+        "recall": 0.8607594936708861,
+        "f1_score": 0.8888888888888888,
+        "support": 79
+      }
+    }
+  },
+  "anti_overfitting_measures": [
+    "Data augmentation (training only)",
+    "Dropout layers (0.5 and 0.3)",
+    "Early stopping",
+    "Learning rate reduction",
+    "Class weights for imbalanced data",
+    "2-phase training with frozen base"
+  ],
+  "created_at": "2026-01-01T22:05:18.100256"
+}

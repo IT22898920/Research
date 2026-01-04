@@ -75,8 +75,11 @@
       "Bash(set:*)",
       "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\")",
       "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(tasklist /FI \"PID eq 7644\" /V)",
       "Bash(npm install:*)",
       "Bash(node src/server.js:*)",
+
       "mcp__ide__executeCode",
       "Bash(python train_leaf_health.py:*)",
       "Bash(taskkill /F /PID 11188)",
@@ -96,6 +99,38 @@
       "Bash(./gradlew clean:*)",
       "Bash(ipconfig:*)",
       "Bash(taskkill /PID 26400 /F)"
+
+      "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\(''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\coconut-app-cd914-firebase-adminsdk-fbsvc-1c56f671da.json''\\)\\)\")",
+      "Bash(mkdir:*)",
+      "Bash(.gradlew clean:*)",
+      "mcp__ide__executeCode",
+      "Bash(python train_white_fly.py:*)",
+      "Bash(python fix_notebook.py:*)",
+      "Bash(powershell -Command \"\\(Get-Content 11_white_fly_v1_training.ipynb | Select-String ''image/png''\\).Count\")",
+      "Bash(powershell -Command \"\\(Get-Item 11_white_fly_v1_training.ipynb\\).Length / 1MB\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data'' -Directory -Recurse | Select-Object FullName\")",
+      "Bash(more:*)",
+      "Bash(timeout 30 python:*)",
+      "Bash(timeout 35 python:*)",
+      "Bash(timeout /t 20 /nobreak)",
+      "Bash(if exist __pycache__ rmdir /s /q __pycache__)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(del \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\test_response.json\" \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\test_tamil.json\")",
+      "Bash(adb shell pm:*)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm clear com.android.providers.media)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell rm -rf /data/local/tmp/*)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm uninstall com.coconuthealthmonitorNew)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm trim-caches 500M)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h /data)",
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")",
+      "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/train/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/val/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)"
+
     ]
   }
 }

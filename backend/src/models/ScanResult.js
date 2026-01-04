@@ -10,10 +10,10 @@ const scanResultSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Scan type: 'mite', 'caterpillar', or 'all'
+    // Scan type: 'mite', 'caterpillar', 'white_fly', or 'all'
     scanType: {
       type: String,
-      enum: ['mite', 'caterpillar', 'all'],
+      enum: ['mite', 'caterpillar', 'white_fly', 'all'],
       required: true,
     },
 
@@ -41,6 +41,11 @@ const scanResultSchema = new mongoose.Schema(
         confidence: Number,
         class: String, // 'caterpillar', 'healthy', 'not_coconut'
       },
+      white_fly: {
+        detected: Boolean,
+        confidence: Number,
+        class: String, // 'white_fly', 'healthy', 'not_coconut'
+      },
     },
 
     // Severity information
@@ -56,7 +61,7 @@ const scanResultSchema = new mongoose.Schema(
     pestsDetected: [
       {
         type: String,
-        enum: ['coconut_mite', 'caterpillar'],
+        enum: ['coconut_mite', 'caterpillar', 'white_fly'],
       },
     ],
 

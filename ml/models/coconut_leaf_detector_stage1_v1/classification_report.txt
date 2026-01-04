@@ -1,0 +1,8 @@
+              precision    recall  f1-score   support
+
+     cocount     0.9928    0.9718    0.9822       426
+ not_cocount     0.9727    0.9930    0.9827       430
+
+    accuracy                         0.9825       856
+   macro avg     0.9827    0.9824    0.9825       856
+weighted avg     0.9827    0.9825    0.9825       856

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,18 @@ import {
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
 import {useLanguage} from '../context/LanguageContext';
+import {syncFCMToken} from '../services/notificationService';
 
 export default function DashboardScreen({navigation, route}) {
   const {t} = useLanguage();
   const user = route.params?.user;
+
+  // Sync FCM token with server after login
+  useEffect(() => {
+    syncFCMToken().catch(err =>
+      console.log('FCM token sync error:', err.message),
+    );
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -80,6 +88,17 @@ export default function DashboardScreen({navigation, route}) {
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('DiseaseDetection')}>
+          <Text style={styles.featureIcon}>🍃</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('diseaseDetection.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('diseaseDetection.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>
@@ -95,6 +114,17 @@ export default function DashboardScreen({navigation, route}) {
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>{t('adminFeatures.analytics')}</Text>
             <Text style={styles.featureSubtext}>View scan history & stats</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('Chat')}>
+          <Text style={styles.featureIcon}>💬</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('chat.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('chat.subtitle')}</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
