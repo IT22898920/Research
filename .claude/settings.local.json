@@ -102,7 +102,13 @@
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm uninstall com.coconuthealthmonitorNew)",
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm trim-caches 500M)",
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h /data)",
-      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")"
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")",
+      "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/train/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/val/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)"
     ]
   }
 }

@@ -1,15 +1,16 @@
 /**
- * Pest Detection API Service v5.0
- * Connects to Flask ML API for pest detection
+ * Pest & Disease Detection API Service v6.0
+ * Connects to Flask ML API for pest and disease detection
  *
  * Models:
  * - Mite: v10 (3-class: coconut_mite, healthy, not_coconut) - 91.44% accuracy
- * - Caterpillar: v2 (3-class: caterpillar, healthy, not_coconut) - 97.47% accuracy
- * - White Fly: v1 (3-class: healthy, not_coconut, white_fly) - 98.06% accuracy
+ * - Unified: v1 (4-class: caterpillar, healthy, not_coconut, white_fly) - 96.08% accuracy
+ * - Disease: v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount) - 98.69% accuracy
  *
  * Features:
  * - All models can detect non-coconut images
  * - Smart combined logic for "All Pests" detection
+ * - Disease detection for Leaf Rot and Leaf Spot
  * - One coherent answer with recommendations
  */
 
@@ -259,6 +260,50 @@ export const detectAllPests = async (imageUri) => {
 };
 
 /**
+ * Detect Leaf Diseases (Leaf Rot, Leaf Spot)
+ *
+ * Response includes:
+ * - prediction: class, confidence, is_diseased, is_leaf_rot, is_leaf_spot, label, message, status
+ * - probabilities: leaf_rot, leaf_spot, healthy, not_coconut
+ */
+export const detectDisease = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/disease`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'disease',
+        prediction: data.prediction,
+        probabilities: data.probabilities,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Legacy function - Predict pest (defaults to mite for backward compatibility)
  * @deprecated Use detectMite, detectCaterpillar, or detectAllPests instead
  */
@@ -274,6 +319,14 @@ export const PEST_TYPES = {
   ALL: 'all',
 };
 
+// Disease types for convenience
+export const DISEASE_TYPES = {
+  LEAF_ROT: 'Leaf Rot',
+  LEAF_SPOT: 'Leaf_Spot',
+  HEALTHY: 'healthy',
+  NOT_COCONUT: 'not_cocount',
+};
+
 export default {
   checkApiHealth,
   getModelsInfo,
@@ -281,7 +334,9 @@ export default {
   detectCaterpillar,
   detectWhiteFly,
   detectAllPests,
+  detectDisease,
   predictPest,
   PEST_TYPES,
+  DISEASE_TYPES,
   API_BASE_URL,
 };

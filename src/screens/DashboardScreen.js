@@ -77,6 +77,17 @@ export default function DashboardScreen({navigation, route}) {
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('DiseaseDetection')}>
+          <Text style={styles.featureIcon}>🍃</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('diseaseDetection.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('diseaseDetection.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>
