@@ -1,0 +1,14 @@
+CLASSIFICATION REPORT
+======================================================================
+              precision    recall  f1-score   support
+
+    Leaf Rot       0.70      0.89      0.78       167
+   Leaf_Spot       0.62      0.96      0.75       163
+     healthy       0.68      0.22      0.33        77
+ not_cocount       0.98      0.79      0.88       430
+
+    accuracy                           0.79       837
+   macro avg       0.74      0.71      0.69       837
+weighted avg       0.83      0.79      0.78       837
+
+Test Accuracy: 0.7909

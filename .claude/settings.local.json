@@ -135,7 +135,13 @@
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm uninstall com.coconuthealthmonitorNew)",
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell pm trim-caches 500M)",
       "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell df -h /data)",
-      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")"
+      "Bash(\"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" shell \"df -h | grep data\")",
+      "Bash(cmd.exe /c \"tasklist | findstr python\")",
+      "Bash(cmd.exe /c \"dir /o-d C:\\Users\\\"Tharindu Nandun\"\\Desktop\\Research\\Research\\ml\\models\\leaf_disease_v2\\\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python -c \\\":*)",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python split_dieback_data.py\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python split_data.py\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python train_leaf_dieback_v3.py\")"
     ]
   }
 }
