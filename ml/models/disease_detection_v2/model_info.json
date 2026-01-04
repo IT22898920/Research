@@ -1,0 +1,60 @@
+{
+  "model_name": "disease_detection_v2",
+  "version": "v2",
+  "architecture": "MobileNetV2 + Custom Head",
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "num_classes": 4,
+  "class_names": [
+    "Leaf Rot",
+    "Leaf_Spot",
+    "healthy",
+    "not_cocount"
+  ],
+  "test_accuracy": 0.9868578314781189,
+  "macro_f1_score": 0.9800111673811361,
+  "macro_precision": 0.9809469167103807,
+  "macro_recall": 0.9792807770143795,
+  "class_metrics": {
+    "Leaf Rot": {
+      "precision": 1.0,
+      "recall": 0.9760479041916168,
+      "f1_score": 0.9878787878787879,
+      "support": 167
+    },
+    "Leaf_Spot": {
+      "precision": 0.9702380952380952,
+      "recall": 1.0,
+      "f1_score": 0.9848942598187311,
+      "support": 163
+    },
+    "healthy": {
+      "precision": 0.9605263157894737,
+      "recall": 0.948051948051948,
+      "f1_score": 0.954248366013072,
+      "support": 77
+    },
+    "not_cocount": {
+      "precision": 0.9930232558139535,
+      "recall": 0.9930232558139535,
+      "f1_score": 0.9930232558139535,
+      "support": 430
+    }
+  },
+  "training_config": {
+    "loss": "Focal Loss",
+    "focal_gamma": 2.0,
+    "focal_alpha": 0.25,
+    "label_smoothing": 0.1,
+    "initial_lr": 0.001,
+    "dropout_rate": 0.4,
+    "batch_size": 32,
+    "phase1_epochs": 10,
+    "phase2_epochs": 40,
+    "fine_tune_layers": 50
+  },
+  "created_at": "2026-01-04T02:14:33.750009"
+}

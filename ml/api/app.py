@@ -112,6 +112,13 @@ UNIFIED_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'unified_caterpillar_whi
 # Unified model class indices (alphabetical order from ImageDataGenerator)
 UNIFIED_CLASSES = ['caterpillar', 'healthy', 'not_coconut', 'white_fly']
 
+# Disease Detection model paths (v2 - 4-class with Focal Loss)
+DISEASE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 'best_model.keras')
+DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 'model_info.json')
+
+# Disease model class indices (alphabetical order from ImageDataGenerator)
+DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
+
 # Global variables for models
 models = {}
 model_infos = {}
@@ -199,9 +206,41 @@ def load_models():
         models['unified'] = None
         model_infos['unified'] = None
 
+    # Load Disease Detection Model (v2 - 4-class with Focal Loss)
+    try:
+        print("\n[3] Loading Disease Detection model (v2 - 4-class)...")
+
+        models['disease'] = tf.keras.models.load_model(
+            DISEASE_MODEL_PATH,
+            custom_objects={'FocalLoss': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(DISEASE_MODEL_INFO_PATH, 'r') as f:
+                model_infos['disease'] = json.load(f)
+        except:
+            model_infos['disease'] = {
+                'version': 'v2_4class',
+                'classes': DISEASE_CLASSES,
+                'performance': {
+                    'test_accuracy': 0.9869,
+                    'macro_f1': 0.9800
+                }
+            }
+
+        print(f"    Version: v2 (4-class, Focal Loss)")
+        print(f"    Classes: {DISEASE_CLASSES}")
+        print(f"    Accuracy: 98.69%")
+        print(f"    Macro F1: 98.00%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading disease model: {e}")
+        models['disease'] = None
+        model_infos['disease'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/2")
+    print(f"  Models loaded: {loaded_count}/3")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -230,12 +269,25 @@ def preprocess_image_unified(image_bytes):
 
     return np.expand_dims(img_array, axis=0)
 
+def preprocess_image_disease(image_bytes):
+    """Preprocess image for disease model (0-1 scaling, 224x224)"""
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img = img.resize((224, 224), Image.Resampling.LANCZOS)
+    img_array = np.array(img, dtype=np.float32)
+    img_array = img_array / 255.0
+
+    return np.expand_dims(img_array, axis=0)
+
 @app.route('/', methods=['GET'])
 def home():
     """API home endpoint"""
     return jsonify({
-        'service': 'Coconut Health Monitor - Pest Detection API',
-        'version': '6.0.0',
+        'service': 'Coconut Health Monitor - Pest & Disease Detection API',
+        'version': '7.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -246,6 +298,11 @@ def home():
                 'status': 'loaded' if models.get('unified') is not None else 'not loaded',
                 'version': 'v1 (4-class: caterpillar, healthy, not_coconut, white_fly)',
                 'accuracy': '96.08%'
+            },
+            'disease': {
+                'status': 'loaded' if models.get('disease') is not None else 'not loaded',
+                'version': 'v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount)',
+                'accuracy': '98.69%'
             }
         },
         'endpoints': {
@@ -256,6 +313,7 @@ def home():
             '/predict/caterpillar': 'POST - Detect caterpillar damage (uses unified 4-class model)',
             '/predict/white_fly': 'POST - Detect white fly damage (uses unified 4-class model)',
             '/predict/unified': 'POST - Unified caterpillar & white fly detection (4-class)',
+            '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -267,7 +325,8 @@ def health_check():
         'status': 'healthy',
         'models': {
             'mite': models.get('mite') is not None,
-            'unified': models.get('unified') is not None
+            'unified': models.get('unified') is not None,
+            'disease': models.get('disease') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -298,6 +357,16 @@ def list_models():
             'caterpillar_recall': 0.9574,
             'white_fly_recall': 0.8608,
             'loaded': models.get('unified') is not None
+        }
+
+    if model_infos.get('disease'):
+        result['disease'] = {
+            'name': 'Coconut Leaf Disease Detection Model',
+            'version': 'v2 (4-class, Focal Loss)',
+            'classes': DISEASE_CLASSES,
+            'accuracy': 0.9869,
+            'macro_f1': 0.9800,
+            'loaded': models.get('disease') is not None
         }
 
     return jsonify(result)
@@ -583,6 +652,90 @@ def predict_white_fly():
                 'is_infected': is_white_fly,
                 'is_valid_image': True,
                 'label': 'White Fly Damage Detected' if is_white_fly else ('Caterpillar Detected' if predicted_class == 'caterpillar' else 'Healthy')
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/disease', methods=['POST'])
+def predict_disease():
+    """Detect coconut leaf diseases (v2 model - 4-class classification)
+
+    Classes: Leaf Rot, Leaf_Spot, healthy, not_cocount
+    """
+
+    if models.get('disease') is None:
+        return jsonify({'error': 'Disease model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_disease(image_bytes)
+
+        # 4-class classification: softmax output
+        # Classes: ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
+        predictions = models['disease'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = DISEASE_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_leaf_rot = predicted_class == 'Leaf Rot'
+        is_leaf_spot = predicted_class == 'Leaf_Spot'
+        is_diseased = is_leaf_rot or is_leaf_spot
+        is_healthy = predicted_class == 'healthy'
+        is_valid = predicted_class != 'not_cocount'
+
+        probabilities = {
+            'leaf_rot': float(predictions[0]),
+            'leaf_spot': float(predictions[1]),
+            'healthy': float(predictions[2]),
+            'not_coconut': float(predictions[3])
+        }
+
+        # Determine label and message
+        if not is_valid:
+            label = 'Not a valid coconut leaf image'
+            message = 'The uploaded image does not appear to be a coconut leaf. Please upload a clear image of a coconut leaf.'
+            status = 'invalid'
+        elif is_leaf_rot:
+            label = 'Leaf Rot Disease Detected'
+            message = 'This coconut leaf shows signs of Leaf Rot disease. Early treatment is recommended.'
+            status = 'diseased'
+        elif is_leaf_spot:
+            label = 'Leaf Spot Disease Detected'
+            message = 'This coconut leaf shows signs of Leaf Spot disease. Apply appropriate fungicide treatment.'
+            status = 'diseased'
+        else:
+            label = 'Healthy Leaf'
+            message = 'No disease detected. This coconut leaf appears to be healthy.'
+            status = 'healthy'
+
+        return jsonify({
+            'success': True,
+            'detection_type': 'disease',
+            'model_version': 'v2',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_diseased': is_diseased,
+                'is_leaf_rot': is_leaf_rot,
+                'is_leaf_spot': is_leaf_spot,
+                'is_healthy': is_healthy,
+                'is_valid_image': is_valid,
+                'label': label,
+                'message': message,
+                'status': status
             },
             'probabilities': probabilities,
             'timestamp': datetime.now().isoformat()
@@ -1003,9 +1156,9 @@ def server_error(e):
 if __name__ == '__main__':
     load_models()
 
-    print("\nStarting Coconut Health Monitor ML API v6.0...")
+    print("\nStarting Coconut Health Monitor ML API v7.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
-    print("  Using unified model for better caterpillar/white_fly distinction!")
+    print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)

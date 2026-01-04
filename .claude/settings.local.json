@@ -141,7 +141,13 @@
       "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python -c \\\":*)",
       "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python split_dieback_data.py\")",
       "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python split_data.py\")",
-      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python train_leaf_dieback_v3.py\")"
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python train_leaf_dieback_v3.py\")",
+      "Bash(dir /s /b \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\data\\\\raw\\\\stage_2_split\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/train/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/val/\"*/)",
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)"
     ]
   }
 }
