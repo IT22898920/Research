@@ -152,10 +152,42 @@ python test_api.py
 | v1 | 98.91% | 2 | Binary classification |
 | **v2** | **97.47%** | **3** | **Current - Added not_coconut** |
 
+### Coconut Leaf Health Detection Model (v1 - Latest)
+- **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
+- **Version:** v1 (2-class)
+- **Test Accuracy:** 93.70%
+- **Macro F1 Score:** 93.24%
+- **Classes:** `healthy`, `unhealthy`
+- **Input Size:** 224x224x3
+- **Per-Class Metrics:**
+  - healthy: 91.49% F1 Score
+  - unhealthy: 95.00% F1 Score
+- **Files:**
+  - `models/leaf_health_v1/best_model.keras`
+  - `models/leaf_health_v1/model_info.json`
+- **API Endpoint:** `/predict/leaf-health`
+- **Enhanced Features:**
+  - Detects yellowing and unhealthy coconut leaves
+  - Provides **9 detailed possible conditions** with:
+    - 🔍 **Reason:** Why the condition occurs
+    - ⚠️ **Symptoms:** Observable signs
+    - 💊 **Solution:** Specific treatment steps
+    - **Urgency level:** High/Medium/Low priority
+  - Conditions covered:
+    1. Nitrogen Deficiency
+    2. Potassium Deficiency
+    3. Magnesium Deficiency
+    4. Water Stress (Under-watering)
+    5. Water Stress (Over-watering)
+    6. Root Disease
+    7. Iron Deficiency (Chlorosis)
+    8. Pest Damage
+    9. Natural Aging
+
 ### Pending Models
 - White Fly Detection (not trained yet)
 
-## API Endpoints (v4.0)
+## API Endpoints (v5.0)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -165,6 +197,7 @@ python test_api.py
 | `/predict/mite` | POST | Mite detection (3-class) |
 | `/predict/caterpillar` | POST | Caterpillar detection (3-class) |
 | `/predict/all` | POST | All pests detection with smart combined logic |
+| `/predict/leaf-health` | POST | **Leaf health detection with detailed reasons & solutions** |
 | `/predict` | POST | Legacy endpoint (redirects to mite) |
 
 ## Smart Combined Logic (v7)

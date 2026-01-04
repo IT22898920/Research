@@ -15,12 +15,14 @@ import {authAPI} from '../services/api';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function LoginScreen({navigation}) {
+  console.log('=== LoginScreen rendering ===');
   const {t} = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isCheckingLogin, setIsCheckingLogin] = useState(true);
+  console.log('=== LoginScreen isCheckingLogin:', isCheckingLogin, '===');
 
   useEffect(() => {
     configureGoogleSignIn();
@@ -38,8 +40,11 @@ export default function LoginScreen({navigation}) {
 
   // Check if user is already logged in
   const checkExistingLogin = async () => {
+    console.log('=== checkExistingLogin started ===');
     try {
+      console.log('=== Calling authAPI.isLoggedIn() ===');
       const isLoggedIn = await authAPI.isLoggedIn();
+      console.log('=== isLoggedIn result:', isLoggedIn, '===');
       if (isLoggedIn) {
         const user = await authAPI.getStoredUser();
         if (user) {
@@ -48,8 +53,9 @@ export default function LoginScreen({navigation}) {
         }
       }
     } catch (error) {
-      console.log('No existing login');
+      console.log('No existing login, error:', error);
     }
+    console.log('=== setIsCheckingLogin(false) ===');
     setIsCheckingLogin(false);
   };
 
