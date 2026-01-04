@@ -82,8 +82,19 @@ export default function DashboardScreen({navigation, route}) {
           onPress={() => navigation.navigate('LeafHealth')}>
           <Text style={styles.featureIcon}>🌿</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Health Monitoring</Text>
+            <Text style={styles.featureText}>Leaf Health Monitor</Text>
             <Text style={styles.featureSubtext}>Check leaf health status</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('BranchHealth')}>
+          <Text style={styles.featureIcon}>🌳</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Branch Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Check branch health status</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>

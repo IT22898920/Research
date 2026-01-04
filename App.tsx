@@ -17,6 +17,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
 import LeafHealthScreen from './src/screens/LeafHealthScreen';
+import BranchHealthScreen from './src/screens/BranchHealthScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
@@ -64,6 +65,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
             <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
+            <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />

@@ -22,7 +22,7 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - TensorFlow 2.20.0
 - EfficientNetB0 (Transfer Learning) - Coconut Mite model v10
 - MobileNetV2 (Transfer Learning) - Unified Caterpillar & White Fly model v1
-- Flask 3.1.2 (API Server v6.0)
+- Flask 3.1.2 (API Server v8.0)
 - Focal Loss for handling class imbalance
 - Cross-validation logic for improved accuracy
 - Pillow, NumPy, Matplotlib, Seaborn, Scikit-learn
@@ -49,7 +49,7 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `src/screens/PestDetectionScreen.js` - Pest detection with All Pests, Mite, Caterpillar, White Fly options
 
 ### Services
-- `src/services/pestDetectionApi.js` - React Native API client (v5.0)
+- `src/services/pestDetectionApi.js` - React Native API client (v7.0)
 
 ### Android Configuration
 - `android/settings.gradle` - Module configuration (autolinking disabled, manual linking used)
@@ -57,10 +57,14 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `android/build/generated/autolinking/autolinking.json` - Manual autolinking config (required!)
 
 ### ML & API Files
-- `ml/api/app.py` - Flask API v6.0 for model serving
-- `ml/models/coconut_mite_v10/` - Latest Mite detection model (3-class)
-- `ml/models/unified_caterpillar_whitefly_v1/` - Unified Caterpillar & White Fly model (4-class)
+- `ml/api/app.py` - Flask API v8.0 for model serving
+- `ml/models/coconut_mite_v10/` - Mite detection model (3-class, 91.44%)
+- `ml/models/unified_caterpillar_whitefly_v1/` - Unified Caterpillar & White Fly model (4-class, 96.08%)
+- `ml/models/disease_detection_v2/` - Disease detection model (4-class, 98.69%)
+- `ml/models/leaf_health_v1/` - Leaf health detection model (2-class, 93.70%)
+- `ml/models/coconut_branch_health_v1/` - Branch health detection model (2-class, 99.63%)
 - `ml/notebooks/` - Jupyter notebooks for model training
+  - `14_coconut_branch_health_v1.ipynb` - Latest branch health model
 
 ## Build Commands (Windows PowerShell)
 
@@ -186,13 +190,28 @@ python test_api.py
     8. Pest Damage
     9. Natural Aging
 
+### Coconut Branch Health Detection Model (v1 - Latest)
+- **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
+- **Version:** v1 (2-class)
+- **Test Accuracy:** 99.63%
+- **Macro F1 Score:** TBD (after training completes)
+- **Classes:** `healthy`, `unhealthy`
+- **Input Size:** 224x224x3
+- **Training Time:** ~45 minutes
+- **Files:**
+  - `models/coconut_branch_health_v1/best_model.keras`
+  - `models/coconut_branch_health_v1/model_info.json`
+- **API Endpoint:** `/predict/branch-health`
+- **Features:**
+  - Detects unhealthy coconut tree branches
+  - Provides unhealthy percentage
+  - High accuracy for branch health classification
+  - Helps identify branches that need pruning or treatment
+
 ### Pending Models
-- White Fly Detection (not trained yet)
+- None! All planned models are trained.
 
-## API Endpoints (v5.0)
-
-## API Endpoints (v6.0)
-
+## API Endpoints (v8.0)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -203,8 +222,10 @@ python test_api.py
 | `/predict/caterpillar` | POST | Caterpillar detection (4-class unified) |
 | `/predict/white_fly` | POST | White Fly detection (4-class unified) |
 | `/predict/unified` | POST | Unified model detection (4-class) |
-| `/predict/all` | POST | All pests detection with smart combined logic |
+| `/predict/disease` | POST | Disease detection (Leaf Rot, Leaf Spot) |
 | `/predict/leaf-health` | POST | **Leaf health detection with detailed reasons & solutions** |
+| `/predict/branch-health` | POST | **Branch health detection with unhealthy percentage** |
+| `/predict/all` | POST | All pests detection with smart combined logic |
 | `/predict` | POST | Legacy endpoint (redirects to mite) |
 
 ## Smart Combined Logic with Cross-Validation
