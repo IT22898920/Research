@@ -1,0 +1,53 @@
+2026-01-04 15:19:23.089251: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-04 15:19:25.747006: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-04 15:19:27.644423: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+============================================================
+  Loading Coconut Health Monitor Models...
+============================================================
+
+[1] Loading Coconut Mite model (v10 - 3-class)...
+    ERROR loading mite model: File not found: filepath=C:\Users\USER\Documents\GizmoraGit\Research\ml\api\..\models\coconut_mite_v10\best_model.keras. Please ensure the file is an accessible `.keras` zip file.
+
+[2] Loading Unified Caterpillar & White Fly model (v1 - 4-class)...
+    ERROR loading unified model: File not found: filepath=C:\Users\USER\Documents\GizmoraGit\Research\ml\api\..\models\unified_caterpillar_whitefly_v1\best_model.keras. Please ensure the file is an accessible `.keras` zip file.
+
+[3] Loading Disease Detection model (v2 - 4-class)...
+    ERROR loading disease model: File not found: filepath=C:\Users\USER\Documents\GizmoraGit\Research\ml\api\..\models\disease_detection_v2\best_model.keras. Please ensure the file is an accessible `.keras` zip file.
+
+[4] Loading Leaf Health model (v1 - 2-class)...
+    Version: v1 (2-class, Focal Loss)
+    Classes: ['healthy', 'unhealthy']
+    Accuracy: 93.70%
+    Status: LOADED
+
+[5] Loading Branch Health model (v1 - 2-class)...
+    Version: v1 (2-class, Focal Loss)
+    Classes: ['healthy', 'unhealthy']
+    Accuracy: 99.63%
+    Status: LOADED
+
+============================================================
+  Models loaded: 2/5
+============================================================
+
+Starting Coconut Health Monitor ML API v5.0...
+  Mite Model: v10 (3-class, 91.44% accuracy, 79% mite recall)
+  Caterpillar Model: v2 (3-class, 97.47% accuracy, 91.49% caterpillar recall)
+  Leaf Health Model: v1 (2-class, 93.70% accuracy)
+  Mite & Caterpillar models support 'not_coconut' class for image validation!
+
+Starting Coconut Health Monitor ML API v8.0...
+  Mite Model: v10 (3-class, 91.44% accuracy)
+  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)
+  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)
+  Leaf Health Model: v1 (2-class, 93.70% accuracy)
+  Branch Health Model: v1 (2-class, 99.63% accuracy)
+============================================================
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.10:5001
+Press CTRL+C to quit

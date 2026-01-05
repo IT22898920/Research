@@ -1,16 +1,20 @@
 /**
- * Pest & Disease Detection API Service v6.0
+ * Pest & Disease Detection API Service v7.0
  * Connects to Flask ML API for pest and disease detection
  *
  * Models:
  * - Mite: v10 (3-class: coconut_mite, healthy, not_coconut) - 91.44% accuracy
  * - Unified: v1 (4-class: caterpillar, healthy, not_coconut, white_fly) - 96.08% accuracy
  * - Disease: v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount) - 98.69% accuracy
+ * - Leaf Health: v1 (2-class: healthy, unhealthy) - 93.70% accuracy
+ * - Branch Health: v1 (2-class: healthy, unhealthy) - 99.63% accuracy
  *
  * Features:
  * - All models can detect non-coconut images
  * - Smart combined logic for "All Pests" detection
  * - Disease detection for Leaf Rot and Leaf Spot
+ * - Leaf health detection with detailed conditions and solutions
+ * - Branch health detection with unhealthy percentage
  * - One coherent answer with recommendations
  */
 
@@ -304,6 +308,115 @@ export const detectDisease = async (imageUri) => {
 };
 
 /**
+ * Detect Leaf Health (healthy vs unhealthy/yellowing)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ * - possible_conditions: detailed list of 9 conditions (if unhealthy)
+ */
+export const detectLeafHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/leaf-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'leaf_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        recommendation: data.recommendation,
+        possibleConditions: data.possible_conditions,
+        conditionsCount: data.conditions_count,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
+ * Detect Branch Health (healthy vs unhealthy)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - unhealthy_percentage: percentage of branch that's unhealthy
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ */
+export const detectBranchHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/branch-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'branch_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        unhealthyPercentage: data.unhealthy_percentage,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Legacy function - Predict pest (defaults to mite for backward compatibility)
  * @deprecated Use detectMite, detectCaterpillar, or detectAllPests instead
  */
@@ -335,6 +448,8 @@ export default {
   detectWhiteFly,
   detectAllPests,
   detectDisease,
+  detectLeafHealth,
+  detectBranchHealth,
   predictPest,
   PEST_TYPES,
   DISEASE_TYPES,

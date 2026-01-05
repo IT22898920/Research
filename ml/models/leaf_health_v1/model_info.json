@@ -1,0 +1,54 @@
+{
+  "model_name": "leaf_health_v1",
+  "architecture": "MobileNetV2",
+  "classes": [
+    "healthy",
+    "unhealthy"
+  ],
+  "num_classes": 2,
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "training": {
+    "phase1_epochs": 15,
+    "phase2_epochs": 15,
+    "total_epochs": 30,
+    "batch_size": 32,
+    "learning_rate_phase1": 0.001,
+    "learning_rate_phase2": 0.0001,
+    "loss_function": "Focal Loss (gamma=2.0, alpha=0.25)",
+    "optimizer": "Adam",
+    "training_time_minutes": 340.2,
+    "final_train_accuracy": 0.9988148808479309,
+    "final_val_accuracy": 0.982758641242981
+  },
+  "data": {
+    "train_samples": 8438,
+    "val_samples": 116,
+    "test_samples": 127,
+    "train_healthy": 4410,
+    "train_unhealthy": 4028,
+    "class_imbalance_ratio": 1.0948361469712016
+  },
+  "test_performance": {
+    "accuracy": 0.937007874015748,
+    "macro_precision": 0.9259549973835688,
+    "macro_recall": 0.9411924119241193,
+    "macro_f1": 0.9324468085106383,
+    "healthy_precision": 0.8775510204081632,
+    "healthy_recall": 0.9555555555555556,
+    "healthy_f1": 0.9148936170212766,
+    "unhealthy_precision": 0.9743589743589743,
+    "unhealthy_recall": 0.926829268292683,
+    "unhealthy_f1": 0.95
+  },
+  "augmentation": {
+    "rotation_range": 20,
+    "width_shift_range": 0.2,
+    "height_shift_range": 0.2,
+    "horizontal_flip": true,
+    "zoom_range": 0.2
+  }
+}
