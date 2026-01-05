@@ -17,19 +17,19 @@ const screenWidth = Dimensions.get('window').width;
 
 // Chart configuration
 const chartConfig = {
-  backgroundColor: '#16213e',
-  backgroundGradientFrom: '#16213e',
-  backgroundGradientTo: '#1a1a2e',
+  backgroundColor: '#fff',
+  backgroundGradientFrom: '#fff',
+  backgroundGradientTo: '#f5f5f5',
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(233, 69, 96, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(170, 170, 170, ${opacity})`,
+  color: (opacity = 1) => `rgba(46, 125, 50, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(102, 102, 102, ${opacity})`,
   style: {
     borderRadius: 16,
   },
   propsForDots: {
     r: '6',
     strokeWidth: '2',
-    stroke: '#e94560',
+    stroke: '#2e7d32',
   },
   barPercentage: 0.6,
 };
@@ -241,7 +241,7 @@ export default function AnalyticsScreen({navigation, route}) {
         <StatCard
           number={stats?.totalScans || 0}
           label={t('dashboard.totalScans')}
-          color="#e94560"
+          color="#2e7d32"
           icon="📊"
         />
         <StatCard
@@ -418,7 +418,7 @@ export default function AnalyticsScreen({navigation, route}) {
         name: 'Healthy',
         count: distribution.healthy,
         color: '#4caf50',
-        legendFontColor: '#aaa',
+        legendFontColor: '#666',
         legendFontSize: 12,
       });
     }
@@ -427,8 +427,8 @@ export default function AnalyticsScreen({navigation, route}) {
       pieData.push({
         name: t('pestDetection.coconutMite'),
         count: distribution.miteOnly,
-        color: '#e94560',
-        legendFontColor: '#aaa',
+        color: '#f44336',
+        legendFontColor: '#666',
         legendFontSize: 12,
       });
     }
@@ -438,7 +438,7 @@ export default function AnalyticsScreen({navigation, route}) {
         name: t('pestDetection.caterpillar'),
         count: distribution.caterpillarOnly,
         color: '#ff9800',
-        legendFontColor: '#aaa',
+        legendFontColor: '#666',
         legendFontSize: 12,
       });
     }
@@ -533,7 +533,7 @@ export default function AnalyticsScreen({navigation, route}) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e94560" />
+        <ActivityIndicator size="large" color="#2e7d32" />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -546,8 +546,8 @@ export default function AnalyticsScreen({navigation, route}) {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={['#e94560']}
-          tintColor="#e94560"
+          colors={['#2e7d32']}
+          tintColor="#2e7d32"
         />
       }>
       {/* Header */}
@@ -600,25 +600,25 @@ export default function AnalyticsScreen({navigation, route}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    color: '#aaa',
+    color: '#666',
     marginTop: 10,
   },
   header: {
     padding: 20,
     paddingTop: 50,
-    backgroundColor: '#16213e',
+    backgroundColor: '#2e7d32',
   },
   backButton: {
-    color: '#e94560',
+    color: '#fff',
     fontSize: 16,
     marginBottom: 10,
   },
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 25,
     padding: 4,
     alignSelf: 'flex-start',
@@ -641,15 +641,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   periodButtonActive: {
-    backgroundColor: '#e94560',
+    backgroundColor: '#fff',
   },
   periodButtonText: {
-    color: '#aaa',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
     fontWeight: '600',
   },
   periodButtonTextActive: {
-    color: '#fff',
+    color: '#2e7d32',
   },
   statsContainer: {
     padding: 20,
@@ -660,17 +660,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 15,
     alignItems: 'center',
     flex: 1,
     marginHorizontal: 5,
-    elevation: 3,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   statIcon: {
     fontSize: 24,
@@ -682,17 +682,22 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: '#aaa',
+    color: '#888',
     marginTop: 5,
     textAlign: 'center',
   },
   healthScoreContainer: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     marginHorizontal: 20,
     marginBottom: 15,
     borderRadius: 15,
     padding: 20,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   healthScoreRing: {
     position: 'relative',
@@ -709,19 +714,24 @@ const styles = StyleSheet.create({
   },
   healthScoreLabel: {
     fontSize: 14,
-    color: '#aaa',
+    color: '#888',
   },
   healthScoreDesc: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
     marginTop: 10,
   },
   rateCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
     marginHorizontal: 20,
     marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   rateHeader: {
     flexDirection: 'row',
@@ -731,7 +741,7 @@ const styles = StyleSheet.create({
   },
   rateLabel: {
     fontSize: 16,
-    color: '#aaa',
+    color: '#333',
     fontWeight: '600',
   },
   rateBadge: {
@@ -747,12 +757,12 @@ const styles = StyleSheet.create({
   rateValue: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#e94560',
+    color: '#2e7d32',
     marginBottom: 10,
   },
   rateBar: {
     height: 10,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#e0e0e0',
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -762,12 +772,17 @@ const styles = StyleSheet.create({
   },
   quickStatsRow: {
     flexDirection: 'row',
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     marginHorizontal: 20,
     marginBottom: 15,
     borderRadius: 15,
     padding: 15,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   quickStatItem: {
     flex: 1,
@@ -776,29 +791,34 @@ const styles = StyleSheet.create({
   quickStatDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#e0e0e0',
   },
   quickStatValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
   },
   quickStatLabel: {
     fontSize: 12,
-    color: '#aaa',
+    color: '#888',
     marginTop: 5,
   },
   chartCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 15,
     marginHorizontal: 20,
     marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
     marginBottom: 15,
   },
   chart: {
@@ -813,27 +833,32 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   placeholderText: {
-    color: '#aaa',
+    color: '#888',
     fontSize: 14,
   },
   placeholderSubtext: {
-    color: '#666',
+    color: '#999',
     fontSize: 12,
     marginTop: 5,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
     marginBottom: 15,
     alignSelf: 'flex-start',
   },
   recentScansCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 15,
     marginHorizontal: 20,
     marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   recentScansHeader: {
     flexDirection: 'row',
@@ -842,7 +867,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   viewAllText: {
-    color: '#e94560',
+    color: '#2e7d32',
     fontSize: 14,
   },
   recentScanItem: {
@@ -850,13 +875,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#0f3460',
+    borderBottomColor: '#eee',
   },
   recentScanIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#e8f5e9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -866,7 +891,7 @@ const styles = StyleSheet.create({
   },
   recentScanType: {
     fontSize: 12,
-    color: '#aaa',
+    color: '#888',
   },
   recentScanResult: {
     fontSize: 14,
@@ -874,10 +899,10 @@ const styles = StyleSheet.create({
   },
   recentScanDate: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
   },
   errorCard: {
-    backgroundColor: '#3d1515',
+    backgroundColor: '#ffebee',
     borderRadius: 10,
     padding: 15,
     marginHorizontal: 20,
@@ -885,11 +910,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#ff6b6b',
+    color: '#c62828',
     marginBottom: 10,
   },
   retryText: {
-    color: '#e94560',
+    color: '#2e7d32',
     fontWeight: 'bold',
   },
 });

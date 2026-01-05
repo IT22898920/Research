@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from 'react-native';
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
@@ -49,7 +50,7 @@ export default function DashboardScreen({navigation, route}) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.welcomeText}>{t('dashboard.welcome')}!</Text>
         <Text style={styles.appTitle}>{t('common.appName')}</Text>
@@ -155,7 +156,7 @@ export default function DashboardScreen({navigation, route}) {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -163,7 +164,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  contentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -272,7 +276,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 30,
     marginBottom: 20,
   },
   logoutButtonText: {
