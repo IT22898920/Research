@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL - change this for production
-const API_BASE_URL = 'http://10.0.2.2:5000/api'; // Android Emulator
+// const API_BASE_URL = 'http://10.0.2.2:5000/api'; // Android Emulator
+const API_BASE_URL = 'http://192.168.1.10:5000/api'; // Physical Device
 // const API_BASE_URL = 'http://localhost:5000/api'; // iOS Simulator
 // const API_BASE_URL = 'https://your-production-url.com/api'; // Production
 

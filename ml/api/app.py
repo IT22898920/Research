@@ -119,6 +119,20 @@ DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 
 # Disease model class indices (alphabetical order from ImageDataGenerator)
 DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
+# Leaf Health model paths (v1 - 2-class)
+LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
+LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'model_info.json')
+
+# Leaf Health v1 class indices
+LEAF_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
+# Branch Health model paths (v1 - 2-class)
+BRANCH_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'best_model.keras')
+BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'model_info.json')
+
+# Branch Health v1 class indices
+BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
 # Global variables for models
 models = {}
 model_infos = {}
@@ -238,9 +252,69 @@ def load_models():
         models['disease'] = None
         model_infos['disease'] = None
 
+    # Load Leaf Health Model (v1 - 2-class)
+    try:
+        print("\n[4] Loading Leaf Health model (v1 - 2-class)...")
+
+        # Load model with custom focal loss
+        models['leaf_health'] = tf.keras.models.load_model(
+            LEAF_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        # Try to load model info
+        try:
+            with open(LEAF_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_health'] = json.load(f)
+        except:
+            model_infos['leaf_health'] = {
+                'version': 'v1_2class',
+                'classes': LEAF_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.9370}
+            }
+
+        print(f"    Version: v1 (2-class, Focal Loss)")
+        print(f"    Classes: {LEAF_HEALTH_CLASSES}")
+        print(f"    Accuracy: 93.70%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf health model: {e}")
+        models['leaf_health'] = None
+        model_infos['leaf_health'] = None
+
+    # Load Branch Health Model (v1 - 2-class)
+    try:
+        print("\n[5] Loading Branch Health model (v1 - 2-class)...")
+
+        # Load model with custom focal loss
+        models['branch_health'] = tf.keras.models.load_model(
+            BRANCH_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        # Try to load model info
+        try:
+            with open(BRANCH_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['branch_health'] = json.load(f)
+        except:
+            model_infos['branch_health'] = {
+                'version': 'v1_2class',
+                'classes': BRANCH_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.9963}
+            }
+
+        print(f"    Version: v1 (2-class, Focal Loss)")
+        print(f"    Classes: {BRANCH_HEALTH_CLASSES}")
+        print(f"    Accuracy: 99.63%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading branch health model: {e}")
+        models['branch_health'] = None
+        model_infos['branch_health'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/3")
+    print(f"  Models loaded: {loaded_count}/5")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -287,7 +361,7 @@ def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest & Disease Detection API',
-        'version': '7.0.0',
+        'version': '8.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -303,6 +377,16 @@ def home():
                 'status': 'loaded' if models.get('disease') is not None else 'not loaded',
                 'version': 'v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount)',
                 'accuracy': '98.69%'
+            },
+            'leaf_health': {
+                'status': 'loaded' if models.get('leaf_health') is not None else 'not loaded',
+                'version': 'v1 (2-class: healthy, unhealthy)',
+                'accuracy': '93.70%'
+            },
+            'branch_health': {
+                'status': 'loaded' if models.get('branch_health') is not None else 'not loaded',
+                'version': 'v1 (2-class: healthy, unhealthy)',
+                'accuracy': '99.63%'
             }
         },
         'endpoints': {
@@ -314,6 +398,8 @@ def home():
             '/predict/white_fly': 'POST - Detect white fly damage (uses unified 4-class model)',
             '/predict/unified': 'POST - Unified caterpillar & white fly detection (4-class)',
             '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
+            '/predict/leaf-health': 'POST - Detect leaf health (healthy vs unhealthy/yellowing)',
+            '/predict/branch-health': 'POST - Detect branch health (healthy vs unhealthy)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -326,7 +412,9 @@ def health_check():
         'models': {
             'mite': models.get('mite') is not None,
             'unified': models.get('unified') is not None,
-            'disease': models.get('disease') is not None
+            'disease': models.get('disease') is not None,
+            'leaf_health': models.get('leaf_health') is not None,
+            'branch_health': models.get('branch_health') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -367,6 +455,25 @@ def list_models():
             'accuracy': 0.9869,
             'macro_f1': 0.9800,
             'loaded': models.get('disease') is not None
+        }
+
+    if model_infos.get('leaf_health'):
+        result['leaf_health'] = {
+            'name': 'Coconut Leaf Health Detection Model',
+            'version': 'v1 (2-class, Focal Loss)',
+            'classes': LEAF_HEALTH_CLASSES,
+            'accuracy': 0.9370,
+            'macro_f1': 0.9324,
+            'loaded': models.get('leaf_health') is not None
+        }
+
+    if model_infos.get('branch_health'):
+        result['branch_health'] = {
+            'name': 'Coconut Branch Health Detection Model',
+            'version': 'v1 (2-class, Focal Loss)',
+            'classes': BRANCH_HEALTH_CLASSES,
+            'accuracy': 0.9963,
+            'loaded': models.get('branch_health') is not None
         }
 
     return jsonify(result)
@@ -969,7 +1076,312 @@ def predict_all():
         'timestamp': datetime.now().isoformat()
     })
 
+
+# Leaf Health Detection Endpoint
+@app.route('/predict/leaf-health', methods=['POST'])
+def predict_leaf_health():
+    """
+    Predict if a coconut leaf is healthy or unhealthy (yellowing)
+
+    Returns:
+        JSON with prediction results
+    """
+    if models['leaf_health'] is None:
+        return jsonify({'error': 'Leaf health model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    try:
+        # Read image
+        image_file = request.files['image']
+        image_bytes = image_file.read()
+
+        # Preprocess image (same as mite model - 224x224, 0-1 scaling)
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32)
+        img_array = img_array / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+
+        # Make prediction
+        predictions = models['leaf_health'].predict(img_array, verbose=0)
+
+        # Get class probabilities
+        healthy_prob = float(predictions[0][0])
+        unhealthy_prob = float(predictions[0][1])
+
+        # Determine predicted class
+        predicted_class_idx = np.argmax(predictions[0])
+        predicted_class = LEAF_HEALTH_CLASSES[predicted_class_idx]
+        confidence = float(np.max(predictions[0]))
+
+        # Prepare response
+        result = {
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'probabilities': {
+                'healthy': healthy_prob,
+                'unhealthy': unhealthy_prob
+            },
+            'is_healthy': predicted_class == 'healthy',
+            'message': get_leaf_health_message(predicted_class, confidence),
+            'recommendation': get_leaf_health_recommendation(predicted_class),
+            'model_info': {
+                'version': 'v1',
+                'classes': LEAF_HEALTH_CLASSES,
+                'accuracy': '93.70%'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
+        # Add detailed conditions if unhealthy
+        if predicted_class == 'unhealthy':
+            result['possible_conditions'] = get_unhealthy_conditions_details()
+            result['conditions_count'] = len(UNHEALTHY_LEAF_CONDITIONS)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Knowledge base for unhealthy leaf conditions
+UNHEALTHY_LEAF_CONDITIONS = [
+    {
+        'condition': 'Nitrogen Deficiency',
+        'reason': 'Lack of nitrogen in soil causes yellowing of older leaves first. Nitrogen is essential for chlorophyll production.',
+        'symptoms': [
+            'Yellowing starts from older leaves',
+            'Stunted growth',
+            'Pale green to yellow color'
+        ],
+        'solution': 'Apply nitrogen-rich fertilizers such as urea (46-0-0) or ammonium sulfate. Use 200-250g per tree, split into 2-3 applications. Alternatively, apply organic matter like compost or well-rotted manure.',
+        'urgency': 'medium',
+        'icon': '🍂'
+    },
+    {
+        'condition': 'Potassium Deficiency',
+        'reason': 'Potassium deficiency causes yellowing and browning of leaf tips and margins. Essential for water regulation and disease resistance.',
+        'symptoms': [
+            'Yellow/brown leaf tips',
+            'Marginal leaf burn',
+            'Weak stems'
+        ],
+        'solution': 'Apply potassium-rich fertilizers like muriate of potash (KCl 60%) at 250-300g per tree. Ensure proper irrigation to help potassium uptake.',
+        'urgency': 'medium',
+        'icon': '🔥'
+    },
+    {
+        'condition': 'Magnesium Deficiency',
+        'reason': 'Magnesium is crucial for photosynthesis. Deficiency causes interveinal chlorosis (yellowing between leaf veins).',
+        'symptoms': [
+            'Yellow areas between green veins',
+            'Older leaves affected first',
+            'Orange/red tints may appear'
+        ],
+        'solution': 'Apply magnesium sulfate (Epsom salt) as foliar spray: 20g/liter of water, spray every 2 weeks for 3 months. Or apply dolomite lime to soil.',
+        'urgency': 'medium',
+        'icon': '🌿'
+    },
+    {
+        'condition': 'Water Stress (Under-watering)',
+        'reason': 'Insufficient water causes leaves to yellow and dry out. Coconut palms need consistent moisture, especially during dry periods.',
+        'symptoms': [
+            'Overall yellowing',
+            'Dry, brittle leaves',
+            'Leaf tips turn brown'
+        ],
+        'solution': 'Increase irrigation frequency. Coconut trees need 50-100 liters of water per week during dry season. Mulch around base to retain moisture.',
+        'urgency': 'high',
+        'icon': '💧'
+    },
+    {
+        'condition': 'Water Stress (Over-watering)',
+        'reason': 'Excessive water causes root rot and prevents oxygen uptake, leading to yellowing leaves.',
+        'symptoms': [
+            'Yellowing with wilting',
+            'Soggy soil',
+            'Root rot smell'
+        ],
+        'solution': 'Improve drainage around the tree. Reduce watering frequency. Consider raised beds if soil stays waterlogged. Ensure proper drainage channels.',
+        'urgency': 'high',
+        'icon': '🌊'
+    },
+    {
+        'condition': 'Root Disease',
+        'reason': 'Fungal infections in roots (like Ganoderma or Phytophthora) prevent nutrient uptake, causing yellowing.',
+        'symptoms': [
+            'Progressive yellowing from bottom up',
+            'Wilting despite watering',
+            'Stunted growth'
+        ],
+        'solution': 'Remove infected roots if possible. Apply fungicides like copper oxychloride. Improve drainage. Infected severe cases may need tree removal to prevent spread.',
+        'urgency': 'high',
+        'icon': '🦠'
+    },
+    {
+        'condition': 'Iron Deficiency (Chlorosis)',
+        'reason': 'Iron deficiency causes yellowing of young leaves while veins remain green. Common in alkaline soils.',
+        'symptoms': [
+            'Young leaves turn yellow',
+            'Green veins pattern',
+            'Reduced growth'
+        ],
+        'solution': 'Apply chelated iron (Fe-EDTA) as foliar spray or soil drench. Reduce soil pH if too alkaline by adding sulfur or acidic organic matter.',
+        'urgency': 'medium',
+        'icon': '⚗️'
+    },
+    {
+        'condition': 'Pest Damage',
+        'reason': 'Pest infestations (mites, caterpillars, scale insects) damage leaf tissue and suck nutrients, causing yellowing.',
+        'symptoms': [
+            'Spotted yellowing',
+            'Visible pests or webs',
+            'Damaged leaf tissue'
+        ],
+        'solution': 'Identify specific pest and treat accordingly. Use neem oil spray (5ml/liter water) for general pest control. For severe infestations, use appropriate pesticides.',
+        'urgency': 'high',
+        'icon': '🐛'
+    },
+    {
+        'condition': 'Natural Aging',
+        'reason': 'Older leaves naturally yellow and die as the tree redirects nutrients to new growth. This is normal.',
+        'symptoms': [
+            'Only oldest (bottom) leaves yellow',
+            'New growth is healthy green',
+            'No other symptoms'
+        ],
+        'solution': 'No action needed. Remove yellowed fronds once completely dry. This is part of natural leaf cycle. Ensure tree gets balanced fertilization.',
+        'urgency': 'low',
+        'icon': '🍃'
+    }
+]
+
+def get_leaf_health_message(predicted_class, confidence):
+    """Get message based on leaf health prediction"""
+    if predicted_class == 'healthy':
+        if confidence > 0.95:
+            return "Leaf appears to be very healthy!"
+        elif confidence > 0.80:
+            return "Leaf appears to be healthy."
+        else:
+            return "Leaf seems healthy but with lower confidence."
+    else:  # unhealthy
+        if confidence > 0.80:
+            return "Leaf shows signs of yellowing/unhealthy condition. Multiple possible causes detected."
+        else:
+            return "Possible yellowing detected. Review the possible causes below."
+
+def get_leaf_health_recommendation(predicted_class):
+    """Get recommendation based on leaf health"""
+    if predicted_class == 'healthy':
+        return "Continue regular monitoring and maintain good care practices."
+    else:  # unhealthy
+        return "Review the detailed analysis below to identify the specific cause and apply the recommended treatment."
+
+def get_unhealthy_conditions_details():
+    """Get detailed information about all possible unhealthy conditions"""
+    return UNHEALTHY_LEAF_CONDITIONS
+
+# Branch Health Detection Endpoint
+@app.route('/predict/branch-health', methods=['POST'])
+def predict_branch_health():
+    """
+    Predict if a coconut tree branch is healthy or unhealthy
+
+    Returns:
+        JSON with prediction results
+    """
+    if models.get('branch_health') is None:
+        return jsonify({'error': 'Branch health model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    try:
+        # Read image
+        image_file = request.files['image']
+        image_bytes = image_file.read()
+
+        # Preprocess image (same as leaf model - 224x224, 0-1 scaling)
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32)
+        img_array = img_array / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+
+        # Make prediction
+        predictions = models['branch_health'].predict(img_array, verbose=0)
+
+        # Get class probabilities
+        healthy_prob = float(predictions[0][0])
+        unhealthy_prob = float(predictions[0][1])
+
+        # Determine predicted class
+        predicted_class_idx = np.argmax(predictions[0])
+        predicted_class = BRANCH_HEALTH_CLASSES[predicted_class_idx]
+        confidence = float(np.max(predictions[0]))
+
+        # Calculate unhealthy percentage (if unhealthy)
+        unhealthy_percentage = int(unhealthy_prob * 100) if predicted_class == 'unhealthy' else 0
+
+        # Prepare message
+        if predicted_class == 'healthy':
+            if confidence > 0.95:
+                message = "Branch appears to be very healthy!"
+            elif confidence > 0.80:
+                message = "Branch appears to be healthy."
+            else:
+                message = "Branch seems healthy but with lower confidence."
+            recommendation = "Continue regular monitoring and maintain good care practices."
+        else:  # unhealthy
+            if confidence > 0.80:
+                message = f"Branch shows signs of being unhealthy ({unhealthy_percentage}% unhealthy)."
+            else:
+                message = f"Possible unhealthy condition detected ({unhealthy_percentage}% unhealthy)."
+            recommendation = "Inspect the branch for pest damage, disease, or nutrient deficiencies. Consider pruning if severely damaged."
+
+        # Prepare response
+        result = {
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'probabilities': {
+                'healthy': healthy_prob,
+                'unhealthy': unhealthy_prob
+            },
+            'unhealthy_percentage': unhealthy_percentage,
+            'is_healthy': predicted_class == 'healthy',
+            'message': message,
+            'recommendation': recommendation,
+            'model_info': {
+                'version': 'v1',
+                'classes': BRANCH_HEALTH_CLASSES,
+                'accuracy': '99.63%'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Legacy endpoint for backward compatibility
+
 # Legacy endpoint
+
 @app.route('/predict', methods=['POST'])
 def predict_legacy():
     """Legacy endpoint - redirects to mite detection"""
@@ -1156,9 +1568,20 @@ def server_error(e):
 if __name__ == '__main__':
     load_models()
 
-    print("\nStarting Coconut Health Monitor ML API v7.0...")
+
+    # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
+    print("\nStarting Coconut Health Monitor ML API v5.0...")
+    print("  Mite Model: v10 (3-class, 91.44% accuracy, 79% mite recall)")
+    print("  Caterpillar Model: v2 (3-class, 97.47% accuracy, 91.49% caterpillar recall)")
+    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
+    print("  Mite & Caterpillar models support 'not_coconut' class for image validation!")
+
+    print("\nStarting Coconut Health Monitor ML API v8.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
+    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
+    print("  Branch Health Model: v1 (2-class, 99.63% accuracy)")
+
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)

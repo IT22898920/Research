@@ -79,6 +79,27 @@
       "Bash(tasklist /FI \"PID eq 7644\" /V)",
       "Bash(npm install:*)",
       "Bash(node src/server.js:*)",
+
+      "mcp__ide__executeCode",
+      "Bash(python train_leaf_health.py:*)",
+      "Bash(taskkill /F /PID 11188)",
+      "Bash(powershell -Command \"Stop-Process -Id 11188 -Force; Stop-Process -Id 12672 -Force\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 10; Get-Content ''ml\\\\training_output.txt'' -ErrorAction SilentlyContinue | Select-Object -Last 30\")",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -eq ''python''} | Stop-Process -Force\")",
+      "Bash(python test_model_quick.py:*)",
+      "Bash(python app.py:*)",
+      "Bash(.gradlew.bat app:installDebug -PreactNativeDevServerPort=8081)",
+      "Bash(node node_modules@react-native-communityclibuildbin.js run-android)",
+      "Bash(npx react-native run-android)",
+      "Bash(./gradlew app:installDebug:*)",
+      "Bash(adb -s fe80d363 shell monkey:*)",
+      "Bash(adb:*)",
+      "Bash(test:*)",
+      "Bash(npx react-native start --reset-cache)",
+      "Bash(./gradlew clean:*)",
+      "Bash(ipconfig:*)",
+      "Bash(taskkill /PID 26400 /F)"
+
       "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\(''D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\coconut-app-cd914-firebase-adminsdk-fbsvc-1c56f671da.json''\\)\\)\")",
       "Bash(mkdir:*)",
       "Bash(.gradlew clean:*)",
@@ -109,6 +130,7 @@
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/train/\"*/)",
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/val/\"*/)",
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)"
+
     ]
   }
 }

@@ -9,20 +9,25 @@ import i18n, {
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({children}) => {
+  console.log('=== LanguageProvider rendering ===');
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('=== LanguageProvider useEffect triggered ===');
     loadLanguage();
   }, []);
 
   const loadLanguage = async () => {
+    console.log('=== loadLanguage started ===');
     try {
       const language = await initializeLanguage();
+      console.log('=== Language loaded:', language, '===');
       setCurrentLanguage(language);
     } catch (error) {
       console.error('Error loading language:', error);
     } finally {
+      console.log('=== setIsLoading(false) ===');
       setIsLoading(false);
     }
   };
