@@ -440,6 +440,75 @@ export const DISEASE_TYPES = {
   NOT_COCONUT: 'not_cocount',
 };
 
+/**
+ * Detect Coconut Bunches for Yield Prediction
+ * Accepts 1 or 2 images (from opposite sides of tree)
+ *
+ * Response includes:
+ * - total_bunch_count: Total bunches detected across all images
+ * - average_confidence: Average detection confidence
+ * - results: Per-image results with bunch_count and detections
+ */
+export const detectBunches = async (imageUri1, imageUri2 = null) => {
+  try {
+    const formData = new FormData();
+
+    // Add first image (required)
+    const filename1 = imageUri1.split('/').pop();
+    formData.append('image1', {
+      uri: imageUri1,
+      type: 'image/jpeg',
+      name: filename1 || 'image1.jpg',
+    });
+
+    // Add second image if provided (optional)
+    if (imageUri2) {
+      const filename2 = imageUri2.split('/').pop();
+      formData.append('image2', {
+        uri: imageUri2,
+        type: 'image/jpeg',
+        name: filename2 || 'image2.jpg',
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/predict/bunch`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'bunch',
+        totalBunchCount: data.total_bunch_count,
+        averageConfidence: data.average_confidence,
+        imagesProcessed: data.images_processed,
+        results: data.results,
+        message: data.message,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze images',
+    };
+  }
+};
+
 export default {
   checkApiHealth,
   getModelsInfo,
@@ -450,6 +519,7 @@ export default {
   detectDisease,
   detectLeafHealth,
   detectBranchHealth,
+  detectBunches,
   predictPest,
   PEST_TYPES,
   DISEASE_TYPES,

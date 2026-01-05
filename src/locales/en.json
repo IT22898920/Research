@@ -16,7 +16,8 @@
     "retry": "Retry",
     "ok": "OK",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "clear": "Clear"
   },
   "auth": {
     "login": "Login",
@@ -208,6 +209,35 @@
     "leafRotDesc": "Leaf Rot is a fungal disease causing brown/black lesions. Apply copper-based fungicide.",
     "leafSpotDesc": "Leaf Spot causes circular spots on leaves. Remove affected leaves and apply fungicide.",
     "healthyDesc": "No disease detected. Continue regular monitoring."
+  },
+  "bunchDetection": {
+    "title": "Bunch Detection",
+    "subtitle": "Count bunches for yield",
+    "howToUse": "How to Use",
+    "instruction": "Upload 2 images from opposite sides of the coconut tree to accurately count the bunches. This helps prevent double-counting the same bunches.",
+    "tip": "For best results, capture clear images showing all coconut bunches on each side of the tree.",
+    "uploadImages": "Upload Images",
+    "image1": "Image 1",
+    "image2": "Image 2",
+    "side1": "First side of tree",
+    "side2": "Opposite side",
+    "selectImage": "Select Image",
+    "chooseSource": "Choose image source",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "selectAtLeastOne": "Please select at least one image",
+    "analyze": "Count Bunches",
+    "analyzing": "Counting bunches...",
+    "analysisError": "Failed to analyze images",
+    "results": "Detection Results",
+    "totalBunches": "Total Bunches Detected",
+    "avgConfidence": "Average Confidence",
+    "image1Result": "Image 1",
+    "image2Result": "Image 2",
+    "bunchesDetected": "bunches",
+    "yieldEstimate": "Yield Estimation",
+    "estimatedYield": "{{min}} - {{max}} coconuts",
+    "yieldNote": "Based on average 8-15 coconuts per bunch"
   },
   "chat": {
     "title": "Coconut Assistant",

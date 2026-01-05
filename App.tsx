@@ -25,6 +25,7 @@ import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ScanDetailScreen from './src/screens/ScanDetailScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import DiseaseDetectionScreen from './src/screens/DiseaseDetectionScreen';
+import BunchDetectionScreen from './src/screens/BunchDetectionScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +74,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Analytics" component={AnalyticsScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="DiseaseDetection" component={DiseaseDetectionScreen} />
+            <Stack.Screen name="BunchDetection" component={BunchDetectionScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

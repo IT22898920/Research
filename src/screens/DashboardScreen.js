@@ -111,6 +111,17 @@ export default function DashboardScreen({navigation, route}) {
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('BunchDetection')}>
+          <Text style={styles.featureIcon}>🥥</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('bunchDetection.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('bunchDetection.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>

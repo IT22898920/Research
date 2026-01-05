@@ -133,9 +133,19 @@ BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_he
 # Branch Health v1 class indices
 BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
+# Bunch Detection TFLite model path
+BUNCH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'bunch_detection', 'best_float32.tflite')
+
+# Bunch Detection configuration
+BUNCH_CONFIDENCE_THRESHOLD = 0.56  # Confidence threshold (tested in Roboflow)
+BUNCH_IOU_THRESHOLD = 0.45  # IoU threshold for NMS
+BUNCH_INPUT_SIZE = 640  # YOLOv8 default input size
+BUNCH_MAX_DETECTIONS = 50  # Maximum bunches to return
+
 # Global variables for models
 models = {}
 model_infos = {}
+bunch_interpreter = None  # TFLite interpreter for bunch detection
 
 def focal_loss(gamma=2.0, alpha=0.25):
     """Custom focal loss for loading models"""
@@ -312,9 +322,44 @@ def load_models():
         models['branch_health'] = None
         model_infos['branch_health'] = None
 
+    # Load Bunch Detection TFLite Model
+    global bunch_interpreter
+    try:
+        print("\n[6] Loading Bunch Detection TFLite model...")
+
+        if os.path.exists(BUNCH_MODEL_PATH):
+            bunch_interpreter = tf.lite.Interpreter(model_path=BUNCH_MODEL_PATH)
+            bunch_interpreter.allocate_tensors()
+
+            # Get input/output details
+            input_details = bunch_interpreter.get_input_details()
+            output_details = bunch_interpreter.get_output_details()
+
+            model_infos['bunch'] = {
+                'version': 'v1_yolo',
+                'type': 'object_detection',
+                'input_shape': input_details[0]['shape'].tolist(),
+                'output_shape': output_details[0]['shape'].tolist()
+            }
+
+            print(f"    Version: v1 (YOLOv8 TFLite)")
+            print(f"    Input shape: {input_details[0]['shape']}")
+            print(f"    Output shape: {output_details[0]['shape']}")
+            print(f"    Confidence threshold: {BUNCH_CONFIDENCE_THRESHOLD}")
+            print("    Status: LOADED")
+        else:
+            print(f"    Model file not found: {BUNCH_MODEL_PATH}")
+            bunch_interpreter = None
+            model_infos['bunch'] = None
+    except Exception as e:
+        print(f"    ERROR loading bunch detection model: {e}")
+        bunch_interpreter = None
+        model_infos['bunch'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/5")
+    bunch_loaded = 1 if bunch_interpreter is not None else 0
+    print(f"  Models loaded: {loaded_count + bunch_loaded}/6")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -361,7 +406,7 @@ def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest & Disease Detection API',
-        'version': '8.0.0',
+        'version': '9.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -387,6 +432,11 @@ def home():
                 'status': 'loaded' if models.get('branch_health') is not None else 'not loaded',
                 'version': 'v1 (2-class: healthy, unhealthy)',
                 'accuracy': '99.63%'
+            },
+            'bunch': {
+                'status': 'loaded' if bunch_interpreter is not None else 'not loaded',
+                'version': 'v1 (YOLOv8 TFLite object detection)',
+                'type': 'Object Detection for Yield Prediction'
             }
         },
         'endpoints': {
@@ -400,6 +450,7 @@ def home():
             '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
             '/predict/leaf-health': 'POST - Detect leaf health (healthy vs unhealthy/yellowing)',
             '/predict/branch-health': 'POST - Detect branch health (healthy vs unhealthy)',
+            '/predict/bunch': 'POST - Detect coconut bunches for yield prediction (accepts 2 images)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -414,7 +465,8 @@ def health_check():
             'unified': models.get('unified') is not None,
             'disease': models.get('disease') is not None,
             'leaf_health': models.get('leaf_health') is not None,
-            'branch_health': models.get('branch_health') is not None
+            'branch_health': models.get('branch_health') is not None,
+            'bunch': bunch_interpreter is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -474,6 +526,15 @@ def list_models():
             'classes': BRANCH_HEALTH_CLASSES,
             'accuracy': 0.9963,
             'loaded': models.get('branch_health') is not None
+        }
+
+    if model_infos.get('bunch'):
+        result['bunch'] = {
+            'name': 'Coconut Bunch Detection Model',
+            'version': 'v1 (YOLOv8 TFLite)',
+            'type': 'object_detection',
+            'confidence_threshold': BUNCH_CONFIDENCE_THRESHOLD,
+            'loaded': bunch_interpreter is not None
         }
 
     return jsonify(result)
@@ -1378,6 +1439,338 @@ def predict_branch_health():
             'error': str(e)
         }), 500
 
+# ============================================================
+# BUNCH DETECTION ENDPOINT (TFLite YOLOv8)
+# ============================================================
+
+def preprocess_image_bunch(image_bytes, target_size=640):
+    """
+    Preprocess image for YOLOv8 TFLite bunch detection model
+
+    Args:
+        image_bytes: Raw image bytes
+        target_size: Target size for the model (default 640)
+
+    Returns:
+        Preprocessed image array and original image dimensions
+    """
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    orig_width, orig_height = img.size
+    print(f"[DEBUG] Original image size: {orig_width}x{orig_height}")
+
+    # Resize to target size
+    img_resized = img.resize((target_size, target_size), Image.Resampling.LANCZOS)
+    img_array = np.array(img_resized, dtype=np.float32)
+
+    # Normalize to 0-1 range (standard for YOLOv8/Roboflow models)
+    img_array = img_array / 255.0
+
+    # Add batch dimension
+    img_array = np.expand_dims(img_array, axis=0)
+
+    print(f"[DEBUG] Preprocessed shape: {img_array.shape}, min: {img_array.min():.3f}, max: {img_array.max():.3f}")
+
+    return img_array, (orig_width, orig_height)
+
+
+def process_yolo_output(output, confidence_threshold=0.56, iou_threshold=0.45, orig_size=(640, 640)):
+    """
+    Process YOLOv8 TFLite output to get bounding boxes and counts
+
+    Args:
+        output: Raw model output
+        confidence_threshold: Minimum confidence for detection
+        iou_threshold: IoU threshold for NMS
+        orig_size: Original image dimensions
+
+    Returns:
+        List of detections with boxes and confidences
+    """
+    detections = []
+
+    print(f"[DEBUG] Raw output shape: {output.shape}")
+    print(f"[DEBUG] Output dtype: {output.dtype}")
+    print(f"[DEBUG] Output min: {output.min()}, max: {output.max()}")
+
+    # YOLOv8 TFLite output format: [1, num_features, num_predictions]
+    # For single class: [1, 5, 8400] where 5 = x, y, w, h, conf
+    # For multi class: [1, 4+num_classes, 8400]
+
+    if len(output.shape) == 3:
+        output = output[0]  # Remove batch dimension: [5, 8400] or [84, 8400]
+
+    num_features = output.shape[0]
+    num_predictions = output.shape[1]
+
+    print(f"[DEBUG] Features: {num_features}, Predictions: {num_predictions}")
+
+    # Transpose to get [num_predictions, num_features]
+    output = output.T  # Now [8400, 5] or [8400, 84]
+
+    # Print sample detections to understand the format
+    print(f"[DEBUG] Sample detection[0]: {output[0][:10]}")  # First 10 values of first detection
+
+    # Find max confidence in the data
+    if num_features == 5:
+        all_confidences = output[:, 4]
+    else:
+        all_confidences = np.max(output[:, 4:], axis=1)
+
+    print(f"[DEBUG] Max confidence in output: {all_confidences.max():.3f}")
+    print(f"[DEBUG] Confidence > 0.5 count: {np.sum(all_confidences > 0.5)}")
+    print(f"[DEBUG] Confidence > 0.7 count: {np.sum(all_confidences > 0.7)}")
+    print(f"[DEBUG] Confidence > 0.8 count: {np.sum(all_confidences > 0.8)}")
+    print(f"[DEBUG] Confidence > 0.9 count: {np.sum(all_confidences > 0.9)}")
+
+    # For single class model (5 features): x, y, w, h, conf
+    # For multi-class (4+classes): x, y, w, h, class1_conf, class2_conf, ...
+
+    for i, detection in enumerate(output):
+        x_center = detection[0]
+        y_center = detection[1]
+        width = detection[2]
+        height = detection[3]
+
+        # Get confidence
+        if num_features == 5:
+            # Single class model
+            confidence = detection[4]
+        else:
+            # Multi-class model - get max class confidence
+            class_scores = detection[4:]
+            confidence = np.max(class_scores)
+
+        # Skip low confidence detections
+        if confidence < confidence_threshold:
+            continue
+
+        # Skip invalid boxes (negative dimensions)
+        if width <= 0 or height <= 0:
+            continue
+
+        # YOLOv8 TFLite outputs NORMALIZED coordinates (0-1)
+        # Convert to original image pixel coordinates
+        x1 = int((x_center - width / 2) * orig_size[0])
+        y1 = int((y_center - height / 2) * orig_size[1])
+        x2 = int((x_center + width / 2) * orig_size[0])
+        y2 = int((y_center + height / 2) * orig_size[1])
+
+        # Clamp coordinates to image bounds
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(orig_size[0], x2)
+        y2 = min(orig_size[1], y2)
+
+        # Calculate box dimensions
+        box_width = x2 - x1
+        box_height = y2 - y1
+
+        # Skip very tiny boxes (likely noise)
+        if box_width < 5 or box_height < 5:
+            continue
+
+        detections.append({
+            'box': [x1, y1, x2, y2],
+            'confidence': float(confidence)
+        })
+
+    print(f"[DEBUG] Detections before NMS: {len(detections)}")
+
+    # Apply Non-Maximum Suppression
+    if len(detections) > 0:
+        detections = apply_nms(detections, iou_threshold)
+
+    print(f"[DEBUG] Detections after NMS: {len(detections)}")
+
+    # Limit to max detections (sorted by confidence, highest first)
+    if len(detections) > BUNCH_MAX_DETECTIONS:
+        detections = detections[:BUNCH_MAX_DETECTIONS]
+        print(f"[DEBUG] Limited to top {BUNCH_MAX_DETECTIONS} detections")
+
+    return detections
+
+
+def apply_nms(detections, iou_threshold=0.45):
+    """Apply Non-Maximum Suppression to remove overlapping boxes"""
+    if len(detections) == 0:
+        return []
+
+    # Sort by confidence (descending)
+    detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
+
+    keep = []
+    while detections:
+        best = detections.pop(0)
+        keep.append(best)
+
+        detections = [
+            det for det in detections
+            if calculate_iou(best['box'], det['box']) < iou_threshold
+        ]
+
+    return keep
+
+
+def calculate_iou(box1, box2):
+    """Calculate Intersection over Union between two boxes"""
+    x1_1, y1_1, x2_1, y2_1 = box1
+    x1_2, y1_2, x2_2, y2_2 = box2
+
+    # Calculate intersection
+    x1_i = max(x1_1, x1_2)
+    y1_i = max(y1_1, y1_2)
+    x2_i = min(x2_1, x2_2)
+    y2_i = min(y2_1, y2_2)
+
+    if x2_i < x1_i or y2_i < y1_i:
+        return 0.0
+
+    intersection = (x2_i - x1_i) * (y2_i - y1_i)
+
+    # Calculate union
+    area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
+    area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
+    union = area1 + area2 - intersection
+
+    return intersection / union if union > 0 else 0.0
+
+
+@app.route('/predict/bunch', methods=['POST'])
+def predict_bunch():
+    """
+    Detect coconut bunches in images for yield prediction
+
+    Accepts 1 or 2 images:
+    - image1: First image (required)
+    - image2: Second image from opposite side (optional)
+
+    Returns total bunch count from all images
+    """
+    global bunch_interpreter
+
+    if bunch_interpreter is None:
+        return jsonify({'error': 'Bunch detection model not loaded'}), 500
+
+    if 'image1' not in request.files:
+        return jsonify({'error': 'At least one image (image1) is required'}), 400
+
+    results = {
+        'image1': None,
+        'image2': None
+    }
+    total_bunches = 0
+    all_detections = []
+
+    # Process image 1 (required)
+    try:
+        file1 = request.files['image1']
+        if file1.filename != '':
+            image_bytes1 = file1.read()
+            processed_img1, orig_size1 = preprocess_image_bunch(image_bytes1, BUNCH_INPUT_SIZE)
+
+            # Get input/output details
+            input_details = bunch_interpreter.get_input_details()
+            output_details = bunch_interpreter.get_output_details()
+
+            # Set input tensor
+            bunch_interpreter.set_tensor(input_details[0]['index'], processed_img1)
+
+            # Run inference
+            bunch_interpreter.invoke()
+
+            # Get output
+            output1 = bunch_interpreter.get_tensor(output_details[0]['index'])
+
+            # Process detections
+            detections1 = process_yolo_output(
+                output1,
+                BUNCH_CONFIDENCE_THRESHOLD,
+                BUNCH_IOU_THRESHOLD,
+                orig_size1
+            )
+
+            results['image1'] = {
+                'bunch_count': len(detections1),
+                'detections': detections1,
+                'image_size': list(orig_size1)
+            }
+            total_bunches += len(detections1)
+            all_detections.extend(detections1)
+
+    except Exception as e:
+        results['image1'] = {'error': str(e)}
+
+    # Process image 2 (optional)
+    if 'image2' in request.files:
+        try:
+            file2 = request.files['image2']
+            if file2.filename != '':
+                image_bytes2 = file2.read()
+                processed_img2, orig_size2 = preprocess_image_bunch(image_bytes2, BUNCH_INPUT_SIZE)
+
+                # Get input/output details
+                input_details = bunch_interpreter.get_input_details()
+                output_details = bunch_interpreter.get_output_details()
+
+                # Set input tensor
+                bunch_interpreter.set_tensor(input_details[0]['index'], processed_img2)
+
+                # Run inference
+                bunch_interpreter.invoke()
+
+                # Get output
+                output2 = bunch_interpreter.get_tensor(output_details[0]['index'])
+
+                # Process detections
+                detections2 = process_yolo_output(
+                    output2,
+                    BUNCH_CONFIDENCE_THRESHOLD,
+                    BUNCH_IOU_THRESHOLD,
+                    orig_size2
+                )
+
+                results['image2'] = {
+                    'bunch_count': len(detections2),
+                    'detections': detections2,
+                    'image_size': list(orig_size2)
+                }
+                total_bunches += len(detections2)
+                all_detections.extend(detections2)
+
+        except Exception as e:
+            results['image2'] = {'error': str(e)}
+
+    # Calculate average confidence
+    avg_confidence = 0.0
+    if all_detections:
+        avg_confidence = sum(d['confidence'] for d in all_detections) / len(all_detections)
+
+    # Prepare summary
+    images_processed = sum(1 for r in [results['image1'], results['image2']]
+                           if r is not None and 'error' not in r)
+
+    return jsonify({
+        'success': True,
+        'detection_type': 'bunch',
+        'total_bunch_count': total_bunches,
+        'average_confidence': avg_confidence,
+        'images_processed': images_processed,
+        'results': results,
+        'message': f'Detected {total_bunches} coconut bunches across {images_processed} image(s)',
+        'recommendation': 'For accurate yield prediction, capture images from opposite sides of the tree to avoid counting the same bunches twice.',
+        'model_info': {
+            'version': 'v1',
+            'type': 'YOLOv8 TFLite',
+            'confidence_threshold': BUNCH_CONFIDENCE_THRESHOLD
+        },
+        'timestamp': datetime.now().isoformat()
+    })
+
+
 # Legacy endpoint for backward compatibility
 
 # Legacy endpoint
@@ -1570,18 +1963,13 @@ if __name__ == '__main__':
 
 
     # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
-    print("\nStarting Coconut Health Monitor ML API v5.0...")
-    print("  Mite Model: v10 (3-class, 91.44% accuracy, 79% mite recall)")
-    print("  Caterpillar Model: v2 (3-class, 97.47% accuracy, 91.49% caterpillar recall)")
-    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
-    print("  Mite & Caterpillar models support 'not_coconut' class for image validation!")
-
-    print("\nStarting Coconut Health Monitor ML API v8.0...")
+    print("\nStarting Coconut Health Monitor ML API v9.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
     print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
     print("  Branch Health Model: v1 (2-class, 99.63% accuracy)")
+    print("  Bunch Detection: v1 (YOLOv8 TFLite - object detection)")
 
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)
