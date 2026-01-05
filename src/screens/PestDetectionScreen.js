@@ -236,6 +236,7 @@ export default function PestDetectionScreen({navigation}) {
     if (response.assets && response.assets[0]) {
       setSelectedImage(response.assets[0]);
       setResult(null);
+      setTreatment(null);  // Clear previous treatment when new image selected
     }
   };
 
