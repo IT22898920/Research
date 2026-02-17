@@ -329,7 +329,7 @@ export default function PestDetectionScreen({navigation}) {
         color: '#ff9800', // Orange
         icon: '🟡',
         percent: Math.round(30 + (confidencePercent - 70) / 15 * 30), // 30-60%
-      };
+      }; //siviyer
     } else {
       return {
         level: 'severe',

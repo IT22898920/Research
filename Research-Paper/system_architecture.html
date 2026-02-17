@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CocoSense System Architecture - Fig. 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 900px;
+            background: white;
+            padding: 20px;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 12px;
+            margin-bottom: 20px;
+            font-weight: normal;
+        }
+
+        .section {
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+
+        .section-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+            background: #333;
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .drone-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            padding: 15px;
+            background: #e3f2fd;
+        }
+
+        .drone-box {
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            padding: 10px 20px;
+            background: white;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .arrow {
+            text-align: center;
+            font-size: 24px;
+            color: #333;
+            margin: 5px 0;
+        }
+
+        .arrow-horizontal {
+            font-size: 20px;
+            color: #1976d2;
+        }
+
+        .modules-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .module {
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .module-pest {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+
+        .module-disease {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .module-health {
+            background: #fff8e1;
+            border-color: #ffc107;
+        }
+
+        .module-yield {
+            background: #f3e5f5;
+            border-color: #9c27b0;
+        }
+
+        .module-title {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .pest-title { background: #ff9800; }
+        .disease-title { background: #f44336; }
+        .health-title { background: #ffc107; color: #333; }
+        .yield-title { background: #9c27b0; }
+
+        .module-content {
+            text-align: left;
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .module-content ul {
+            list-style: none;
+            padding-left: 5px;
+        }
+
+        .module-content li {
+            margin: 3px 0;
+        }
+
+        .module-content li:before {
+            content: "• ";
+            color: #333;
+        }
+
+        .accuracy {
+            background: #4caf50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 8px;
+            font-weight: bold;
+        }
+
+        .chatbot-box {
+            margin-top: 10px;
+            border: 2px dashed #2196f3;
+            border-radius: 8px;
+            padding: 8px;
+            background: #e3f2fd;
+        }
+
+        .chatbot-title {
+            font-weight: bold;
+            font-size: 10px;
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+
+        .languages {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 5px;
+        }
+
+        .lang-badge {
+            background: #2196f3;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 8px;
+        }
+
+        .backend-section {
+            background: #eceff1;
+        }
+
+        .api-endpoints {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .endpoint {
+            background: #607d8b;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-family: monospace;
+        }
+
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .db-box {
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            padding: 10px;
+            background: #e8f5e9;
+            text-align: center;
+        }
+
+        .iot-box {
+            border: 2px solid #00bcd4;
+            border-radius: 8px;
+            padding: 10px;
+            background: #e0f7fa;
+            text-align: center;
+        }
+
+        .maps-box {
+            border: 2px solid #4285f4;
+            border-radius: 8px;
+            padding: 10px;
+            background: #e8f0fe;
+            text-align: center;
+        }
+
+        .box-title {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .box-content {
+            font-size: 9px;
+            text-align: left;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .green { background: #4caf50; }
+        .red { background: #f44336; }
+        .yellow { background: #ffc107; }
+
+        .mobile-app-section {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .caption {
+            text-align: center;
+            font-size: 11px;
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        .member-badge {
+            background: #333;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        .tech-stack {
+            font-family: monospace;
+            font-size: 8px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .connection-line {
+            border-left: 2px solid #333;
+            height: 20px;
+            margin: 0 auto;
+            width: 0;
+        }
+
+        .horizontal-line {
+            border-top: 2px solid #333;
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Drone Section -->
+        <div class="section drone-section">
+            <div class="drone-box">
+                <strong>DRONE</strong><br>
+                (DJI Mavic)<br>
+                <span class="tech-stack">12MP Camera</span>
+            </div>
+            <span class="arrow-horizontal">→</span>
+            <div class="drone-box">
+                <strong>Image Capture</strong><br>
+                10-30m altitude<br>
+                <span class="tech-stack">Various conditions</span>
+            </div>
+            <span class="arrow-horizontal">→</span>
+            <div class="drone-box">
+                <strong>DATASET</strong><br>
+                5,000+ Images<br>
+                <span class="tech-stack">Annotated & Augmented</span>
+            </div>
+        </div>
+
+        <div class="arrow">▼</div>
+
+        <!-- Mobile Application Section -->
+        <div class="section mobile-app-section">
+            <div class="section-title">COCOSENSE MOBILE APPLICATION (React Native)</div>
+
+            <div class="modules-container">
+                <!-- Pest Detection Module -->
+                <div class="module module-pest">
+                    <span class="member-badge">Member 1</span>
+                    <div class="module-title pest-title">PEST DETECTION</div>
+                    <div class="module-content">
+                        <ul>
+                            <li>Mite Detection<br><span class="tech-stack">EfficientNetB0</span><br><span class="accuracy">91.44%</span></li>
+                            <li>Caterpillar & White Fly<br><span class="tech-stack">MobileNetV2</span><br><span class="accuracy">96.08%</span></li>
+                        </ul>
+                    </div>
+                    <div class="chatbot-box">
+                        <div class="chatbot-title">AI CHATBOT</div>
+                        <span class="tech-stack">Groq API + LLaMA 3.3 70B</span>
+                        <div class="languages">
+                            <span class="lang-badge">සිංහල</span>
+                            <span class="lang-badge">English</span>
+                            <span class="lang-badge">தமிழ்</span>
+                        </div>
+                        <div style="font-size: 8px; margin-top: 5px;">Treatment Recommendations</div>
+                    </div>
+                </div>
+
+                <!-- Disease Detection Module -->
+                <div class="module module-disease">
+                    <span class="member-badge">Member 2</span>
+                    <div class="module-title disease-title">DISEASE DETECTION</div>
+                    <div class="module-content">
+                        <ul>
+                            <li>Leaf Rot</li>
+                            <li>Leaf Spot</li>
+                            <li>Leaf Dieback</li>
+                            <li>Healthy</li>
+                        </ul>
+                        <div style="margin-top: 8px;">
+                            <span class="tech-stack">MobileNetV2 + Focal Loss</span><br>
+                            <span class="accuracy">98.69%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Assessment Module -->
+                <div class="module module-health">
+                    <span class="member-badge">Member 3</span>
+                    <div class="module-title health-title">HEALTH ASSESSMENT</div>
+                    <div class="module-content">
+                        <ul>
+                            <li>Leaf Health<br><span class="accuracy">93.70%</span></li>
+                            <li>Branch Health<br><span class="accuracy">99.63%</span></li>
+                        </ul>
+                        <div style="margin-top: 8px;">
+                            <span class="tech-stack">MobileNetV2</span><br>
+                            <span style="font-size: 8px;">Binary Classification</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Yield Estimation Module -->
+                <div class="module module-yield">
+                    <span class="member-badge">Member 4</span>
+                    <div class="module-title yield-title">YIELD ESTIMATION</div>
+                    <div class="module-content">
+                        <ul>
+                            <li>Fruit Detection<br><span class="tech-stack">YOLOv8</span></li>
+                            <li>Dual-View Strategy<br><span style="font-size: 8px;">180° separation</span></li>
+                            <li>Yield Formula:<br><span style="font-family: serif; font-size: 9px;">Y = N × W<sub>avg</sub> × C<sub>f</sub></span></li>
+                        </ul>
+                        <div style="margin-top: 5px;">
+                            <span class="tech-stack">2,500 images (Roboflow)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="arrow">▼</div>
+
+        <!-- Backend Section -->
+        <div class="section backend-section">
+            <div class="section-title">FLASK BACKEND API</div>
+            <div class="api-endpoints">
+                <span class="endpoint">/predict/mite</span>
+                <span class="endpoint">/predict/unified</span>
+                <span class="endpoint">/predict/disease</span>
+                <span class="endpoint">/predict/leaf-health</span>
+                <span class="endpoint">/predict/branch-health</span>
+                <span class="endpoint">/predict/yield</span>
+                <span class="endpoint">/chat</span>
+                <span class="endpoint">/predict/all</span>
+            </div>
+        </div>
+
+        <div class="arrow">▼</div>
+
+        <!-- Bottom Section -->
+        <div class="bottom-section">
+            <div class="db-box">
+                <div class="box-title">📦 MongoDB Database</div>
+                <div class="box-content">
+                    <ul style="list-style: none; padding: 0;">
+                        <li>• User Data</li>
+                        <li>• Scan History</li>
+                        <li>• Tree Records</li>
+                        <li>• Analytics</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="iot-box">
+                <div class="box-title">📡 IoT Device</div>
+                <div class="box-content">
+                    <ul style="list-style: none; padding: 0;">
+                        <li>• GPS Module</li>
+                        <li>• Tree Location Tracking</li>
+                        <li>• Real-time Data</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="maps-box">
+                <div class="box-title">🗺️ Google Maps API</div>
+                <div class="box-content">
+                    <ul style="list-style: none; padding: 0;">
+                        <li>• Tree Mapping</li>
+                        <li>• Health Visualization</li>
+                    </ul>
+                </div>
+                <div class="status-indicators">
+                    <div class="status"><div class="status-dot green"></div> Healthy</div>
+                    <div class="status"><div class="status-dot red"></div> Infected</div>
+                    <div class="status"><div class="status-dot yellow"></div> Attention</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Caption -->
+        <div class="caption">
+            Fig. 1. Overall system architecture of CocoSense showing the four main modules integrated within a unified mobile application platform.
+        </div>
+    </div>
+</body>
+</html>

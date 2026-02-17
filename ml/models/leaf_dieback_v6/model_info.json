@@ -1,0 +1,55 @@
+{
+  "model_name": "leaf_dieback_v6",
+  "architecture": "MobileNetV2",
+  "classes": [
+    "healthy",
+    "leaf_die_back",
+    "not_cocount"
+  ],
+  "num_classes": 3,
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "training": {
+    "phase1_epochs": 25,
+    "phase2_epochs": 20,
+    "training_time_minutes": 150.6,
+    "final_train_accuracy": 0.9900083541870117,
+    "final_val_accuracy": 0.9783393740653992,
+    "overfitting_gap": 0.011668980121612549
+  },
+  "data": {
+    "train_samples": 8407,
+    "val_samples": 277,
+    "test_samples": 277
+  },
+  "test_performance": {
+    "accuracy": 0.9855595667870036,
+    "macro_precision": 0.9857385398981324,
+    "macro_recall": 0.9859870179457809,
+    "macro_f1": 0.9857288772883149,
+    "accuracy_f1_difference": 0.00016931050131130387,
+    "per_class": {
+      "healthy": {
+        "precision": 0.967741935483871,
+        "recall": 1.0,
+        "f1_score": 0.9836065573770492,
+        "support": 90
+      },
+      "leaf_die_back": {
+        "precision": 0.9894736842105263,
+        "recall": 0.9690721649484536,
+        "f1_score": 0.9791666666666666,
+        "support": 97
+      },
+      "not_cocount": {
+        "precision": 1.0,
+        "recall": 0.9888888888888889,
+        "f1_score": 0.994413407821229,
+        "support": 90
+      }
+    }
+  }
+}

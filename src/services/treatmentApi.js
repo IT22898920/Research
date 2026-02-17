@@ -1,8 +1,4 @@
-/**
- * Treatment Recommendation Service
- * Uses Groq API to generate dynamic, contextual treatment recommendations
- * FREE tier: 30 requests/minute, very generous limits
- */
+
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
