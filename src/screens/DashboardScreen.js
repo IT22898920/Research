@@ -122,6 +122,28 @@ export default function DashboardScreen({navigation, route}) {
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('PlantationMap')}>
+          <Text style={styles.featureIcon}>🗺️</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Plantation Map</Text>
+            <Text style={styles.featureSubtext}>View & manage all trees</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('AddTree')}>
+          <Text style={styles.featureIcon}>📍</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Add Tree Location</Text>
+            <Text style={styles.featureSubtext}>Mark new tree with GPS</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
         <View style={styles.featureCard}>
           <Text style={styles.featureIcon}>🚁</Text>
           <View style={styles.featureContent}>
