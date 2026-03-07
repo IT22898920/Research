@@ -1,22 +1,74 @@
+# ===================
+# Environment & Secrets
+# ===================
+
 # Environment variables
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
 
-# Google Services (contains API keys)
+# Firebase Admin SDK keys (NEVER commit these!)
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+coconut-app-*.json
+
+# Google Services & Credentials
 google-services.json
 android/app/google-services.json
-
-# Client secrets
+GoogleService-Info.plist
+ios/GoogleService-Info.plist
 client_secret*.json
+gcloud-*.json
+credentials.json
 
-# OSX
-#
-.DS_Store
+# ===================
+# React Native
+# ===================
 
-# Xcode
-#
-build/
+# Dependencies
+node_modules/
+.pnp.*
+
+# Metro
+.metro-health-check*
+*.jsbundle
+
+# Build outputs
+*.apk
+*.aab
+*.ipa
+dist/
+
+# ===================
+# Android
+# ===================
+
+# Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+*.hprof
+
+# Local configuration
+android/local.properties
+android/*.iml
+.cxx/
+.kotlin/
+
+# Signing
+*.keystore
+*.jks
+!debug.keystore
+
+# ===================
+# iOS / Xcode
+# ===================
+
+ios/build/
+ios/Pods/
+ios/.xcode.env.local
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -25,60 +77,30 @@ build/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
-xcuserdata
+xcuserdata/
 *.xccheckout
 *.moved-aside
-DerivedData
+DerivedData/
 *.hmap
-*.ipa
 *.xcuserstate
-**/.xcode.env.local
+*.xcscmblueprint
+*.xcworkspacedata
 
-# Android/IntelliJ
-#
-build/
-.idea
-.gradle
-local.properties
-*.iml
-*.hprof
-.cxx/
-*.keystore
-!debug.keystore
-.kotlin/
-
-# node.js
-#
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
-
-**/fastlane/report.xml
-**/fastlane/Preview.html
-**/fastlane/screenshots
-**/fastlane/test_output
-
-# Bundle artifact
-*.jsbundle
-
-# Ruby / CocoaPods
+# CocoaPods
 **/Pods/
 /vendor/bundle/
+Podfile.lock
 
-# Temporary files created by Metro to check the health of the file watcher
-.metro-health-check*
+# ===================
+# Node.js & NPM
+# ===================
 
-# testing
-/coverage
-
-# Yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -87,14 +109,50 @@ yarn-error.log
 !.yarn/versions
 
 # ===================
+# Backend
+# ===================
+
+backend/.env
+backend/node_modules/
+backend/logs/
+backend/*.log
+backend/uploads/
+uploads/
+
+# ===================
 # ML / Python
 # ===================
 
-# Dataset - large files (don't push to git)
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+
+# Eggs
+*.egg
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Dataset (large files)
 ml/data/raw/
 ml/data/processed/
+ml/data/train/
+ml/data/test/
+ml/data/val/
 
-# Trained models (large files)
+# Trained models (large files - share separately)
 ml/models/**/*.h5
 ml/models/**/*.keras
 ml/models/**/*.pkl
@@ -102,69 +160,123 @@ ml/models/**/*.pt
 ml/models/**/*.pth
 ml/models/**/*.onnx
 ml/models/**/*.tflite
+ml/models/**/*.pb
+ml/models/**/*.savedmodel/
 
-# Deprecated model versions (keep only latest v10 and v2)
-ml/models/coconut_mite_v4/
-ml/models/coconut_mite_v5/
-ml/models/coconut_mite_v6/
-ml/models/coconut_mite_v7/
-ml/models/coconut_mite_v8/
-ml/models/coconut_mite_v9/
+# Old model versions
+ml/models/coconut_mite_v[0-9]/
 ml/models/coconut_caterpillar/
 
-# TensorFlow dataset cache (large files)
+# TensorFlow/Training artifacts
 ml/models/**/tf_data/
-
-# TensorBoard logs
 ml/models/**/logs/
 **/events.out.tfevents.*
-
-# Training output images/plots
 ml/models/**/*.png
 
-# Model architecture files (auto-generated)
-ml/models/**/model_architecture.txt
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-*.egg-info/
-.eggs/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# IDE
-.vscode/
-*.swp
-*.swo
-
-# Windows artifacts
-nul
+# Temp scripts
+ml/train_*.py
+ml/test_*.py
+ml/*.ps1
 ml/nul
 
-# Temporary training scripts
-ml/train_*.py
+# ===================
+# IDE & Editors
+# ===================
 
-# Notebook outputs (large files)
-ml/notebooks/*_with_outputs.ipynb
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# Data audit and verification scripts
-ml/data_audit.py
-ml/data_audit_results.json
-ml/fix_data_issues.py
-ml/verify_files.py
-ml/test_model_*.py
-ml/tune_threshold_*.py
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
 
-# PowerShell scripts
-ml/*.ps1
+# Sublime
+*.sublime-project
+*.sublime-workspace
 
-# Claude temp files
+# Vim
+*.swp
+*.swo
+*~
+
+# ===================
+# OS Generated
+# ===================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+.fuse_hidden*
+.Trash-*
+.nfs*
+
+# ===================
+# Testing & Coverage
+# ===================
+
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+htmlcov/
+
+# ===================
+# Logs
+# ===================
+
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ===================
+# Claude Code
+# ===================
+
 .claude/
+
+# ===================
+# Fastlane
+# ===================
+
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots/
+**/fastlane/test_output/
+
+# ===================
+# Misc
+# ===================
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Archives
+*.zip
+*.tar.gz
+*.rar

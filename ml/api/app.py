@@ -119,6 +119,13 @@ DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 
 # Disease model class indices (alphabetical order from ImageDataGenerator)
 DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
+# Leaf Dieback Detection model paths (v4 - 3-class for baby coconut trees)
+LEAF_DIEBACK_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'best_model.keras')
+LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'model_info.json')
+
+# Leaf Dieback model class indices (alphabetical order from ImageDataGenerator)
+LEAF_DIEBACK_CLASSES = ['healthy', 'leaf_die_back', 'not_cocount']
+
 # Leaf Health model paths (v1 - 2-class)
 LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
 LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'model_info.json')
@@ -145,7 +152,6 @@ BUNCH_MAX_DETECTIONS = 50  # Maximum bunches to return
 # Global variables for models
 models = {}
 model_infos = {}
-bunch_interpreter = None  # TFLite interpreter for bunch detection
 
 def focal_loss(gamma=2.0, alpha=0.25):
     """Custom focal loss for loading models"""
@@ -262,17 +268,48 @@ def load_models():
         models['disease'] = None
         model_infos['disease'] = None
 
+    # Load Leaf Dieback Model (v4 - 3-class for baby coconut trees)
+    try:
+        print("\n[4] Loading Leaf Dieback model (v4 - 3-class for baby coconut)...")
+
+        models['leaf_dieback'] = tf.keras.models.load_model(
+            LEAF_DIEBACK_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(LEAF_DIEBACK_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_dieback'] = json.load(f)
+        except:
+            model_infos['leaf_dieback'] = {
+                'version': 'v4_3class',
+                'classes': LEAF_DIEBACK_CLASSES,
+                'performance': {
+                    'healthy_recall': 1.00,
+                    'leaf_die_back_recall': 0.845,
+                    'not_cocount_recall': 0.988
+                }
+            }
+
+        print(f"    Version: v4 (3-class, MobileNetV2)")
+        print(f"    Classes: {LEAF_DIEBACK_CLASSES}")
+        print(f"    Healthy Recall: 100%")
+        print(f"    Leaf Dieback Recall: 84.5%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf dieback model: {e}")
+        models['leaf_dieback'] = None
+        model_infos['leaf_dieback'] = None
+
     # Load Leaf Health Model (v1 - 2-class)
     try:
-        print("\n[4] Loading Leaf Health model (v1 - 2-class)...")
+        print("\n[5] Loading Leaf Health model (v1 - 2-class)...")
 
-        # Load model with custom focal loss
         models['leaf_health'] = tf.keras.models.load_model(
             LEAF_HEALTH_MODEL_PATH,
             custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
         )
 
-        # Try to load model info
         try:
             with open(LEAF_HEALTH_MODEL_INFO_PATH, 'r') as f:
                 model_infos['leaf_health'] = json.load(f)
@@ -283,7 +320,7 @@ def load_models():
                 'performance': {'test_accuracy': 0.9370}
             }
 
-        print(f"    Version: v1 (2-class, Focal Loss)")
+        print(f"    Version: v1 (2-class, MobileNetV2)")
         print(f"    Classes: {LEAF_HEALTH_CLASSES}")
         print(f"    Accuracy: 93.70%")
         print("    Status: LOADED")
@@ -294,15 +331,13 @@ def load_models():
 
     # Load Branch Health Model (v1 - 2-class)
     try:
-        print("\n[5] Loading Branch Health model (v1 - 2-class)...")
+        print("\n[6] Loading Branch Health model (v1 - 2-class)...")
 
-        # Load model with custom focal loss
         models['branch_health'] = tf.keras.models.load_model(
             BRANCH_HEALTH_MODEL_PATH,
             custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
         )
 
-        # Try to load model info
         try:
             with open(BRANCH_HEALTH_MODEL_INFO_PATH, 'r') as f:
                 model_infos['branch_health'] = json.load(f)
@@ -313,7 +348,7 @@ def load_models():
                 'performance': {'test_accuracy': 0.9963}
             }
 
-        print(f"    Version: v1 (2-class, Focal Loss)")
+        print(f"    Version: v1 (2-class, MobileNetV2)")
         print(f"    Classes: {BRANCH_HEALTH_CLASSES}")
         print(f"    Accuracy: 99.63%")
         print("    Status: LOADED")
@@ -322,44 +357,31 @@ def load_models():
         models['branch_health'] = None
         model_infos['branch_health'] = None
 
-    # Load Bunch Detection TFLite Model
-    global bunch_interpreter
+    # Load Bunch Detection Model (TFLite)
     try:
-        print("\n[6] Loading Bunch Detection TFLite model...")
-
+        print("\n[7] Loading Bunch Detection model (TFLite)...")
+        # Note: TFLite model is loaded on demand in the predict function
+        # Just check if the file exists
         if os.path.exists(BUNCH_MODEL_PATH):
-            bunch_interpreter = tf.lite.Interpreter(model_path=BUNCH_MODEL_PATH)
-            bunch_interpreter.allocate_tensors()
-
-            # Get input/output details
-            input_details = bunch_interpreter.get_input_details()
-            output_details = bunch_interpreter.get_output_details()
-
+            models['bunch'] = BUNCH_MODEL_PATH  # Store path instead of loaded model
             model_infos['bunch'] = {
-                'version': 'v1_yolo',
+                'version': 'v1_yolov8',
                 'type': 'object_detection',
-                'input_shape': input_details[0]['shape'].tolist(),
-                'output_shape': output_details[0]['shape'].tolist()
+                'format': 'tflite'
             }
-
-            print(f"    Version: v1 (YOLOv8 TFLite)")
-            print(f"    Input shape: {input_details[0]['shape']}")
-            print(f"    Output shape: {output_details[0]['shape']}")
-            print(f"    Confidence threshold: {BUNCH_CONFIDENCE_THRESHOLD}")
+            print(f"    Format: TFLite (YOLOv8)")
+            print(f"    Input Size: {BUNCH_INPUT_SIZE}x{BUNCH_INPUT_SIZE}")
             print("    Status: LOADED")
         else:
-            print(f"    Model file not found: {BUNCH_MODEL_PATH}")
-            bunch_interpreter = None
-            model_infos['bunch'] = None
+            raise FileNotFoundError(f"Model not found: {BUNCH_MODEL_PATH}")
     except Exception as e:
         print(f"    ERROR loading bunch detection model: {e}")
-        bunch_interpreter = None
+        models['bunch'] = None
         model_infos['bunch'] = None
 
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    bunch_loaded = 1 if bunch_interpreter is not None else 0
-    print(f"  Models loaded: {loaded_count + bunch_loaded}/6")
+    print(f"  Models loaded: {loaded_count}/7")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -401,12 +423,25 @@ def preprocess_image_disease(image_bytes):
 
     return np.expand_dims(img_array, axis=0)
 
+def preprocess_image_leaf_dieback(image_bytes):
+    """Preprocess image for leaf dieback model (0-1 scaling, 224x224)"""
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img = img.resize((224, 224), Image.Resampling.LANCZOS)
+    img_array = np.array(img, dtype=np.float32)
+    img_array = img_array / 255.0
+
+    return np.expand_dims(img_array, axis=0)
+
 @app.route('/', methods=['GET'])
 def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest & Disease Detection API',
-        'version': '9.0.0',
+        'version': '8.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -423,20 +458,10 @@ def home():
                 'version': 'v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount)',
                 'accuracy': '98.69%'
             },
-            'leaf_health': {
-                'status': 'loaded' if models.get('leaf_health') is not None else 'not loaded',
-                'version': 'v1 (2-class: healthy, unhealthy)',
-                'accuracy': '93.70%'
-            },
-            'branch_health': {
-                'status': 'loaded' if models.get('branch_health') is not None else 'not loaded',
-                'version': 'v1 (2-class: healthy, unhealthy)',
-                'accuracy': '99.63%'
-            },
-            'bunch': {
-                'status': 'loaded' if bunch_interpreter is not None else 'not loaded',
-                'version': 'v1 (YOLOv8 TFLite object detection)',
-                'type': 'Object Detection for Yield Prediction'
+            'leaf_dieback': {
+                'status': 'loaded' if models.get('leaf_dieback') is not None else 'not loaded',
+                'version': 'v4 (3-class: healthy, leaf_die_back, not_cocount)',
+                'description': 'Baby coconut tree disease detection'
             }
         },
         'endpoints': {
@@ -448,9 +473,7 @@ def home():
             '/predict/white_fly': 'POST - Detect white fly damage (uses unified 4-class model)',
             '/predict/unified': 'POST - Unified caterpillar & white fly detection (4-class)',
             '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
-            '/predict/leaf-health': 'POST - Detect leaf health (healthy vs unhealthy/yellowing)',
-            '/predict/branch-health': 'POST - Detect branch health (healthy vs unhealthy)',
-            '/predict/bunch': 'POST - Detect coconut bunches for yield prediction (accepts 2 images)',
+            '/predict/leaf_dieback': 'POST - Detect leaf dieback in baby coconut trees (3-class)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -464,9 +487,7 @@ def health_check():
             'mite': models.get('mite') is not None,
             'unified': models.get('unified') is not None,
             'disease': models.get('disease') is not None,
-            'leaf_health': models.get('leaf_health') is not None,
-            'branch_health': models.get('branch_health') is not None,
-            'bunch': bunch_interpreter is not None
+            'leaf_dieback': models.get('leaf_dieback') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -509,32 +530,14 @@ def list_models():
             'loaded': models.get('disease') is not None
         }
 
-    if model_infos.get('leaf_health'):
-        result['leaf_health'] = {
-            'name': 'Coconut Leaf Health Detection Model',
-            'version': 'v1 (2-class, Focal Loss)',
-            'classes': LEAF_HEALTH_CLASSES,
-            'accuracy': 0.9370,
-            'macro_f1': 0.9324,
-            'loaded': models.get('leaf_health') is not None
-        }
-
-    if model_infos.get('branch_health'):
-        result['branch_health'] = {
-            'name': 'Coconut Branch Health Detection Model',
-            'version': 'v1 (2-class, Focal Loss)',
-            'classes': BRANCH_HEALTH_CLASSES,
-            'accuracy': 0.9963,
-            'loaded': models.get('branch_health') is not None
-        }
-
-    if model_infos.get('bunch'):
-        result['bunch'] = {
-            'name': 'Coconut Bunch Detection Model',
-            'version': 'v1 (YOLOv8 TFLite)',
-            'type': 'object_detection',
-            'confidence_threshold': BUNCH_CONFIDENCE_THRESHOLD,
-            'loaded': bunch_interpreter is not None
+    if model_infos.get('leaf_dieback'):
+        result['leaf_dieback'] = {
+            'name': 'Baby Coconut Leaf Dieback Detection Model',
+            'version': 'v4 (3-class, MobileNetV2)',
+            'classes': LEAF_DIEBACK_CLASSES,
+            'healthy_recall': 1.00,
+            'leaf_dieback_recall': 0.845,
+            'loaded': models.get('leaf_dieback') is not None
         }
 
     return jsonify(result)
@@ -912,6 +915,83 @@ def predict_disease():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/predict/leaf_dieback', methods=['POST'])
+def predict_leaf_dieback():
+    """Detect leaf dieback in baby coconut trees (v4 model - 3-class classification)
+
+    Classes: healthy, leaf_die_back, not_cocount
+    Specifically designed for young/baby coconut palm disease detection.
+    """
+
+    if models.get('leaf_dieback') is None:
+        return jsonify({'error': 'Leaf Dieback model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_leaf_dieback(image_bytes)
+
+        # 3-class classification: softmax output
+        # Classes: ['healthy', 'leaf_die_back', 'not_cocount']
+        predictions = models['leaf_dieback'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = LEAF_DIEBACK_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_leaf_dieback = predicted_class == 'leaf_die_back'
+        is_healthy = predicted_class == 'healthy'
+        is_valid = predicted_class != 'not_cocount'
+
+        probabilities = {
+            'healthy': float(predictions[0]),
+            'leaf_die_back': float(predictions[1]),
+            'not_coconut': float(predictions[2])
+        }
+
+        # Determine label and message
+        if not is_valid:
+            label = 'Not a valid baby coconut leaf image'
+            message = 'The uploaded image does not appear to be a baby coconut leaf. Please upload a clear image of a young coconut palm leaf.'
+            status = 'invalid'
+        elif is_leaf_dieback:
+            label = 'Leaf Dieback Disease Detected'
+            message = 'This baby coconut leaf shows signs of Leaf Dieback disease. This disease can severely affect young coconut palms. Immediate treatment is recommended.'
+            status = 'diseased'
+        else:
+            label = 'Healthy Baby Coconut Leaf'
+            message = 'No disease detected. This baby coconut leaf appears to be healthy.'
+            status = 'healthy'
+
+        return jsonify({
+            'success': True,
+            'detection_type': 'leaf_dieback',
+            'model_version': 'v4',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_diseased': is_leaf_dieback,
+                'is_leaf_dieback': is_leaf_dieback,
+                'is_healthy': is_healthy,
+                'is_valid_image': is_valid,
+                'label': label,
+                'message': message,
+                'status': status
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/predict/all', methods=['POST'])
 def predict_all():
     """
@@ -1137,644 +1217,7 @@ def predict_all():
         'timestamp': datetime.now().isoformat()
     })
 
-
-# Leaf Health Detection Endpoint
-@app.route('/predict/leaf-health', methods=['POST'])
-def predict_leaf_health():
-    """
-    Predict if a coconut leaf is healthy or unhealthy (yellowing)
-
-    Returns:
-        JSON with prediction results
-    """
-    if models['leaf_health'] is None:
-        return jsonify({'error': 'Leaf health model not loaded'}), 500
-
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image file provided'}), 400
-
-    try:
-        # Read image
-        image_file = request.files['image']
-        image_bytes = image_file.read()
-
-        # Preprocess image (same as mite model - 224x224, 0-1 scaling)
-        img = Image.open(io.BytesIO(image_bytes))
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        img = img.resize((224, 224), Image.Resampling.LANCZOS)
-        img_array = np.array(img, dtype=np.float32)
-        img_array = img_array / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-
-        # Make prediction
-        predictions = models['leaf_health'].predict(img_array, verbose=0)
-
-        # Get class probabilities
-        healthy_prob = float(predictions[0][0])
-        unhealthy_prob = float(predictions[0][1])
-
-        # Determine predicted class
-        predicted_class_idx = np.argmax(predictions[0])
-        predicted_class = LEAF_HEALTH_CLASSES[predicted_class_idx]
-        confidence = float(np.max(predictions[0]))
-
-        # Prepare response
-        result = {
-            'success': True,
-            'prediction': predicted_class,
-            'confidence': confidence,
-            'probabilities': {
-                'healthy': healthy_prob,
-                'unhealthy': unhealthy_prob
-            },
-            'is_healthy': predicted_class == 'healthy',
-            'message': get_leaf_health_message(predicted_class, confidence),
-            'recommendation': get_leaf_health_recommendation(predicted_class),
-            'model_info': {
-                'version': 'v1',
-                'classes': LEAF_HEALTH_CLASSES,
-                'accuracy': '93.70%'
-            },
-            'timestamp': datetime.now().isoformat()
-        }
-
-        # Add detailed conditions if unhealthy
-        if predicted_class == 'unhealthy':
-            result['possible_conditions'] = get_unhealthy_conditions_details()
-            result['conditions_count'] = len(UNHEALTHY_LEAF_CONDITIONS)
-
-        return jsonify(result)
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# Knowledge base for unhealthy leaf conditions
-UNHEALTHY_LEAF_CONDITIONS = [
-    {
-        'condition': 'Nitrogen Deficiency',
-        'reason': 'Lack of nitrogen in soil causes yellowing of older leaves first. Nitrogen is essential for chlorophyll production.',
-        'symptoms': [
-            'Yellowing starts from older leaves',
-            'Stunted growth',
-            'Pale green to yellow color'
-        ],
-        'solution': 'Apply nitrogen-rich fertilizers such as urea (46-0-0) or ammonium sulfate. Use 200-250g per tree, split into 2-3 applications. Alternatively, apply organic matter like compost or well-rotted manure.',
-        'urgency': 'medium',
-        'icon': '🍂'
-    },
-    {
-        'condition': 'Potassium Deficiency',
-        'reason': 'Potassium deficiency causes yellowing and browning of leaf tips and margins. Essential for water regulation and disease resistance.',
-        'symptoms': [
-            'Yellow/brown leaf tips',
-            'Marginal leaf burn',
-            'Weak stems'
-        ],
-        'solution': 'Apply potassium-rich fertilizers like muriate of potash (KCl 60%) at 250-300g per tree. Ensure proper irrigation to help potassium uptake.',
-        'urgency': 'medium',
-        'icon': '🔥'
-    },
-    {
-        'condition': 'Magnesium Deficiency',
-        'reason': 'Magnesium is crucial for photosynthesis. Deficiency causes interveinal chlorosis (yellowing between leaf veins).',
-        'symptoms': [
-            'Yellow areas between green veins',
-            'Older leaves affected first',
-            'Orange/red tints may appear'
-        ],
-        'solution': 'Apply magnesium sulfate (Epsom salt) as foliar spray: 20g/liter of water, spray every 2 weeks for 3 months. Or apply dolomite lime to soil.',
-        'urgency': 'medium',
-        'icon': '🌿'
-    },
-    {
-        'condition': 'Water Stress (Under-watering)',
-        'reason': 'Insufficient water causes leaves to yellow and dry out. Coconut palms need consistent moisture, especially during dry periods.',
-        'symptoms': [
-            'Overall yellowing',
-            'Dry, brittle leaves',
-            'Leaf tips turn brown'
-        ],
-        'solution': 'Increase irrigation frequency. Coconut trees need 50-100 liters of water per week during dry season. Mulch around base to retain moisture.',
-        'urgency': 'high',
-        'icon': '💧'
-    },
-    {
-        'condition': 'Water Stress (Over-watering)',
-        'reason': 'Excessive water causes root rot and prevents oxygen uptake, leading to yellowing leaves.',
-        'symptoms': [
-            'Yellowing with wilting',
-            'Soggy soil',
-            'Root rot smell'
-        ],
-        'solution': 'Improve drainage around the tree. Reduce watering frequency. Consider raised beds if soil stays waterlogged. Ensure proper drainage channels.',
-        'urgency': 'high',
-        'icon': '🌊'
-    },
-    {
-        'condition': 'Root Disease',
-        'reason': 'Fungal infections in roots (like Ganoderma or Phytophthora) prevent nutrient uptake, causing yellowing.',
-        'symptoms': [
-            'Progressive yellowing from bottom up',
-            'Wilting despite watering',
-            'Stunted growth'
-        ],
-        'solution': 'Remove infected roots if possible. Apply fungicides like copper oxychloride. Improve drainage. Infected severe cases may need tree removal to prevent spread.',
-        'urgency': 'high',
-        'icon': '🦠'
-    },
-    {
-        'condition': 'Iron Deficiency (Chlorosis)',
-        'reason': 'Iron deficiency causes yellowing of young leaves while veins remain green. Common in alkaline soils.',
-        'symptoms': [
-            'Young leaves turn yellow',
-            'Green veins pattern',
-            'Reduced growth'
-        ],
-        'solution': 'Apply chelated iron (Fe-EDTA) as foliar spray or soil drench. Reduce soil pH if too alkaline by adding sulfur or acidic organic matter.',
-        'urgency': 'medium',
-        'icon': '⚗️'
-    },
-    {
-        'condition': 'Pest Damage',
-        'reason': 'Pest infestations (mites, caterpillars, scale insects) damage leaf tissue and suck nutrients, causing yellowing.',
-        'symptoms': [
-            'Spotted yellowing',
-            'Visible pests or webs',
-            'Damaged leaf tissue'
-        ],
-        'solution': 'Identify specific pest and treat accordingly. Use neem oil spray (5ml/liter water) for general pest control. For severe infestations, use appropriate pesticides.',
-        'urgency': 'high',
-        'icon': '🐛'
-    },
-    {
-        'condition': 'Natural Aging',
-        'reason': 'Older leaves naturally yellow and die as the tree redirects nutrients to new growth. This is normal.',
-        'symptoms': [
-            'Only oldest (bottom) leaves yellow',
-            'New growth is healthy green',
-            'No other symptoms'
-        ],
-        'solution': 'No action needed. Remove yellowed fronds once completely dry. This is part of natural leaf cycle. Ensure tree gets balanced fertilization.',
-        'urgency': 'low',
-        'icon': '🍃'
-    }
-]
-
-def get_leaf_health_message(predicted_class, confidence):
-    """Get message based on leaf health prediction"""
-    if predicted_class == 'healthy':
-        if confidence > 0.95:
-            return "Leaf appears to be very healthy!"
-        elif confidence > 0.80:
-            return "Leaf appears to be healthy."
-        else:
-            return "Leaf seems healthy but with lower confidence."
-    else:  # unhealthy
-        if confidence > 0.80:
-            return "Leaf shows signs of yellowing/unhealthy condition. Multiple possible causes detected."
-        else:
-            return "Possible yellowing detected. Review the possible causes below."
-
-def get_leaf_health_recommendation(predicted_class):
-    """Get recommendation based on leaf health"""
-    if predicted_class == 'healthy':
-        return "Continue regular monitoring and maintain good care practices."
-    else:  # unhealthy
-        return "Review the detailed analysis below to identify the specific cause and apply the recommended treatment."
-
-def get_unhealthy_conditions_details():
-    """Get detailed information about all possible unhealthy conditions"""
-    return UNHEALTHY_LEAF_CONDITIONS
-
-# Branch Health Detection Endpoint
-@app.route('/predict/branch-health', methods=['POST'])
-def predict_branch_health():
-    """
-    Predict if a coconut tree branch is healthy or unhealthy
-
-    Returns:
-        JSON with prediction results
-    """
-    if models.get('branch_health') is None:
-        return jsonify({'error': 'Branch health model not loaded'}), 500
-
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image file provided'}), 400
-
-    try:
-        # Read image
-        image_file = request.files['image']
-        image_bytes = image_file.read()
-
-        # Preprocess image (same as leaf model - 224x224, 0-1 scaling)
-        img = Image.open(io.BytesIO(image_bytes))
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        img = img.resize((224, 224), Image.Resampling.LANCZOS)
-        img_array = np.array(img, dtype=np.float32)
-        img_array = img_array / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-
-        # Make prediction
-        predictions = models['branch_health'].predict(img_array, verbose=0)
-
-        # Get class probabilities
-        healthy_prob = float(predictions[0][0])
-        unhealthy_prob = float(predictions[0][1])
-
-        # Determine predicted class
-        predicted_class_idx = np.argmax(predictions[0])
-        predicted_class = BRANCH_HEALTH_CLASSES[predicted_class_idx]
-        confidence = float(np.max(predictions[0]))
-
-        # Calculate unhealthy percentage (if unhealthy)
-        unhealthy_percentage = int(unhealthy_prob * 100) if predicted_class == 'unhealthy' else 0
-
-        # Prepare message
-        if predicted_class == 'healthy':
-            if confidence > 0.95:
-                message = "Branch appears to be very healthy!"
-            elif confidence > 0.80:
-                message = "Branch appears to be healthy."
-            else:
-                message = "Branch seems healthy but with lower confidence."
-            recommendation = "Continue regular monitoring and maintain good care practices."
-        else:  # unhealthy
-            if confidence > 0.80:
-                message = f"Branch shows signs of being unhealthy ({unhealthy_percentage}% unhealthy)."
-            else:
-                message = f"Possible unhealthy condition detected ({unhealthy_percentage}% unhealthy)."
-            recommendation = "Inspect the branch for pest damage, disease, or nutrient deficiencies. Consider pruning if severely damaged."
-
-        # Prepare response
-        result = {
-            'success': True,
-            'prediction': predicted_class,
-            'confidence': confidence,
-            'probabilities': {
-                'healthy': healthy_prob,
-                'unhealthy': unhealthy_prob
-            },
-            'unhealthy_percentage': unhealthy_percentage,
-            'is_healthy': predicted_class == 'healthy',
-            'message': message,
-            'recommendation': recommendation,
-            'model_info': {
-                'version': 'v1',
-                'classes': BRANCH_HEALTH_CLASSES,
-                'accuracy': '99.63%'
-            },
-            'timestamp': datetime.now().isoformat()
-        }
-
-        return jsonify(result)
-
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# ============================================================
-# BUNCH DETECTION ENDPOINT (TFLite YOLOv8)
-# ============================================================
-
-def preprocess_image_bunch(image_bytes, target_size=640):
-    """
-    Preprocess image for YOLOv8 TFLite bunch detection model
-
-    Args:
-        image_bytes: Raw image bytes
-        target_size: Target size for the model (default 640)
-
-    Returns:
-        Preprocessed image array and original image dimensions
-    """
-    img = Image.open(io.BytesIO(image_bytes))
-
-    if img.mode != 'RGB':
-        img = img.convert('RGB')
-
-    orig_width, orig_height = img.size
-    print(f"[DEBUG] Original image size: {orig_width}x{orig_height}")
-
-    # Resize to target size
-    img_resized = img.resize((target_size, target_size), Image.Resampling.LANCZOS)
-    img_array = np.array(img_resized, dtype=np.float32)
-
-    # Normalize to 0-1 range (standard for YOLOv8/Roboflow models)
-    img_array = img_array / 255.0
-
-    # Add batch dimension
-    img_array = np.expand_dims(img_array, axis=0)
-
-    print(f"[DEBUG] Preprocessed shape: {img_array.shape}, min: {img_array.min():.3f}, max: {img_array.max():.3f}")
-
-    return img_array, (orig_width, orig_height)
-
-
-def process_yolo_output(output, confidence_threshold=0.56, iou_threshold=0.45, orig_size=(640, 640)):
-    """
-    Process YOLOv8 TFLite output to get bounding boxes and counts
-
-    Args:
-        output: Raw model output
-        confidence_threshold: Minimum confidence for detection
-        iou_threshold: IoU threshold for NMS
-        orig_size: Original image dimensions
-
-    Returns:
-        List of detections with boxes and confidences
-    """
-    detections = []
-
-    print(f"[DEBUG] Raw output shape: {output.shape}")
-    print(f"[DEBUG] Output dtype: {output.dtype}")
-    print(f"[DEBUG] Output min: {output.min()}, max: {output.max()}")
-
-    # YOLOv8 TFLite output format: [1, num_features, num_predictions]
-    # For single class: [1, 5, 8400] where 5 = x, y, w, h, conf
-    # For multi class: [1, 4+num_classes, 8400]
-
-    if len(output.shape) == 3:
-        output = output[0]  # Remove batch dimension: [5, 8400] or [84, 8400]
-
-    num_features = output.shape[0]
-    num_predictions = output.shape[1]
-
-    print(f"[DEBUG] Features: {num_features}, Predictions: {num_predictions}")
-
-    # Transpose to get [num_predictions, num_features]
-    output = output.T  # Now [8400, 5] or [8400, 84]
-
-    # Print sample detections to understand the format
-    print(f"[DEBUG] Sample detection[0]: {output[0][:10]}")  # First 10 values of first detection
-
-    # Find max confidence in the data
-    if num_features == 5:
-        all_confidences = output[:, 4]
-    else:
-        all_confidences = np.max(output[:, 4:], axis=1)
-
-    print(f"[DEBUG] Max confidence in output: {all_confidences.max():.3f}")
-    print(f"[DEBUG] Confidence > 0.5 count: {np.sum(all_confidences > 0.5)}")
-    print(f"[DEBUG] Confidence > 0.7 count: {np.sum(all_confidences > 0.7)}")
-    print(f"[DEBUG] Confidence > 0.8 count: {np.sum(all_confidences > 0.8)}")
-    print(f"[DEBUG] Confidence > 0.9 count: {np.sum(all_confidences > 0.9)}")
-
-    # For single class model (5 features): x, y, w, h, conf
-    # For multi-class (4+classes): x, y, w, h, class1_conf, class2_conf, ...
-
-    for i, detection in enumerate(output):
-        x_center = detection[0]
-        y_center = detection[1]
-        width = detection[2]
-        height = detection[3]
-
-        # Get confidence
-        if num_features == 5:
-            # Single class model
-            confidence = detection[4]
-        else:
-            # Multi-class model - get max class confidence
-            class_scores = detection[4:]
-            confidence = np.max(class_scores)
-
-        # Skip low confidence detections
-        if confidence < confidence_threshold:
-            continue
-
-        # Skip invalid boxes (negative dimensions)
-        if width <= 0 or height <= 0:
-            continue
-
-        # YOLOv8 TFLite outputs NORMALIZED coordinates (0-1)
-        # Convert to original image pixel coordinates
-        x1 = int((x_center - width / 2) * orig_size[0])
-        y1 = int((y_center - height / 2) * orig_size[1])
-        x2 = int((x_center + width / 2) * orig_size[0])
-        y2 = int((y_center + height / 2) * orig_size[1])
-
-        # Clamp coordinates to image bounds
-        x1 = max(0, x1)
-        y1 = max(0, y1)
-        x2 = min(orig_size[0], x2)
-        y2 = min(orig_size[1], y2)
-
-        # Calculate box dimensions
-        box_width = x2 - x1
-        box_height = y2 - y1
-
-        # Skip very tiny boxes (likely noise)
-        if box_width < 5 or box_height < 5:
-            continue
-
-        detections.append({
-            'box': [x1, y1, x2, y2],
-            'confidence': float(confidence)
-        })
-
-    print(f"[DEBUG] Detections before NMS: {len(detections)}")
-
-    # Apply Non-Maximum Suppression
-    if len(detections) > 0:
-        detections = apply_nms(detections, iou_threshold)
-
-    print(f"[DEBUG] Detections after NMS: {len(detections)}")
-
-    # Limit to max detections (sorted by confidence, highest first)
-    if len(detections) > BUNCH_MAX_DETECTIONS:
-        detections = detections[:BUNCH_MAX_DETECTIONS]
-        print(f"[DEBUG] Limited to top {BUNCH_MAX_DETECTIONS} detections")
-
-    return detections
-
-
-def apply_nms(detections, iou_threshold=0.45):
-    """Apply Non-Maximum Suppression to remove overlapping boxes"""
-    if len(detections) == 0:
-        return []
-
-    # Sort by confidence (descending)
-    detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
-
-    keep = []
-    while detections:
-        best = detections.pop(0)
-        keep.append(best)
-
-        detections = [
-            det for det in detections
-            if calculate_iou(best['box'], det['box']) < iou_threshold
-        ]
-
-    return keep
-
-
-def calculate_iou(box1, box2):
-    """Calculate Intersection over Union between two boxes"""
-    x1_1, y1_1, x2_1, y2_1 = box1
-    x1_2, y1_2, x2_2, y2_2 = box2
-
-    # Calculate intersection
-    x1_i = max(x1_1, x1_2)
-    y1_i = max(y1_1, y1_2)
-    x2_i = min(x2_1, x2_2)
-    y2_i = min(y2_1, y2_2)
-
-    if x2_i < x1_i or y2_i < y1_i:
-        return 0.0
-
-    intersection = (x2_i - x1_i) * (y2_i - y1_i)
-
-    # Calculate union
-    area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
-    area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
-    union = area1 + area2 - intersection
-
-    return intersection / union if union > 0 else 0.0
-
-
-@app.route('/predict/bunch', methods=['POST'])
-def predict_bunch():
-    """
-    Detect coconut bunches in images for yield prediction
-
-    Accepts 1 or 2 images:
-    - image1: First image (required)
-    - image2: Second image from opposite side (optional)
-
-    Returns total bunch count from all images
-    """
-    global bunch_interpreter
-
-    if bunch_interpreter is None:
-        return jsonify({'error': 'Bunch detection model not loaded'}), 500
-
-    if 'image1' not in request.files:
-        return jsonify({'error': 'At least one image (image1) is required'}), 400
-
-    results = {
-        'image1': None,
-        'image2': None
-    }
-    total_bunches = 0
-    all_detections = []
-
-    # Process image 1 (required)
-    try:
-        file1 = request.files['image1']
-        if file1.filename != '':
-            image_bytes1 = file1.read()
-            processed_img1, orig_size1 = preprocess_image_bunch(image_bytes1, BUNCH_INPUT_SIZE)
-
-            # Get input/output details
-            input_details = bunch_interpreter.get_input_details()
-            output_details = bunch_interpreter.get_output_details()
-
-            # Set input tensor
-            bunch_interpreter.set_tensor(input_details[0]['index'], processed_img1)
-
-            # Run inference
-            bunch_interpreter.invoke()
-
-            # Get output
-            output1 = bunch_interpreter.get_tensor(output_details[0]['index'])
-
-            # Process detections
-            detections1 = process_yolo_output(
-                output1,
-                BUNCH_CONFIDENCE_THRESHOLD,
-                BUNCH_IOU_THRESHOLD,
-                orig_size1
-            )
-
-            results['image1'] = {
-                'bunch_count': len(detections1),
-                'detections': detections1,
-                'image_size': list(orig_size1)
-            }
-            total_bunches += len(detections1)
-            all_detections.extend(detections1)
-
-    except Exception as e:
-        results['image1'] = {'error': str(e)}
-
-    # Process image 2 (optional)
-    if 'image2' in request.files:
-        try:
-            file2 = request.files['image2']
-            if file2.filename != '':
-                image_bytes2 = file2.read()
-                processed_img2, orig_size2 = preprocess_image_bunch(image_bytes2, BUNCH_INPUT_SIZE)
-
-                # Get input/output details
-                input_details = bunch_interpreter.get_input_details()
-                output_details = bunch_interpreter.get_output_details()
-
-                # Set input tensor
-                bunch_interpreter.set_tensor(input_details[0]['index'], processed_img2)
-
-                # Run inference
-                bunch_interpreter.invoke()
-
-                # Get output
-                output2 = bunch_interpreter.get_tensor(output_details[0]['index'])
-
-                # Process detections
-                detections2 = process_yolo_output(
-                    output2,
-                    BUNCH_CONFIDENCE_THRESHOLD,
-                    BUNCH_IOU_THRESHOLD,
-                    orig_size2
-                )
-
-                results['image2'] = {
-                    'bunch_count': len(detections2),
-                    'detections': detections2,
-                    'image_size': list(orig_size2)
-                }
-                total_bunches += len(detections2)
-                all_detections.extend(detections2)
-
-        except Exception as e:
-            results['image2'] = {'error': str(e)}
-
-    # Calculate average confidence
-    avg_confidence = 0.0
-    if all_detections:
-        avg_confidence = sum(d['confidence'] for d in all_detections) / len(all_detections)
-
-    # Prepare summary
-    images_processed = sum(1 for r in [results['image1'], results['image2']]
-                           if r is not None and 'error' not in r)
-
-    return jsonify({
-        'success': True,
-        'detection_type': 'bunch',
-        'total_bunch_count': total_bunches,
-        'average_confidence': avg_confidence,
-        'images_processed': images_processed,
-        'results': results,
-        'message': f'Detected {total_bunches} coconut bunches across {images_processed} image(s)',
-        'recommendation': 'For accurate yield prediction, capture images from opposite sides of the tree to avoid counting the same bunches twice.',
-        'model_info': {
-            'version': 'v1',
-            'type': 'YOLOv8 TFLite',
-            'confidence_threshold': BUNCH_CONFIDENCE_THRESHOLD
-        },
-        'timestamp': datetime.now().isoformat()
-    })
-
-
-# Legacy endpoint for backward compatibility
-
 # Legacy endpoint
-
 @app.route('/predict', methods=['POST'])
 def predict_legacy():
     """Legacy endpoint - redirects to mite detection"""
@@ -1961,15 +1404,10 @@ def server_error(e):
 if __name__ == '__main__':
     load_models()
 
-
-    # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
-    print("\nStarting Coconut Health Monitor ML API v9.0...")
+    print("\nStarting Coconut Health Monitor ML API v8.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
-    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
-    print("  Branch Health Model: v1 (2-class, 99.63% accuracy)")
-    print("  Bunch Detection: v1 (YOLOv8 TFLite - object detection)")
-
+    print("  Leaf Dieback Model: v4 (3-class - baby coconut disease)")
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)

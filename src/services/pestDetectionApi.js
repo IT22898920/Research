@@ -6,6 +6,7 @@
  * - Mite: v10 (3-class: coconut_mite, healthy, not_coconut) - 91.44% accuracy
  * - Unified: v1 (4-class: caterpillar, healthy, not_coconut, white_fly) - 96.08% accuracy
  * - Disease: v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount) - 98.69% accuracy
+ * - Leaf Dieback: v4 (3-class: healthy, leaf_die_back, not_cocount) - Baby coconut disease
  * - Leaf Health: v1 (2-class: healthy, unhealthy) - 93.70% accuracy
  * - Branch Health: v1 (2-class: healthy, unhealthy) - 99.63% accuracy
  *
@@ -13,6 +14,7 @@
  * - All models can detect non-coconut images
  * - Smart combined logic for "All Pests" detection
  * - Disease detection for Leaf Rot and Leaf Spot
+ * - Baby coconut leaf dieback detection
  * - Leaf health detection with detailed conditions and solutions
  * - Branch health detection with unhealthy percentage
  * - One coherent answer with recommendations
@@ -308,6 +310,50 @@ export const detectDisease = async (imageUri) => {
 };
 
 /**
+ * Detect Leaf Dieback in Baby Coconut Trees
+ *
+ * Response includes:
+ * - prediction: class, confidence, is_diseased, is_leaf_dieback, is_healthy, label, message, status
+ * - probabilities: healthy, leaf_die_back, not_coconut
+ */
+export const detectLeafDieback = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/leaf_dieback`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'leaf_dieback',
+        prediction: data.prediction,
+        probabilities: data.probabilities,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Detect Leaf Health (healthy vs unhealthy/yellowing)
  *
  * Response includes:
@@ -436,6 +482,7 @@ export const PEST_TYPES = {
 export const DISEASE_TYPES = {
   LEAF_ROT: 'Leaf Rot',
   LEAF_SPOT: 'Leaf_Spot',
+  LEAF_DIEBACK: 'leaf_die_back',
   HEALTHY: 'healthy',
   NOT_COCONUT: 'not_cocount',
 };
@@ -517,6 +564,7 @@ export default {
   detectWhiteFly,
   detectAllPests,
   detectDisease,
+  detectLeafDieback,
   detectLeafHealth,
   detectBranchHealth,
   detectBunches,

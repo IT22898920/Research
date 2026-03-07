@@ -16,8 +16,6 @@ import SignupScreen from './src/screens/SignupScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
-import LeafHealthScreen from './src/screens/LeafHealthScreen';
-import BranchHealthScreen from './src/screens/BranchHealthScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
@@ -25,6 +23,9 @@ import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ScanDetailScreen from './src/screens/ScanDetailScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import DiseaseDetectionScreen from './src/screens/DiseaseDetectionScreen';
+import LeafDiseaseHistoryScreen from './src/screens/LeafDiseaseHistoryScreen';
+import LeafHealthScreen from './src/screens/LeafHealthScreen';
+import BranchHealthScreen from './src/screens/BranchHealthScreen';
 import BunchDetectionScreen from './src/screens/BunchDetectionScreen';
 import AddTreeScreen from './src/screens/AddTreeScreen';
 import PlantationMapScreen from './src/screens/PlantationMapScreen';
@@ -32,10 +33,6 @@ import PlantationMapScreen from './src/screens/PlantationMapScreen';
 const Stack = createNativeStackNavigator();
 
 function App(): React.JSX.Element {
-
-  console.log('=== App component rendering ===');
-
-  console.log('=== About to render SafeAreaProvider ===');
   useEffect(() => {
     // Initialize push notifications
     initializeNotifications()
@@ -47,16 +44,11 @@ function App(): React.JSX.Element {
       .catch(err => console.log('Notification init error:', err));
   }, []);
 
-
   return (
     <LanguageProvider>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-        {console.log('=== About to render NavigationContainer ===')}
-        <NavigationContainer
-          onReady={() => console.log('=== NavigationContainer ready ===')}
-          onStateChange={() => console.log('=== Navigation state changed ===')}>
-          {console.log('=== About to render Stack.Navigator ===')}
+        <NavigationContainer>
           <Stack.Navigator
             initialRouteName="Login"
             screenOptions={{
@@ -67,8 +59,6 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
-            <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
-            <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />
@@ -76,6 +66,9 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Analytics" component={AnalyticsScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="DiseaseDetection" component={DiseaseDetectionScreen} />
+            <Stack.Screen name="LeafDiseaseHistory" component={LeafDiseaseHistoryScreen} />
+            <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
+            <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
             <Stack.Screen name="BunchDetection" component={BunchDetectionScreen} />
             <Stack.Screen name="AddTree" component={AddTreeScreen} />
             <Stack.Screen name="PlantationMap" component={PlantationMapScreen} />

@@ -8,11 +8,15 @@ const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
  */
 const config = {
   resolver: {
-    blockList: [
-      // Exclude backend folder from Metro bundler
-      /backend\/.*/,
-      /\.git\/.*/,
-    ],
+    nodeModulesPaths: [],
+  },
+  watcher: {
+    watchman: {
+      enabled: false,
+    },
+    healthCheck: {
+      enabled: false,
+    },
   },
 };
 

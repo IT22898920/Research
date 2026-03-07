@@ -1,0 +1,71 @@
+{
+  "model_name": "leaf_disease_detection_v1",
+  "version": "1.0",
+  "architecture": "EfficientNetB0",
+  "framework": "TensorFlow/Keras",
+  "tensorflow_version": "2.20.0",
+  "image_size": [
+    224,
+    224
+  ],
+  "num_classes": 3,
+  "class_names": [
+    "Leaf Rot",
+    "Leaf_Spot",
+    "healthy"
+  ],
+  "class_indices": {
+    "Leaf Rot": 0,
+    "Leaf_Spot": 1,
+    "healthy": 2
+  },
+  "training": {
+    "total_epochs": 20,
+    "phase1_epochs": 9,
+    "phase2_epochs": 11,
+    "phase1_lr": 0.001,
+    "phase2_lr": 1e-05,
+    "batch_size": 32,
+    "focal_gamma": 2.0,
+    "focal_alpha": 0.25,
+    "total_time_minutes": 186.98,
+    "phase1_time_minutes": 73.94,
+    "phase2_time_minutes": 113.05,
+    "optimizer": "Adam",
+    "loss_function": "Focal Loss"
+  },
+  "performance": {
+    "test_accuracy": 0.4004913866519928,
+    "test_loss": 0.12128967046737671,
+    "macro_precision": 0.1334971334971335,
+    "macro_recall": 0.3333333333333333,
+    "macro_f1": 0.19064327485380117
+  },
+  "per_class_metrics": {
+    "Leaf Rot": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 167
+    },
+    "Leaf_Spot": {
+      "precision": 0.4004914004914005,
+      "recall": 1.0,
+      "f1_score": 0.5719298245614035,
+      "support": 163
+    },
+    "healthy": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 77
+    }
+  },
+  "dataset": {
+    "train_samples": 15000,
+    "val_samples": 408,
+    "test_samples": 407,
+    "total_samples": 15815
+  },
+  "created_at": "2026-01-03 13:37:19"
+}

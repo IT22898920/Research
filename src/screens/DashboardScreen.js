@@ -105,8 +105,8 @@ export default function DashboardScreen({navigation, route}) {
           onPress={() => navigation.navigate('DiseaseDetection')}>
           <Text style={styles.featureIcon}>🍃</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>{t('diseaseDetection.title')}</Text>
-            <Text style={styles.featureSubtext}>{t('diseaseDetection.subtitle')}</Text>
+            <Text style={styles.featureText}>{t('leafDisease.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('leafDisease.subtitle')}</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
@@ -282,6 +282,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#2e7d32',
   },
+  featureCardBaby: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+    borderColor: '#8B4513',
+  },
   featureIcon: {
     fontSize: 28,
     marginRight: 15,
@@ -302,6 +317,11 @@ const styles = StyleSheet.create({
   featureArrow: {
     fontSize: 20,
     color: '#2e7d32',
+    fontWeight: 'bold',
+  },
+  featureArrowBaby: {
+    fontSize: 20,
+    color: '#8B4513',
     fontWeight: 'bold',
   },
   logoutButton: {
