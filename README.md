@@ -96,8 +96,7 @@ API will start on `http://localhost:5001`
 
 ## API Endpoints (v6.0)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
+| Endpoint | Method | Description ||----------|--------|-------------|
 | `/health` | GET | API health check with model status |
 | `/models` | GET | List all loaded models |
 | `/predict/mite` | POST | Detect coconut mite (3-class) |

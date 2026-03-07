@@ -119,6 +119,13 @@ DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 
 # Disease model class indices (alphabetical order from ImageDataGenerator)
 DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
+# Leaf Dieback Detection model paths (v4 - 3-class for baby coconut trees)
+LEAF_DIEBACK_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'best_model.keras')
+LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'model_info.json')
+
+# Leaf Dieback model class indices (alphabetical order from ImageDataGenerator)
+LEAF_DIEBACK_CLASSES = ['healthy', 'leaf_die_back', 'not_cocount']
+
 # Global variables for models
 models = {}
 model_infos = {}
@@ -238,9 +245,42 @@ def load_models():
         models['disease'] = None
         model_infos['disease'] = None
 
+    # Load Leaf Dieback Model (v4 - 3-class for baby coconut trees)
+    try:
+        print("\n[4] Loading Leaf Dieback model (v4 - 3-class for baby coconut)...")
+
+        models['leaf_dieback'] = tf.keras.models.load_model(
+            LEAF_DIEBACK_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(LEAF_DIEBACK_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_dieback'] = json.load(f)
+        except:
+            model_infos['leaf_dieback'] = {
+                'version': 'v4_3class',
+                'classes': LEAF_DIEBACK_CLASSES,
+                'performance': {
+                    'healthy_recall': 1.00,
+                    'leaf_die_back_recall': 0.845,
+                    'not_cocount_recall': 0.988
+                }
+            }
+
+        print(f"    Version: v4 (3-class, MobileNetV2)")
+        print(f"    Classes: {LEAF_DIEBACK_CLASSES}")
+        print(f"    Healthy Recall: 100%")
+        print(f"    Leaf Dieback Recall: 84.5%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf dieback model: {e}")
+        models['leaf_dieback'] = None
+        model_infos['leaf_dieback'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/3")
+    print(f"  Models loaded: {loaded_count}/4")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -282,12 +322,25 @@ def preprocess_image_disease(image_bytes):
 
     return np.expand_dims(img_array, axis=0)
 
+def preprocess_image_leaf_dieback(image_bytes):
+    """Preprocess image for leaf dieback model (0-1 scaling, 224x224)"""
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img = img.resize((224, 224), Image.Resampling.LANCZOS)
+    img_array = np.array(img, dtype=np.float32)
+    img_array = img_array / 255.0
+
+    return np.expand_dims(img_array, axis=0)
+
 @app.route('/', methods=['GET'])
 def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest & Disease Detection API',
-        'version': '7.0.0',
+        'version': '8.0.0',
         'models': {
             'mite': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
@@ -303,6 +356,11 @@ def home():
                 'status': 'loaded' if models.get('disease') is not None else 'not loaded',
                 'version': 'v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount)',
                 'accuracy': '98.69%'
+            },
+            'leaf_dieback': {
+                'status': 'loaded' if models.get('leaf_dieback') is not None else 'not loaded',
+                'version': 'v4 (3-class: healthy, leaf_die_back, not_cocount)',
+                'description': 'Baby coconut tree disease detection'
             }
         },
         'endpoints': {
@@ -314,6 +372,7 @@ def home():
             '/predict/white_fly': 'POST - Detect white fly damage (uses unified 4-class model)',
             '/predict/unified': 'POST - Unified caterpillar & white fly detection (4-class)',
             '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
+            '/predict/leaf_dieback': 'POST - Detect leaf dieback in baby coconut trees (3-class)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -326,7 +385,8 @@ def health_check():
         'models': {
             'mite': models.get('mite') is not None,
             'unified': models.get('unified') is not None,
-            'disease': models.get('disease') is not None
+            'disease': models.get('disease') is not None,
+            'leaf_dieback': models.get('leaf_dieback') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -367,6 +427,16 @@ def list_models():
             'accuracy': 0.9869,
             'macro_f1': 0.9800,
             'loaded': models.get('disease') is not None
+        }
+
+    if model_infos.get('leaf_dieback'):
+        result['leaf_dieback'] = {
+            'name': 'Baby Coconut Leaf Dieback Detection Model',
+            'version': 'v4 (3-class, MobileNetV2)',
+            'classes': LEAF_DIEBACK_CLASSES,
+            'healthy_recall': 1.00,
+            'leaf_dieback_recall': 0.845,
+            'loaded': models.get('leaf_dieback') is not None
         }
 
     return jsonify(result)
@@ -731,6 +801,83 @@ def predict_disease():
                 'is_diseased': is_diseased,
                 'is_leaf_rot': is_leaf_rot,
                 'is_leaf_spot': is_leaf_spot,
+                'is_healthy': is_healthy,
+                'is_valid_image': is_valid,
+                'label': label,
+                'message': message,
+                'status': status
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/leaf_dieback', methods=['POST'])
+def predict_leaf_dieback():
+    """Detect leaf dieback in baby coconut trees (v4 model - 3-class classification)
+
+    Classes: healthy, leaf_die_back, not_cocount
+    Specifically designed for young/baby coconut palm disease detection.
+    """
+
+    if models.get('leaf_dieback') is None:
+        return jsonify({'error': 'Leaf Dieback model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_leaf_dieback(image_bytes)
+
+        # 3-class classification: softmax output
+        # Classes: ['healthy', 'leaf_die_back', 'not_cocount']
+        predictions = models['leaf_dieback'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = LEAF_DIEBACK_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_leaf_dieback = predicted_class == 'leaf_die_back'
+        is_healthy = predicted_class == 'healthy'
+        is_valid = predicted_class != 'not_cocount'
+
+        probabilities = {
+            'healthy': float(predictions[0]),
+            'leaf_die_back': float(predictions[1]),
+            'not_coconut': float(predictions[2])
+        }
+
+        # Determine label and message
+        if not is_valid:
+            label = 'Not a valid baby coconut leaf image'
+            message = 'The uploaded image does not appear to be a baby coconut leaf. Please upload a clear image of a young coconut palm leaf.'
+            status = 'invalid'
+        elif is_leaf_dieback:
+            label = 'Leaf Dieback Disease Detected'
+            message = 'This baby coconut leaf shows signs of Leaf Dieback disease. This disease can severely affect young coconut palms. Immediate treatment is recommended.'
+            status = 'diseased'
+        else:
+            label = 'Healthy Baby Coconut Leaf'
+            message = 'No disease detected. This baby coconut leaf appears to be healthy.'
+            status = 'healthy'
+
+        return jsonify({
+            'success': True,
+            'detection_type': 'leaf_dieback',
+            'model_version': 'v4',
+            'prediction': {
+                'class': predicted_class,
+                'confidence': confidence,
+                'is_diseased': is_leaf_dieback,
+                'is_leaf_dieback': is_leaf_dieback,
                 'is_healthy': is_healthy,
                 'is_valid_image': is_valid,
                 'label': label,
@@ -1156,9 +1303,10 @@ def server_error(e):
 if __name__ == '__main__':
     load_models()
 
-    print("\nStarting Coconut Health Monitor ML API v7.0...")
+    print("\nStarting Coconut Health Monitor ML API v8.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
+    print("  Leaf Dieback Model: v4 (3-class - baby coconut disease)")
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)

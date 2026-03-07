@@ -147,7 +147,16 @@
       "Bash(Select-Object FullName)",
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/train/\"*/)",
       "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/val/\"*/)",
-      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)"
+      "Bash(for d in \"D:/SLIIT/Reaserch Project/CoconutHealthMonitor/Research/ml/data/raw/stage_2_split/test/\"*/)",
+      "Bash(cmd.exe /c \"dir /o-d \"\"C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml\\models\\leaf_dieback_v3\"\"\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python -c \"\"import os; base=''data/processed/leaf_dieback_v1''; [print(f''{s}: '' + '', ''.join([f''{c}={len(os.listdir(os.path.join(base,s,c)))}'' for c in os.listdir(os.path.join(base,s))])) for s in [''train'',''val'',''test'']]\"\"\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python check_dataset.py\")",
+      "Bash(cmd.exe /c \"cd /d C:\\Users\\Tharindu Nandun\\Desktop\\Research\\Research\\ml && python train_leaf_dieback_v4.py\")",
+      "Bash(./gradlew clean:*)",
+      "Bash(for dir in \"/mnt/c/Users/Tharindu Nandun/Desktop/Research/Research/ml/data/raw/stage_2_split/train\"/*)",
+      "Bash(for dir in \"/mnt/c/Users/Tharindu Nandun/Desktop/Research/Research/ml/data/raw/stage_2_split/val\"/*)",
+      "Bash(for dir in \"/mnt/c/Users/Tharindu Nandun/Desktop/Research/Research/ml/data/raw/stage_2_split/test\"/*)",
+      "Bash(\"/mnt/c/Users/Tharindu Nandun/AppData/Local/Programs/Python/Python313/python.exe\" create_pp1_slides.py)"
     ]
   }
 }
