@@ -200,7 +200,7 @@ export default function ScanHistoryScreen({navigation}) {
     if (!loadingMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#e94560" />
+        <ActivityIndicator size="small" color="#2e7d32" />
       </View>
     );
   };
@@ -208,7 +208,7 @@ export default function ScanHistoryScreen({navigation}) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e94560" />
+        <ActivityIndicator size="large" color="#2e7d32" />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -239,8 +239,8 @@ export default function ScanHistoryScreen({navigation}) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#e94560']}
-            tintColor="#e94560"
+            colors={['#2e7d32']}
+            tintColor="#2e7d32"
           />
         }
         onEndReached={loadMore}
@@ -255,16 +255,16 @@ export default function ScanHistoryScreen({navigation}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    color: '#aaa',
+    color: '#666',
     marginTop: 10,
   },
   header: {
@@ -273,10 +273,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 50,
-    backgroundColor: '#16213e',
+    backgroundColor: '#2e7d32',
   },
   backButton: {
-    color: '#e94560',
+    color: '#fff',
     fontSize: 16,
   },
   title: {
@@ -291,20 +291,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   filterButton: {
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f0f0f0',
   },
   filterButtonActive: {
-    backgroundColor: '#e94560',
+    backgroundColor: '#2e7d32',
   },
   filterText: {
-    color: '#aaa',
+    color: '#666',
     fontSize: 14,
   },
   filterTextActive: {
@@ -316,18 +318,23 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   scanCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 15,
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   scanIcon: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#e8f5e9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -340,7 +347,7 @@ const styles = StyleSheet.create({
   },
   scanType: {
     fontSize: 12,
-    color: '#aaa',
+    color: '#888',
   },
   scanResult: {
     fontSize: 16,
@@ -349,7 +356,7 @@ const styles = StyleSheet.create({
   },
   scanDate: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
   },
   severityBadge: {
     paddingHorizontal: 10,
@@ -362,7 +369,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   arrowIcon: {
-    color: '#666',
+    color: '#ccc',
     fontSize: 24,
     marginLeft: 10,
   },
@@ -376,12 +383,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#fff',
+    color: '#333',
     fontWeight: 'bold',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#aaa',
+    color: '#888',
     marginTop: 5,
   },
   footer: {

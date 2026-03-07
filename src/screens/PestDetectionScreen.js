@@ -236,6 +236,7 @@ export default function PestDetectionScreen({navigation}) {
     if (response.assets && response.assets[0]) {
       setSelectedImage(response.assets[0]);
       setResult(null);
+      setTreatment(null);  // Clear previous treatment when new image selected
     }
   };
 
@@ -328,7 +329,7 @@ export default function PestDetectionScreen({navigation}) {
         color: '#ff9800', // Orange
         icon: '🟡',
         percent: Math.round(30 + (confidencePercent - 70) / 15 * 30), // 30-60%
-      };
+      }; //siviyer
     } else {
       return {
         level: 'severe',

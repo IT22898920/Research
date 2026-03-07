@@ -24,6 +24,11 @@ import ScanDetailScreen from './src/screens/ScanDetailScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import DiseaseDetectionScreen from './src/screens/DiseaseDetectionScreen';
 import LeafDiseaseHistoryScreen from './src/screens/LeafDiseaseHistoryScreen';
+import LeafHealthScreen from './src/screens/LeafHealthScreen';
+import BranchHealthScreen from './src/screens/BranchHealthScreen';
+import BunchDetectionScreen from './src/screens/BunchDetectionScreen';
+import AddTreeScreen from './src/screens/AddTreeScreen';
+import PlantationMapScreen from './src/screens/PlantationMapScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +67,11 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="DiseaseDetection" component={DiseaseDetectionScreen} />
             <Stack.Screen name="LeafDiseaseHistory" component={LeafDiseaseHistoryScreen} />
+            <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
+            <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
+            <Stack.Screen name="BunchDetection" component={BunchDetectionScreen} />
+            <Stack.Screen name="AddTree" component={AddTreeScreen} />
+            <Stack.Screen name="PlantationMap" component={PlantationMapScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

@@ -95,7 +95,7 @@ export default function ScanDetailScreen({navigation, route}) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#e94560" />
+        <ActivityIndicator size="large" color="#2e7d32" />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -140,10 +140,10 @@ export default function ScanDetailScreen({navigation, route}) {
           styles.statusCard,
           {
             backgroundColor: !scan.isValidImage
-              ? '#3d2d15'
+              ? '#fff3e0'
               : scan.isInfected
-              ? '#3d1515'
-              : '#153d15',
+              ? '#ffebee'
+              : '#e8f5e9',
           },
         ]}>
         <Text style={styles.statusIcon}>
@@ -154,10 +154,10 @@ export default function ScanDetailScreen({navigation, route}) {
             styles.statusText,
             {
               color: !scan.isValidImage
-                ? '#ff9800'
+                ? '#e65100'
                 : scan.isInfected
-                ? '#ff6b6b'
-                : '#4caf50',
+                ? '#c62828'
+                : '#2e7d32',
             },
           ]}>
           {!scan.isValidImage
@@ -324,20 +324,20 @@ export default function ScanDetailScreen({navigation, route}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    color: '#aaa',
+    color: '#666',
     marginTop: 10,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: '#f44336',
     fontSize: 16,
   },
   header: {
@@ -346,10 +346,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 50,
-    backgroundColor: '#16213e',
+    backgroundColor: '#2e7d32',
   },
   backButton: {
-    color: '#e94560',
+    color: '#fff',
     fontSize: 16,
   },
   title: {
@@ -358,14 +358,19 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   deleteButton: {
-    color: '#f44336',
+    color: '#ffcdd2',
     fontSize: 14,
   },
   imageContainer: {
     margin: 20,
     borderRadius: 15,
     overflow: 'hidden',
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   scanImage: {
     width: '100%',
@@ -376,15 +381,20 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 40,
     borderRadius: 15,
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   noImageIcon: {
     fontSize: 50,
     marginBottom: 10,
   },
   noImageText: {
-    color: '#666',
+    color: '#999',
     fontSize: 14,
   },
   statusCard: {
@@ -405,16 +415,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   infoCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: '#fff',
     marginHorizontal: 20,
     marginBottom: 15,
     padding: 20,
     borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
     marginBottom: 15,
   },
   infoRow: {
@@ -423,11 +438,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   infoLabel: {
-    color: '#aaa',
+    color: '#888',
     fontSize: 14,
   },
   infoValue: {
-    color: '#fff',
+    color: '#333',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -446,7 +461,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   severityPercent: {
-    color: '#aaa',
+    color: '#666',
     marginLeft: 15,
     fontSize: 14,
   },
@@ -454,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#0f3460',
+    borderBottomColor: '#eee',
   },
   resultHeader: {
     flexDirection: 'row',
@@ -466,7 +481,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   resultName: {
-    color: '#fff',
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -480,7 +495,7 @@ const styles = StyleSheet.create({
   },
   confidenceBar: {
     height: 8,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#e0e0e0',
     borderRadius: 4,
     marginBottom: 5,
     overflow: 'hidden',
@@ -490,7 +505,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   confidenceText: {
-    color: '#aaa',
+    color: '#888',
     fontSize: 12,
   },
   pestsContainer: {
@@ -498,7 +513,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   pestTag: {
-    backgroundColor: '#e94560',
+    backgroundColor: '#f44336',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,

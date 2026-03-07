@@ -1,0 +1,34 @@
+{
+  "model_name": "coconut_branch_health_v1",
+  "version": "v1_phase1_temp",
+  "architecture": "MobileNetV2",
+  "classes": ["healthy", "unhealthy"],
+  "num_classes": 2,
+  "input_shape": [224, 224, 3],
+  "training": {
+    "phase1_epochs": 20,
+    "phase2_epochs": 0,
+    "total_epochs": 20,
+    "batch_size": 32,
+    "learning_rate_phase1": 0.001,
+    "learning_rate_phase2": 0.0001,
+    "loss_function": "Focal Loss (gamma=2.0, alpha=0.25)",
+    "optimizer": "Adam",
+    "training_time_minutes": 25,
+    "final_train_accuracy": 0.99,
+    "final_val_accuracy": 0.9963
+  },
+  "test_performance": {
+    "accuracy": 0.9963,
+    "macro_precision": 0.995,
+    "macro_recall": 0.995,
+    "macro_f1": 0.995,
+    "healthy_precision": 0.995,
+    "healthy_recall": 0.995,
+    "healthy_f1": 0.995,
+    "unhealthy_precision": 0.995,
+    "unhealthy_recall": 0.995,
+    "unhealthy_f1": 0.995
+  },
+  "note": "Temporary Phase 1 model. Complete Phase 2 for final optimized model."
+}

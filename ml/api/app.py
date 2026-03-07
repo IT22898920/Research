@@ -126,6 +126,29 @@ LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 
 # Leaf Dieback model class indices (alphabetical order from ImageDataGenerator)
 LEAF_DIEBACK_CLASSES = ['healthy', 'leaf_die_back', 'not_cocount']
 
+# Leaf Health model paths (v1 - 2-class)
+LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
+LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'model_info.json')
+
+# Leaf Health v1 class indices
+LEAF_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
+# Branch Health model paths (v1 - 2-class)
+BRANCH_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'best_model.keras')
+BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'model_info.json')
+
+# Branch Health v1 class indices
+BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
+# Bunch Detection TFLite model path
+BUNCH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'bunch_detection', 'best_float32.tflite')
+
+# Bunch Detection configuration
+BUNCH_CONFIDENCE_THRESHOLD = 0.56  # Confidence threshold (tested in Roboflow)
+BUNCH_IOU_THRESHOLD = 0.45  # IoU threshold for NMS
+BUNCH_INPUT_SIZE = 640  # YOLOv8 default input size
+BUNCH_MAX_DETECTIONS = 50  # Maximum bunches to return
+
 # Global variables for models
 models = {}
 model_infos = {}
@@ -278,9 +301,87 @@ def load_models():
         models['leaf_dieback'] = None
         model_infos['leaf_dieback'] = None
 
+    # Load Leaf Health Model (v1 - 2-class)
+    try:
+        print("\n[5] Loading Leaf Health model (v1 - 2-class)...")
+
+        models['leaf_health'] = tf.keras.models.load_model(
+            LEAF_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(LEAF_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_health'] = json.load(f)
+        except:
+            model_infos['leaf_health'] = {
+                'version': 'v1_2class',
+                'classes': LEAF_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.9370}
+            }
+
+        print(f"    Version: v1 (2-class, MobileNetV2)")
+        print(f"    Classes: {LEAF_HEALTH_CLASSES}")
+        print(f"    Accuracy: 93.70%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf health model: {e}")
+        models['leaf_health'] = None
+        model_infos['leaf_health'] = None
+
+    # Load Branch Health Model (v1 - 2-class)
+    try:
+        print("\n[6] Loading Branch Health model (v1 - 2-class)...")
+
+        models['branch_health'] = tf.keras.models.load_model(
+            BRANCH_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(BRANCH_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['branch_health'] = json.load(f)
+        except:
+            model_infos['branch_health'] = {
+                'version': 'v1_2class',
+                'classes': BRANCH_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.9963}
+            }
+
+        print(f"    Version: v1 (2-class, MobileNetV2)")
+        print(f"    Classes: {BRANCH_HEALTH_CLASSES}")
+        print(f"    Accuracy: 99.63%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading branch health model: {e}")
+        models['branch_health'] = None
+        model_infos['branch_health'] = None
+
+    # Load Bunch Detection Model (TFLite)
+    try:
+        print("\n[7] Loading Bunch Detection model (TFLite)...")
+        # Note: TFLite model is loaded on demand in the predict function
+        # Just check if the file exists
+        if os.path.exists(BUNCH_MODEL_PATH):
+            models['bunch'] = BUNCH_MODEL_PATH  # Store path instead of loaded model
+            model_infos['bunch'] = {
+                'version': 'v1_yolov8',
+                'type': 'object_detection',
+                'format': 'tflite'
+            }
+            print(f"    Format: TFLite (YOLOv8)")
+            print(f"    Input Size: {BUNCH_INPUT_SIZE}x{BUNCH_INPUT_SIZE}")
+            print("    Status: LOADED")
+        else:
+            raise FileNotFoundError(f"Model not found: {BUNCH_MODEL_PATH}")
+    except Exception as e:
+        print(f"    ERROR loading bunch detection model: {e}")
+        models['bunch'] = None
+        model_infos['bunch'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/4")
+    print(f"  Models loaded: {loaded_count}/7")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):

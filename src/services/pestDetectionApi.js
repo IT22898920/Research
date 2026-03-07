@@ -7,12 +7,16 @@
  * - Unified: v1 (4-class: caterpillar, healthy, not_coconut, white_fly) - 96.08% accuracy
  * - Disease: v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount) - 98.69% accuracy
  * - Leaf Dieback: v4 (3-class: healthy, leaf_die_back, not_cocount) - Baby coconut disease
+ * - Leaf Health: v1 (2-class: healthy, unhealthy) - 93.70% accuracy
+ * - Branch Health: v1 (2-class: healthy, unhealthy) - 99.63% accuracy
  *
  * Features:
  * - All models can detect non-coconut images
  * - Smart combined logic for "All Pests" detection
  * - Disease detection for Leaf Rot and Leaf Spot
  * - Baby coconut leaf dieback detection
+ * - Leaf health detection with detailed conditions and solutions
+ * - Branch health detection with unhealthy percentage
  * - One coherent answer with recommendations
  */
 
@@ -350,6 +354,115 @@ export const detectLeafDieback = async (imageUri) => {
 };
 
 /**
+ * Detect Leaf Health (healthy vs unhealthy/yellowing)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ * - possible_conditions: detailed list of 9 conditions (if unhealthy)
+ */
+export const detectLeafHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/leaf-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'leaf_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        recommendation: data.recommendation,
+        possibleConditions: data.possible_conditions,
+        conditionsCount: data.conditions_count,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
+ * Detect Branch Health (healthy vs unhealthy)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - unhealthy_percentage: percentage of branch that's unhealthy
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ */
+export const detectBranchHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/branch-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'branch_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        unhealthyPercentage: data.unhealthy_percentage,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Legacy function - Predict pest (defaults to mite for backward compatibility)
  * @deprecated Use detectMite, detectCaterpillar, or detectAllPests instead
  */
@@ -374,6 +487,75 @@ export const DISEASE_TYPES = {
   NOT_COCONUT: 'not_cocount',
 };
 
+/**
+ * Detect Coconut Bunches for Yield Prediction
+ * Accepts 1 or 2 images (from opposite sides of tree)
+ *
+ * Response includes:
+ * - total_bunch_count: Total bunches detected across all images
+ * - average_confidence: Average detection confidence
+ * - results: Per-image results with bunch_count and detections
+ */
+export const detectBunches = async (imageUri1, imageUri2 = null) => {
+  try {
+    const formData = new FormData();
+
+    // Add first image (required)
+    const filename1 = imageUri1.split('/').pop();
+    formData.append('image1', {
+      uri: imageUri1,
+      type: 'image/jpeg',
+      name: filename1 || 'image1.jpg',
+    });
+
+    // Add second image if provided (optional)
+    if (imageUri2) {
+      const filename2 = imageUri2.split('/').pop();
+      formData.append('image2', {
+        uri: imageUri2,
+        type: 'image/jpeg',
+        name: filename2 || 'image2.jpg',
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/predict/bunch`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'bunch',
+        totalBunchCount: data.total_bunch_count,
+        averageConfidence: data.average_confidence,
+        imagesProcessed: data.images_processed,
+        results: data.results,
+        message: data.message,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze images',
+    };
+  }
+};
+
 export default {
   checkApiHealth,
   getModelsInfo,
@@ -383,6 +565,9 @@ export default {
   detectAllPests,
   detectDisease,
   detectLeafDieback,
+  detectLeafHealth,
+  detectBranchHealth,
+  detectBunches,
   predictPest,
   PEST_TYPES,
   DISEASE_TYPES,

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from 'react-native';
 import {signOutFromGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
@@ -49,7 +50,7 @@ export default function DashboardScreen({navigation, route}) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.welcomeText}>{t('dashboard.welcome')}!</Text>
         <Text style={styles.appTitle}>{t('common.appName')}</Text>
@@ -79,11 +80,66 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
+          onPress={() => navigation.navigate('LeafHealth')}>
+          <Text style={styles.featureIcon}>🌿</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Leaf Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Check leaf health status</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('BranchHealth')}>
+          <Text style={styles.featureIcon}>🌳</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Branch Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Check branch health status</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
           onPress={() => navigation.navigate('DiseaseDetection')}>
           <Text style={styles.featureIcon}>🍃</Text>
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>{t('leafDisease.title')}</Text>
             <Text style={styles.featureSubtext}>{t('leafDisease.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('BunchDetection')}>
+          <Text style={styles.featureIcon}>🥥</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>{t('bunchDetection.title')}</Text>
+            <Text style={styles.featureSubtext}>{t('bunchDetection.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('PlantationMap')}>
+          <Text style={styles.featureIcon}>🗺️</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Plantation Map</Text>
+            <Text style={styles.featureSubtext}>View & manage all trees</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('AddTree')}>
+          <Text style={styles.featureIcon}>📍</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Add Tree Location</Text>
+            <Text style={styles.featureSubtext}>Mark new tree with GPS</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
@@ -133,7 +189,7 @@ export default function DashboardScreen({navigation, route}) {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>{t('auth.logout')}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -141,7 +197,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  contentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -270,7 +329,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 30,
     marginBottom: 20,
   },
   logoutButtonText: {
