@@ -28,12 +28,14 @@ const API_CONFIG = {
   emulator: 'http://10.0.2.2:5001',
   // For iOS Simulator
   ios: 'http://localhost:5001',
-  // For Real Device - replace with your computer's IP
+  // For Real Device via WiFi - replace with your computer's IP
   device: 'http://192.168.8.196:5001',
+  // For Real Device via USB (adb reverse)
+  usbDevice: 'http://localhost:5001',
 };
 
 // Change this based on your testing environment
-const API_BASE_URL = API_CONFIG.emulator;
+const API_BASE_URL = API_CONFIG.usbDevice;
 
 /**
  * Check if the ML API is available

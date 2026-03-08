@@ -157,7 +157,30 @@
       "Bash(for dir in \"/mnt/c/Users/Tharindu Nandun/Desktop/Research/Research/ml/data/raw/stage_2_split/val\"/*)",
       "Bash(for dir in \"/mnt/c/Users/Tharindu Nandun/Desktop/Research/Research/ml/data/raw/stage_2_split/test\"/*)",
       "Bash(\"/mnt/c/Users/Tharindu Nandun/AppData/Local/Programs/Python/Python313/python.exe\" create_pp1_slides.py)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nMerge branch ''main'' into N2\n\nResolved all merge conflicts by combining features from both branches:\n- Added LeafHealthScreen, BranchHealthScreen, BunchDetectionScreen, AddTreeScreen, PlantationMapScreen\n- Added LeafDiseaseHistoryScreen\n- Merged locale files (en, si, ta) with both baby coconut and bunch detection translations\n- Merged ML API to support both leaf_dieback and leaf_health/branch_health/bunch models\n- Updated pestDetectionApi.js to include both detectLeafDieback and detectLeafHealth/detectBranchHealth functions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nMerge branch ''main'' into N2\n\nResolved all merge conflicts by combining features from both branches:\n- Added LeafHealthScreen, BranchHealthScreen, BunchDetectionScreen, AddTreeScreen, PlantationMapScreen\n- Added LeafDiseaseHistoryScreen\n- Merged locale files (en, si, ta) with both baby coconut and bunch detection translations\n- Merged ML API to support both leaf_dieback and leaf_health/branch_health/bunch models\n- Updated pestDetectionApi.js to include both detectLeafDieback and detectLeafHealth/detectBranchHealth functions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(node \"node_modules/@react-native-community/cli/build/bin.js\" run-android)",
+      "Bash(./gradlew.bat app:installDebug:*)",
+      "Bash(./gradlew.bat clean)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe devices)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe reverse tcp:8081 tcp:8081)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe kill-server)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe start-server)",
+      "Bash(node node_modules/@react-native-community/cli/build/bin.js start:*)",
+      "Bash(npm ls:*)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:8081 tcp:8081)",
+      "Bash(node node_modules/@react-native-community/cli/build/bin.js run-android:*)",
+      "Bash(./gradlew.bat app:installDebug -PreactNativeDevServerPort=8081)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD shell am start -n com.coconuthealthmonitorNew/.MainActivity)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR install \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\")",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR reverse tcp:8081 tcp:8081)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR shell am start -n com.coconuthealthmonitorNew/.MainActivity)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR reverse tcp:5000 tcp:5000)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR reverse tcp:5001 tcp:5001)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR reverse --list)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR shell pm list packages)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR shell pm list packages -3)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:5000 tcp:5000)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:5001 tcp:5001)"
     ]
   }
 }

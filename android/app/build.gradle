@@ -101,4 +101,6 @@ dependencies {
     implementation project(':react-native-safe-area-context')
     implementation project(':react-native-screens')
     implementation project(':react-native-svg')
+    implementation project(':react-native-community_geolocation')
+    implementation project(':react-native-maps')
 }

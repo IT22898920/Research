@@ -18,6 +18,10 @@ from PIL import Image
 import io
 import tensorflow as tf
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create a requests session with retry logic for Groq API
 def create_groq_session():
@@ -39,7 +43,7 @@ def create_groq_session():
 groq_session = create_groq_session()
 
 # Groq API Configuration for AI Chatbot
-GROQ_API_KEY = "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"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 

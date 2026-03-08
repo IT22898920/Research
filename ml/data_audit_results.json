@@ -1,0 +1,28 @@
+{
+  "total_images": 13838,
+  "class_counts": {
+    "train": {
+      "coconut_mite": 4747,
+      "healthy": 4228,
+      "not_coconut": 4000
+    },
+    "validation": {
+      "coconut_mite": 99,
+      "healthy": 89,
+      "not_coconut": 299
+    },
+    "test": {
+      "coconut_mite": 100,
+      "healthy": 89,
+      "not_coconut": 187
+    }
+  },
+  "cross_class_duplicates": 0,
+  "cross_split_duplicates": 11,
+  "within_split_duplicates": 42,
+  "corrupted_files": 4,
+  "issues": [
+    "DATA LEAK: 11 cross-split duplicates",
+    "CORRUPTED: 4 files"
+  ]
+}

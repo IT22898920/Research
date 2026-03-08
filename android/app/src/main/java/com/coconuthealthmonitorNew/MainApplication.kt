@@ -29,6 +29,8 @@ class MainApplication : Application(), ReactApplication {
       packages.add(com.th3rdwave.safeareacontext.SafeAreaContextPackage())
       packages.add(com.swmansion.rnscreens.RNScreensPackage())
       packages.add(com.horcrux.svg.SvgPackage())
+      packages.add(com.reactnativecommunity.geolocation.GeolocationPackage())
+      packages.add(com.rnmaps.maps.MapsPackage())
 
       return packages
     }
