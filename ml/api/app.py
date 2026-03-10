@@ -144,6 +144,13 @@ BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_he
 # Branch Health v1 class indices
 BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
+# Tree Health model paths (v1 - 2-class)
+TREE_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v1', 'best_model.keras')
+TREE_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v1', 'model_info.json')
+
+# Tree Health v1 class indices
+TREE_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
 # Bunch Detection TFLite model path
 BUNCH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'bunch_detection', 'best_float32.tflite')
 
@@ -152,6 +159,15 @@ BUNCH_CONFIDENCE_THRESHOLD = 0.56  # Confidence threshold (tested in Roboflow)
 BUNCH_IOU_THRESHOLD = 0.45  # IoU threshold for NMS
 BUNCH_INPUT_SIZE = 640  # YOLOv8 default input size
 BUNCH_MAX_DETECTIONS = 50  # Maximum bunches to return
+
+# Yield Estimator (Nuts per Tree) TFLite model path
+YIELD_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'Coconut_Yield_Estimator (Nuts per Tree)', 'best_float32.tflite')
+
+# Yield Estimator configuration
+YIELD_CONFIDENCE_THRESHOLD = 0.5  # Confidence threshold for nut detection
+YIELD_IOU_THRESHOLD = 0.45  # IoU threshold for NMS
+YIELD_INPUT_SIZE = 960  # Model trained with 960x960 input
+YIELD_MAX_DETECTIONS = 100  # Maximum nuts to return per image
 
 # Global variables for models
 models = {}
@@ -361,9 +377,37 @@ def load_models():
         models['branch_health'] = None
         model_infos['branch_health'] = None
 
+    # Load Tree Health Model (v1 - 2-class)
+    try:
+        print("\n[7] Loading Tree Health model (v1 - 2-class)...")
+
+        models['tree_health'] = tf.keras.models.load_model(
+            TREE_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(TREE_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['tree_health'] = json.load(f)
+        except:
+            model_infos['tree_health'] = {
+                'version': 'v1_2class',
+                'classes': TREE_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.9972}
+            }
+
+        print(f"    Version: v1 (2-class, MobileNetV2)")
+        print(f"    Classes: {TREE_HEALTH_CLASSES}")
+        print(f"    Accuracy: 99.72%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading tree health model: {e}")
+        models['tree_health'] = None
+        model_infos['tree_health'] = None
+
     # Load Bunch Detection Model (TFLite)
     try:
-        print("\n[7] Loading Bunch Detection model (TFLite)...")
+        print("\n[8] Loading Bunch Detection model (TFLite)...")
         # Note: TFLite model is loaded on demand in the predict function
         # Just check if the file exists
         if os.path.exists(BUNCH_MODEL_PATH):
@@ -383,9 +427,31 @@ def load_models():
         models['bunch'] = None
         model_infos['bunch'] = None
 
+    # Load Yield Estimator Model (TFLite - Nuts per Tree)
+    try:
+        print("\n[9] Loading Yield Estimator model (TFLite - Nuts per Tree)...")
+        if os.path.exists(YIELD_MODEL_PATH):
+            models['yield'] = YIELD_MODEL_PATH  # Store path instead of loaded model
+            model_infos['yield'] = {
+                'version': 'v1_yolov8',
+                'type': 'object_detection',
+                'format': 'tflite',
+                'detects': 'coconut_nuts'
+            }
+            print(f"    Format: TFLite (YOLOv8)")
+            print(f"    Input Size: {YIELD_INPUT_SIZE}x{YIELD_INPUT_SIZE}")
+            print(f"    Detects: Individual coconut nuts")
+            print("    Status: LOADED")
+        else:
+            raise FileNotFoundError(f"Model not found: {YIELD_MODEL_PATH}")
+    except Exception as e:
+        print(f"    ERROR loading yield estimator model: {e}")
+        models['yield'] = None
+        model_infos['yield'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/7")
+    print(f"  Models loaded: {loaded_count}/9")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -439,6 +505,127 @@ def preprocess_image_leaf_dieback(image_bytes):
     img_array = img_array / 255.0
 
     return np.expand_dims(img_array, axis=0)
+
+
+def preprocess_image_yolo(image_bytes, input_size=640):
+    """Preprocess image for YOLOv8 TFLite model"""
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    # Store original size for scaling detections back
+    original_size = img.size  # (width, height)
+
+    # Resize to model input size
+    img = img.resize((input_size, input_size), Image.Resampling.LANCZOS)
+    img_array = np.array(img, dtype=np.float32)
+    img_array = img_array / 255.0  # Normalize to [0, 1]
+
+    return np.expand_dims(img_array, axis=0), original_size
+
+
+def run_tflite_inference(model_path, input_data):
+    """Run TFLite model inference"""
+    # Load TFLite model
+    interpreter = tf.lite.Interpreter(model_path=model_path)
+    interpreter.allocate_tensors()
+
+    # Get input and output details
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    # Set input tensor
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+
+    # Run inference
+    interpreter.invoke()
+
+    # Get output
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+    return output_data
+
+
+def parse_yolo_output(output, conf_threshold=0.5, iou_threshold=0.45, max_detections=50):
+    """Parse YOLOv8 output and apply NMS"""
+    # YOLOv8 output shape: [1, 5, 8400] or [1, 8400, 5] depending on export
+    # Format: [x_center, y_center, width, height, confidence]
+
+    if len(output.shape) == 3:
+        if output.shape[1] == 5:
+            # Shape [1, 5, 8400] - transpose to [1, 8400, 5]
+            output = np.transpose(output, (0, 2, 1))
+        output = output[0]  # Remove batch dimension
+
+    detections = []
+
+    for det in output:
+        if len(det) >= 5:
+            confidence = float(det[4])
+            if confidence >= conf_threshold:
+                x_center, y_center, width, height = det[0:4]
+                detections.append({
+                    'x': float(x_center),
+                    'y': float(y_center),
+                    'width': float(width),
+                    'height': float(height),
+                    'confidence': confidence
+                })
+
+    # Sort by confidence
+    detections.sort(key=lambda x: x['confidence'], reverse=True)
+
+    # Simple NMS
+    final_detections = []
+    for det in detections:
+        if len(final_detections) >= max_detections:
+            break
+
+        # Check overlap with existing detections
+        overlap = False
+        for existing in final_detections:
+            # Calculate IoU
+            iou = calculate_iou(det, existing)
+            if iou > iou_threshold:
+                overlap = True
+                break
+
+        if not overlap:
+            final_detections.append(det)
+
+    return final_detections
+
+
+def calculate_iou(box1, box2):
+    """Calculate Intersection over Union between two boxes"""
+    # Convert center format to corner format
+    x1_min = box1['x'] - box1['width'] / 2
+    y1_min = box1['y'] - box1['height'] / 2
+    x1_max = box1['x'] + box1['width'] / 2
+    y1_max = box1['y'] + box1['height'] / 2
+
+    x2_min = box2['x'] - box2['width'] / 2
+    y2_min = box2['y'] - box2['height'] / 2
+    x2_max = box2['x'] + box2['width'] / 2
+    y2_max = box2['y'] + box2['height'] / 2
+
+    # Calculate intersection
+    inter_x_min = max(x1_min, x2_min)
+    inter_y_min = max(y1_min, y2_min)
+    inter_x_max = min(x1_max, x2_max)
+    inter_y_max = min(y1_max, y2_max)
+
+    if inter_x_max <= inter_x_min or inter_y_max <= inter_y_min:
+        return 0.0
+
+    inter_area = (inter_x_max - inter_x_min) * (inter_y_max - inter_y_min)
+
+    # Calculate union
+    box1_area = box1['width'] * box1['height']
+    box2_area = box2['width'] * box2['height']
+    union_area = box1_area + box2_area - inter_area
+
+    return inter_area / union_area if union_area > 0 else 0.0
 
 @app.route('/', methods=['GET'])
 def home():
@@ -995,6 +1182,329 @@ def predict_leaf_dieback():
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/tree-health', methods=['POST'])
+def predict_tree_health():
+    """Detect overall coconut tree health (v1 model - 2-class classification)
+
+    Classes: healthy, unhealthy
+    Analyzes images of full coconut trees to determine overall health status.
+    """
+
+    if models.get('tree_health') is None:
+        return jsonify({'error': 'Tree Health model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+
+        # Preprocess image (same as other models - 224x224, 0-1 scaling)
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32) / 255.0
+        processed_image = np.expand_dims(img_array, axis=0)
+
+        # 2-class classification: softmax output
+        # Classes: ['healthy', 'unhealthy']
+        predictions = models['tree_health'].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = TREE_HEALTH_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_healthy = predicted_class == 'healthy'
+        is_unhealthy = predicted_class == 'unhealthy'
+
+        # Calculate unhealthy percentage
+        unhealthy_percentage = float(predictions[1]) * 100
+
+        probabilities = {
+            'healthy': float(predictions[0]),
+            'unhealthy': float(predictions[1])
+        }
+
+        # Determine label and message
+        if is_healthy:
+            label = 'Healthy Coconut Tree'
+            message = 'This coconut tree appears to be in good health. No significant issues detected.'
+            status = 'healthy'
+            recommendation = 'Continue regular maintenance and monitoring. Ensure proper watering and fertilization.'
+        else:
+            label = 'Unhealthy Coconut Tree'
+            message = f'This coconut tree shows signs of poor health ({unhealthy_percentage:.1f}% unhealthy indicators detected).'
+            status = 'unhealthy'
+            recommendation = 'Inspect the tree for pest infestations, nutrient deficiencies, or diseases. Consider consulting an agricultural expert.'
+
+        return jsonify({
+            'success': True,
+            'detection_type': 'tree_health',
+            'model_version': 'v1',
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'probabilities': probabilities,
+            'unhealthy_percentage': unhealthy_percentage,
+            'is_healthy': is_healthy,
+            'message': message,
+            'label': label,
+            'status': status,
+            'recommendation': recommendation,
+            'model_info': {
+                'name': 'Coconut Tree Health Model',
+                'version': 'v1',
+                'accuracy': '99.72%'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/predict/bunch', methods=['POST'])
+def predict_bunch():
+    """Detect coconut bunches for yield prediction (TFLite YOLOv8)
+
+    Accepts 1 or 2 images from opposite sides of the tree.
+    Returns total bunch count and detection details.
+    """
+
+    if models.get('bunch') is None:
+        return jsonify({'success': False, 'error': 'Bunch detection model not loaded'}), 500
+
+    if 'image1' not in request.files and 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+    try:
+        results = []
+        total_bunches = 0
+        total_confidence = 0
+
+        # Process image1 (or 'image' for backward compatibility)
+        file1 = request.files.get('image1') or request.files.get('image')
+        if file1 and file1.filename:
+            image_bytes1 = file1.read()
+            processed1, original_size1 = preprocess_image_yolo(image_bytes1, BUNCH_INPUT_SIZE)
+
+            output1 = run_tflite_inference(models['bunch'], processed1)
+            detections1 = parse_yolo_output(
+                output1,
+                conf_threshold=BUNCH_CONFIDENCE_THRESHOLD,
+                iou_threshold=BUNCH_IOU_THRESHOLD,
+                max_detections=BUNCH_MAX_DETECTIONS
+            )
+
+            bunch_count1 = len(detections1)
+            avg_conf1 = sum(d['confidence'] for d in detections1) / bunch_count1 if bunch_count1 > 0 else 0
+
+            results.append({
+                'image': 'image1',
+                'bunch_count': bunch_count1,
+                'average_confidence': avg_conf1,
+                'detections': detections1
+            })
+            total_bunches += bunch_count1
+            total_confidence += avg_conf1
+
+        # Process image2 (optional)
+        file2 = request.files.get('image2')
+        if file2 and file2.filename:
+            image_bytes2 = file2.read()
+            processed2, original_size2 = preprocess_image_yolo(image_bytes2, BUNCH_INPUT_SIZE)
+
+            output2 = run_tflite_inference(models['bunch'], processed2)
+            detections2 = parse_yolo_output(
+                output2,
+                conf_threshold=BUNCH_CONFIDENCE_THRESHOLD,
+                iou_threshold=BUNCH_IOU_THRESHOLD,
+                max_detections=BUNCH_MAX_DETECTIONS
+            )
+
+            bunch_count2 = len(detections2)
+            avg_conf2 = sum(d['confidence'] for d in detections2) / bunch_count2 if bunch_count2 > 0 else 0
+
+            results.append({
+                'image': 'image2',
+                'bunch_count': bunch_count2,
+                'average_confidence': avg_conf2,
+                'detections': detections2
+            })
+            total_bunches += bunch_count2
+            total_confidence += avg_conf2
+
+        images_processed = len(results)
+        average_confidence = total_confidence / images_processed if images_processed > 0 else 0
+
+        # Generate message and recommendation
+        if total_bunches == 0:
+            message = 'No coconut bunches detected in the image(s).'
+            recommendation = 'Make sure the image clearly shows the coconut tree crown with bunches visible.'
+        elif total_bunches < 5:
+            message = f'Detected {total_bunches} bunch(es). Low yield expected.'
+            recommendation = 'Consider checking tree health and nutrition for better yield.'
+        elif total_bunches < 10:
+            message = f'Detected {total_bunches} bunches. Moderate yield expected.'
+            recommendation = 'Tree appears to be producing normally. Continue regular care.'
+        else:
+            message = f'Detected {total_bunches} bunches. Good yield expected!'
+            recommendation = 'Excellent bunch count! Ensure proper support for heavy bunches.'
+
+        return jsonify({
+            'success': True,
+            'total_bunch_count': total_bunches,
+            'average_confidence': average_confidence,
+            'images_processed': images_processed,
+            'results': results,
+            'message': message,
+            'recommendation': recommendation,
+            'model_info': {
+                'name': 'Bunch Detection Model',
+                'version': 'v1',
+                'format': 'TFLite YOLOv8'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/predict/yield', methods=['POST'])
+def predict_yield():
+    """Estimate coconut yield by counting individual nuts (TFLite YOLOv8)
+
+    Detects individual coconut nuts on the tree for yield estimation.
+    Returns total nut count and detection details.
+    """
+
+    if models.get('yield') is None:
+        return jsonify({'success': False, 'error': 'Yield estimator model not loaded'}), 500
+
+    if 'image1' not in request.files and 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+    try:
+        results = []
+        total_nuts = 0
+        total_confidence = 0
+
+        # Process image1 (or 'image' for backward compatibility)
+        file1 = request.files.get('image1') or request.files.get('image')
+        if file1 and file1.filename:
+            image_bytes1 = file1.read()
+            processed1, original_size1 = preprocess_image_yolo(image_bytes1, YIELD_INPUT_SIZE)
+
+            output1 = run_tflite_inference(models['yield'], processed1)
+            detections1 = parse_yolo_output(
+                output1,
+                conf_threshold=YIELD_CONFIDENCE_THRESHOLD,
+                iou_threshold=YIELD_IOU_THRESHOLD,
+                max_detections=YIELD_MAX_DETECTIONS
+            )
+
+            nut_count1 = len(detections1)
+            avg_conf1 = sum(d['confidence'] for d in detections1) / nut_count1 if nut_count1 > 0 else 0
+
+            results.append({
+                'image': 'image1',
+                'nut_count': nut_count1,
+                'average_confidence': avg_conf1,
+                'detections': detections1
+            })
+            total_nuts += nut_count1
+            total_confidence += avg_conf1
+
+        # Process image2 (optional)
+        file2 = request.files.get('image2')
+        if file2 and file2.filename:
+            image_bytes2 = file2.read()
+            processed2, original_size2 = preprocess_image_yolo(image_bytes2, YIELD_INPUT_SIZE)
+
+            output2 = run_tflite_inference(models['yield'], processed2)
+            detections2 = parse_yolo_output(
+                output2,
+                conf_threshold=YIELD_CONFIDENCE_THRESHOLD,
+                iou_threshold=YIELD_IOU_THRESHOLD,
+                max_detections=YIELD_MAX_DETECTIONS
+            )
+
+            nut_count2 = len(detections2)
+            avg_conf2 = sum(d['confidence'] for d in detections2) / nut_count2 if nut_count2 > 0 else 0
+
+            results.append({
+                'image': 'image2',
+                'nut_count': nut_count2,
+                'average_confidence': avg_conf2,
+                'detections': detections2
+            })
+            total_nuts += nut_count2
+            total_confidence += avg_conf2
+
+        images_processed = len(results)
+        average_confidence = total_confidence / images_processed if images_processed > 0 else 0
+
+        # Estimate yield (assume 2 sides captured, so don't double count)
+        # If only 1 image, estimate total by multiplying by 1.5
+        if images_processed == 1:
+            estimated_total = int(total_nuts * 1.5)
+            estimation_note = 'Estimated from single image (x1.5)'
+        else:
+            estimated_total = total_nuts
+            estimation_note = 'Count from both sides of tree'
+
+        # Generate message and recommendation
+        if total_nuts == 0:
+            message = 'No coconut nuts detected in the image(s).'
+            recommendation = 'Make sure the image clearly shows coconuts on the tree.'
+            yield_category = 'none'
+        elif estimated_total < 20:
+            message = f'Detected {total_nuts} nuts. Estimated total: {estimated_total} nuts.'
+            recommendation = 'Low yield. Check tree health, nutrition, and pollination.'
+            yield_category = 'low'
+        elif estimated_total < 50:
+            message = f'Detected {total_nuts} nuts. Estimated total: {estimated_total} nuts.'
+            recommendation = 'Moderate yield. Tree is producing normally.'
+            yield_category = 'moderate'
+        elif estimated_total < 100:
+            message = f'Detected {total_nuts} nuts. Estimated total: {estimated_total} nuts.'
+            recommendation = 'Good yield! Tree is healthy and productive.'
+            yield_category = 'good'
+        else:
+            message = f'Detected {total_nuts} nuts. Estimated total: {estimated_total} nuts.'
+            recommendation = 'Excellent yield! This is a highly productive tree.'
+            yield_category = 'excellent'
+
+        return jsonify({
+            'success': True,
+            'total_nut_count': total_nuts,
+            'estimated_total': estimated_total,
+            'estimation_note': estimation_note,
+            'yield_category': yield_category,
+            'average_confidence': average_confidence,
+            'images_processed': images_processed,
+            'results': results,
+            'message': message,
+            'recommendation': recommendation,
+            'model_info': {
+                'name': 'Coconut Yield Estimator',
+                'version': 'v1',
+                'format': 'TFLite YOLOv8',
+                'detects': 'Individual coconut nuts'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/predict/all', methods=['POST'])
 def predict_all():

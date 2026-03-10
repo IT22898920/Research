@@ -1,0 +1,82 @@
+{
+  "version": "v11",
+  "model_name": "coconut_mite_v11",
+  "architecture": "EfficientNetB0",
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "num_classes": 3,
+  "class_names": [
+    "coconut_mite",
+    "healthy",
+    "not_coconut"
+  ],
+  "class_indices": {
+    "coconut_mite": 0,
+    "healthy": 1,
+    "not_coconut": 2
+  },
+  "training_config": {
+    "img_size": 224,
+    "batch_size": 32,
+    "epochs": 50,
+    "learning_rate": 0.0001,
+    "patience": 10,
+    "min_delta": 0.001,
+    "l2_reg": 0.01,
+    "dropout": 0.5,
+    "focal_gamma": 2.0,
+    "focal_alpha": 0.25
+  },
+  "metrics": {
+    "test_accuracy": 0.4946524064171123,
+    "test_precision": 0.24468100317424002,
+    "test_recall": 0.4946524064171123,
+    "test_f1_score": 0.3274085695426325,
+    "class_wise": {
+      "coconut_mite": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 100
+      },
+      "healthy": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 89
+      },
+      "not_coconut": {
+        "precision": 0.4946524064171123,
+        "recall": 1.0,
+        "f1-score": 0.6618962432915921,
+        "support": 185
+      }
+    }
+  },
+  "dataset": {
+    "train_samples": 15008,
+    "validation_samples": 524,
+    "test_samples": 374,
+    "class_distribution": {
+      "train": {
+        "coconut_mite": 6119,
+        "healthy": 4904,
+        "not_coconut": 3985
+      },
+      "validation": {
+        "coconut_mite": 99,
+        "healthy": 134,
+        "not_coconut": 291
+      },
+      "test": {
+        "coconut_mite": 100,
+        "healthy": 89,
+        "not_coconut": 185
+      }
+    }
+  },
+  "trained_at": "2026-03-10T16:13:09.283256"
+}

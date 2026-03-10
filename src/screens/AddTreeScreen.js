@@ -198,7 +198,7 @@ export default function AddTreeScreen({navigation, route}) {
         }
       );
 
-      // Timeout after 15 seconds
+      // Timeout after 10 seconds
       setTimeout(() => {
         if (gettingLocation) {
           Geolocation.clearWatch(watchId);
@@ -214,10 +214,17 @@ export default function AddTreeScreen({navigation, route}) {
             );
           } else {
             setGettingLocation(false);
-            Alert.alert('Timeout', 'Could not get location. Try again or select manually.');
+            Alert.alert(
+              'Location Timeout ⏱️',
+              'Could not get GPS location.\n\n📱 On Emulator: Click "..." → Location → Set coordinates\n\n📍 Or select location manually below.',
+              [
+                { text: 'Select Manually', onPress: () => setShowLocationPicker(true) },
+                { text: 'Try Again', onPress: getCurrentLocation },
+              ]
+            );
           }
         }
-      }, 15000);
+      }, 10000);
     } catch (err) {
       setGettingLocation(false);
       console.log('Get location error:', err);

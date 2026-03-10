@@ -26,16 +26,31 @@ import {
   isApiKeyConfigured,
 } from '../services/treatmentApi';
 import {scanAPI} from '../services/scanApi';
+import {treeAPI} from '../services/treeApi';
 import {showPestDetectionNotification} from '../services/notificationService';
 import {useLanguage} from '../context/LanguageContext';
 
-export default function PestDetectionScreen({navigation}) {
+export default function PestDetectionScreen({navigation, route}) {
   const {t, currentLanguage} = useLanguage();
+
+  // Get tree info from navigation params (if scanning a specific tree)
+  const treeId = route.params?.treeId;
+  const treeLabel = route.params?.treeLabel;
+  const initialTab = route.params?.initialTab;
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
-  const [selectedPestType, setSelectedPestType] = useState(PEST_TYPES.ALL);
+  // Set initial pest type based on navigation param
+  const getInitialPestType = () => {
+    switch (initialTab) {
+      case 'mite': return PEST_TYPES.MITE;
+      case 'caterpillar': return PEST_TYPES.CATERPILLAR;
+      case 'whitefly': return PEST_TYPES.WHITE_FLY;
+      default: return PEST_TYPES.ALL;
+    }
+  };
+  const [selectedPestType, setSelectedPestType] = useState(getInitialPestType());
 
   // Treatment states
   const [treatment, setTreatment] = useState(null);
@@ -162,9 +177,59 @@ export default function PestDetectionScreen({navigation}) {
         const severity = scanData.severity?.level || 'moderate';
         showPestDetectionNotification(pestName, severity, savedScan?.data?._id);
       }
+
+      // Save to tree record if treeId is provided
+      if (treeId) {
+        await saveToTreeRecord(scanData);
+      }
     } catch (error) {
       console.error('Error saving scan to database:', error);
       // Don't show error to user - scan saving is secondary
+    }
+  };
+
+  // Save scan result to tree record (for map integration)
+  const saveToTreeRecord = async (scanData) => {
+    try {
+      // Determine health status based on scan results
+      let status = 'healthy';
+      if (scanData.isInfected) {
+        status = 'infected';
+      } else if (!scanData.isValidImage) {
+        // Don't update status for invalid images
+        return;
+      }
+
+      // Save pest count and detected issues to tree scan results
+      const detectedIssues = [];
+      if (scanData.pestsDetected && scanData.pestsDetected.length > 0) {
+        scanData.pestsDetected.forEach(pest => {
+          detectedIssues.push(`${pest} detected`);
+        });
+      }
+
+      await treeAPI.updateScanResults(treeId, {
+        pestCount: scanData.pestsDetected?.length || 0,
+        detectedIssues: detectedIssues,
+        healthStatus: status,
+      });
+
+      // Also add to health history
+      const treeScanData = {
+        status: status,
+        scanType: 'pest',
+        details: {
+          pestType: scanData.scanType,
+          pestsDetected: scanData.pestsDetected || [],
+          severity: scanData.severity,
+          results: scanData.results,
+        },
+      };
+
+      await treeAPI.addHealthScan(treeId, treeScanData);
+      console.log('Scan saved to tree record:', treeId);
+    } catch (error) {
+      console.error('Error saving to tree record:', error);
     }
   };
 
@@ -953,6 +1018,17 @@ export default function PestDetectionScreen({navigation}) {
         </View>
       </View>
 
+      {/* Tree Info Banner - Show when scanning a specific tree */}
+      {treeId && (
+        <View style={styles.treeBanner}>
+          <Text style={styles.treeBannerIcon}>🌴</Text>
+          <View style={styles.treeBannerInfo}>
+            <Text style={styles.treeBannerLabel}>Scanning Tree:</Text>
+            <Text style={styles.treeBannerTitle}>{treeLabel || 'Unknown Tree'}</Text>
+          </View>
+        </View>
+      )}
+
       {/* Pest Type Selector */}
       {renderPestTypeSelector()}
 
@@ -1014,6 +1090,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  treeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    marginHorizontal: 15,
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  treeBannerIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  treeBannerInfo: {
+    flex: 1,
+  },
+  treeBannerLabel: {
+    fontSize: 11,
+    color: '#666',
+  },
+  treeBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2e7d32',
   },
   header: {
     flexDirection: 'row',

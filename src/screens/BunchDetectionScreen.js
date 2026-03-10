@@ -18,9 +18,14 @@ import {
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {useLanguage} from '../context/LanguageContext';
 import {detectBunches} from '../services/pestDetectionApi';
+import {treeAPI} from '../services/treeApi';
 
-export default function BunchDetectionScreen({navigation}) {
+export default function BunchDetectionScreen({navigation, route}) {
   const {t} = useLanguage();
+
+  // Get tree info from navigation params (if scanning a specific tree)
+  const treeId = route?.params?.treeId;
+  const treeLabel = route?.params?.treeLabel;
 
   const [image1, setImage1] = useState(null);
   const [image2, setImage2] = useState(null);
@@ -106,6 +111,34 @@ export default function BunchDetectionScreen({navigation}) {
 
       if (response.success) {
         setResult(response);
+
+        // Save to tree record if scanning a specific tree
+        if (treeId) {
+          try {
+            // Save bunch count to tree's scan results
+            await treeAPI.updateScanResults(treeId, {
+              bunchCount: response.totalBunchCount,
+            });
+
+            // Also add to health history
+            const treeScanData = {
+              status: 'healthy', // Bunch detection is not a health scan, keep as healthy
+              scanType: 'bunch_detection',
+              details: {
+                totalBunchCount: response.totalBunchCount,
+                averageConfidence: response.averageConfidence,
+                imagesProcessed: response.imagesProcessed,
+                results: response.results,
+                message: response.message,
+                recommendation: response.recommendation,
+              },
+            };
+            await treeAPI.addHealthScan(treeId, treeScanData);
+            console.log('Bunch detection saved to tree record:', treeId);
+          } catch (saveErr) {
+            console.log('Could not save to tree record:', saveErr.message);
+          }
+        }
       } else {
         Alert.alert(t('common.error'), response.error || t('bunchDetection.analysisError'));
       }
@@ -133,6 +166,17 @@ export default function BunchDetectionScreen({navigation}) {
         <Text style={styles.title}>{t('bunchDetection.title')}</Text>
         <View style={{width: 50}} />
       </View>
+
+      {/* Tree Info Banner - Show when scanning a specific tree */}
+      {treeId && (
+        <View style={styles.treeBanner}>
+          <Text style={styles.treeBannerIcon}>🌴</Text>
+          <View style={styles.treeBannerInfo}>
+            <Text style={styles.treeBannerLabel}>Scanning Tree:</Text>
+            <Text style={styles.treeBannerTitle}>{treeLabel || 'Unknown Tree'}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Instruction Card */}
       <View style={styles.instructionCard}>
@@ -316,6 +360,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  treeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    marginHorizontal: 20,
+    marginTop: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  treeBannerIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  treeBannerInfo: {
+    flex: 1,
+  },
+  treeBannerLabel: {
+    fontSize: 11,
+    color: '#666',
+  },
+  treeBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2e7d32',
   },
   instructionCard: {
     backgroundColor: '#fff',

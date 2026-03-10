@@ -12,8 +12,10 @@ import {
   Animated,
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
+import {treeAPI} from '../services/treeApi';
 
-const API_BASE_URL = 'http://10.0.2.2:5001'; // Android emulator localhost
+// For Real Device via USB (adb reverse)
+const API_BASE_URL = 'http://localhost:5001';
 
 // Condition Card Component - Always Expanded with All Details
 const ConditionCard = ({condition, index}) => {
@@ -72,7 +74,11 @@ const ConditionCard = ({condition, index}) => {
   );
 };
 
-export default function LeafHealthScreen({navigation}) {
+export default function LeafHealthScreen({navigation, route}) {
+  // Get tree info from navigation params (if scanning a specific tree)
+  const treeId = route?.params?.treeId;
+  const treeLabel = route?.params?.treeLabel;
+
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -81,6 +87,52 @@ export default function LeafHealthScreen({navigation}) {
   useEffect(() => {
     checkApi();
   }, []);
+
+  // Save scan result to tree record (for map integration)
+  const saveToTreeRecord = async (scanResult) => {
+    if (!treeId) return;
+
+    try {
+      // Determine health status
+      let status = scanResult.is_healthy ? 'healthy' : 'unhealthy';
+
+      // Save detected issues
+      const detectedIssues = [];
+      if (!scanResult.is_healthy) {
+        detectedIssues.push('Unhealthy leaf detected');
+        // Add possible conditions as issues
+        if (scanResult.possible_conditions && scanResult.possible_conditions.length > 0) {
+          scanResult.possible_conditions.slice(0, 3).forEach(condition => {
+            detectedIssues.push(condition.condition);
+          });
+        }
+      }
+
+      await treeAPI.updateScanResults(treeId, {
+        detectedIssues: detectedIssues,
+        healthStatus: status,
+      });
+
+      // Also add to health history
+      const treeScanData = {
+        status: status,
+        scanType: 'leaf_health',
+        details: {
+          prediction: scanResult.prediction,
+          confidence: scanResult.confidence,
+          probabilities: scanResult.probabilities,
+          message: scanResult.message,
+          recommendation: scanResult.recommendation,
+          possibleConditions: scanResult.possible_conditions,
+        },
+      };
+
+      await treeAPI.addHealthScan(treeId, treeScanData);
+      console.log('Leaf health scan saved to tree record:', treeId);
+    } catch (error) {
+      console.error('Error saving to tree record:', error);
+    }
+  };
 
   const checkApi = async () => {
     try {
@@ -168,6 +220,10 @@ export default function LeafHealthScreen({navigation}) {
 
       if (data.success) {
         setResult(data);
+        // Save to tree record if scanning a specific tree
+        if (treeId) {
+          saveToTreeRecord(data);
+        }
       } else {
         Alert.alert('Error', data.error || 'Failed to analyze image');
       }
@@ -187,6 +243,17 @@ export default function LeafHealthScreen({navigation}) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Tree Info Banner - Show when scanning a specific tree */}
+        {treeId && (
+          <View style={styles.treeBanner}>
+            <Text style={styles.treeBannerIcon}>🌴</Text>
+            <View style={styles.treeBannerInfo}>
+              <Text style={styles.treeBannerLabel}>Scanning Tree:</Text>
+              <Text style={styles.treeBannerTitle}>{treeLabel || 'Unknown Tree'}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Leaf Health Monitor</Text>
@@ -412,6 +479,32 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+  },
+  treeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  treeBannerIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  treeBannerInfo: {
+    flex: 1,
+  },
+  treeBannerLabel: {
+    fontSize: 11,
+    color: '#666',
+  },
+  treeBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2e7d32',
   },
   header: {
     alignItems: 'center',

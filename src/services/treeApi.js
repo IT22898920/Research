@@ -139,6 +139,72 @@ export const treeAPI = {
   },
 
   /**
+   * Update scan results (nuts, bunches, pests, issues)
+   */
+  updateScanResults: async (treeId, scanResults) => {
+    try {
+      const trees = await treeAPI.getAllTrees();
+      const index = trees.findIndex(tree => tree.id === treeId);
+      if (index !== -1) {
+        // Update counts
+        if (scanResults.nutCount !== undefined) {
+          trees[index].nutCount = scanResults.nutCount;
+        }
+        if (scanResults.bunchCount !== undefined) {
+          trees[index].bunchCount = scanResults.bunchCount;
+        }
+        if (scanResults.pestCount !== undefined) {
+          trees[index].pestCount = scanResults.pestCount;
+        }
+
+        // Update detected issues (append new ones, avoid duplicates)
+        if (scanResults.detectedIssues && scanResults.detectedIssues.length > 0) {
+          const existingIssues = trees[index].detectedIssues || [];
+          const newIssues = scanResults.detectedIssues.filter(
+            issue => !existingIssues.includes(issue)
+          );
+          trees[index].detectedIssues = [...existingIssues, ...newIssues];
+        }
+
+        // Update health status if provided
+        if (scanResults.healthStatus) {
+          trees[index].lastHealthStatus = scanResults.healthStatus;
+        }
+
+        trees[index].lastScanAt = new Date().toISOString();
+        trees[index].updatedAt = new Date().toISOString();
+
+        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
+        return trees[index];
+      }
+      return null;
+    } catch (error) {
+      console.error('Error updating scan results:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Clear detected issues for a tree
+   */
+  clearDetectedIssues: async (treeId) => {
+    try {
+      const trees = await treeAPI.getAllTrees();
+      const index = trees.findIndex(tree => tree.id === treeId);
+      if (index !== -1) {
+        trees[index].detectedIssues = [];
+        trees[index].updatedAt = new Date().toISOString();
+        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
+        return trees[index];
+      }
+      return null;
+    } catch (error) {
+      console.error('Error clearing issues:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Delete tree
    */
   deleteTree: async (treeId) => {

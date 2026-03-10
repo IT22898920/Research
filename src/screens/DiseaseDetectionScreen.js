@@ -13,6 +13,7 @@ import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {useLanguage} from '../context/LanguageContext';
 import {detectDisease, detectLeafDieback, checkApiHealth} from '../services/pestDetectionApi';
 import {scanAPI} from '../services/scanApi';
+import {treeAPI} from '../services/treeApi';
 
 // Disease detection types
 const DISEASE_DETECTION_TYPES = {
@@ -20,8 +21,13 @@ const DISEASE_DETECTION_TYPES = {
   OTHER_COCONUT: 'other_coconut',
 };
 
-export default function DiseaseDetectionScreen({navigation}) {
+export default function DiseaseDetectionScreen({navigation, route}) {
   const {t} = useLanguage();
+
+  // Get tree info from navigation params (if scanning a specific tree)
+  const treeId = route?.params?.treeId;
+  const treeLabel = route?.params?.treeLabel;
+
   const [selectedImage, setSelectedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -148,6 +154,37 @@ export default function DiseaseDetectionScreen({navigation}) {
 
           await scanAPI.saveScan(scanData, imageBase64);
           console.log('Scan saved successfully');
+
+          // Save to tree record if scanning a specific tree
+          if (treeId) {
+            const status = scanData.isInfected ? 'infected' : 'healthy';
+
+            // Save detected issues
+            const detectedIssues = [];
+            if (scanData.isInfected && pestType) {
+              detectedIssues.push(`${pestType} disease detected`);
+            }
+
+            await treeAPI.updateScanResults(treeId, {
+              detectedIssues: detectedIssues,
+              healthStatus: status,
+            });
+
+            // Also add to health history
+            const treeScanData = {
+              status: status,
+              scanType: 'disease',
+              details: {
+                detectionType: selectedType,
+                pestType: pestType,
+                confidence: scanData.confidence,
+                probabilities: scanData.probabilities,
+                prediction: response.prediction,
+              },
+            };
+            await treeAPI.addHealthScan(treeId, treeScanData);
+            console.log('Disease scan saved to tree record:', treeId);
+          }
         } catch (saveErr) {
           console.log('Could not save scan:', saveErr.message);
           // Don't show error to user - scan result is still shown
@@ -472,6 +509,17 @@ export default function DiseaseDetectionScreen({navigation}) {
         </View>
       </View>
 
+      {/* Tree Info Banner - Show when scanning a specific tree */}
+      {treeId && (
+        <View style={styles.treeBanner}>
+          <Text style={styles.treeBannerIcon}>🌴</Text>
+          <View style={styles.treeBannerInfo}>
+            <Text style={styles.treeBannerLabel}>Scanning Tree:</Text>
+            <Text style={styles.treeBannerTitle}>{treeLabel || 'Unknown Tree'}</Text>
+          </View>
+        </View>
+      )}
+
       {/* Type Selector */}
       {renderTypeSelector()}
 
@@ -557,6 +605,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  treeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    marginHorizontal: 15,
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  treeBannerIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  treeBannerInfo: {
+    flex: 1,
+  },
+  treeBannerLabel: {
+    fontSize: 11,
+    color: '#666',
+  },
+  treeBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2e7d32',
   },
   typeContainer: {
     backgroundColor: '#fff',

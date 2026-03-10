@@ -27,6 +27,8 @@ import LeafDiseaseHistoryScreen from './src/screens/LeafDiseaseHistoryScreen';
 import LeafHealthScreen from './src/screens/LeafHealthScreen';
 import BranchHealthScreen from './src/screens/BranchHealthScreen';
 import BunchDetectionScreen from './src/screens/BunchDetectionScreen';
+import TreeHealthScreen from './src/screens/TreeHealthScreen';
+import YieldEstimatorScreen from './src/screens/YieldEstimatorScreen';
 import AddTreeScreen from './src/screens/AddTreeScreen';
 import PlantationMapScreen from './src/screens/PlantationMapScreen';
 
@@ -69,6 +71,8 @@ function App(): React.JSX.Element {
             <Stack.Screen name="LeafDiseaseHistory" component={LeafDiseaseHistoryScreen} />
             <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
             <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
+            <Stack.Screen name="TreeHealth" component={TreeHealthScreen} />
+            <Stack.Screen name="YieldEstimator" component={YieldEstimatorScreen} />
             <Stack.Screen name="BunchDetection" component={BunchDetectionScreen} />
             <Stack.Screen name="AddTree" component={AddTreeScreen} />
             <Stack.Screen name="PlantationMap" component={PlantationMapScreen} />

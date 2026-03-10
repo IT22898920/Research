@@ -330,10 +330,68 @@ export default function PlantationMapScreen({navigation, route}) {
     setShowTreeModal(true);
   };
 
-  const handleScanTree = () => {
+  const handleScanTree = (scanType) => {
     setShowTreeModal(false);
-    navigation.navigate('PestDetection', {treeId: selectedTree.id, treeLabel: selectedTree.label});
+    const treeInfo = {
+      treeId: selectedTree.id,
+      treeLabel: selectedTree.label,
+      latitude: selectedTree.latitude,
+      longitude: selectedTree.longitude,
+    };
+
+    switch (scanType) {
+      case 'pest':
+        navigation.navigate('PestDetection', {...treeInfo, initialTab: 'all'});
+        break;
+      case 'mite':
+        navigation.navigate('PestDetection', {...treeInfo, initialTab: 'mite'});
+        break;
+      case 'caterpillar':
+        navigation.navigate('PestDetection', {...treeInfo, initialTab: 'caterpillar'});
+        break;
+      case 'whitefly':
+        navigation.navigate('PestDetection', {...treeInfo, initialTab: 'whitefly'});
+        break;
+      case 'treeHealth':
+        navigation.navigate('TreeHealth', treeInfo);
+        break;
+      case 'leafHealth':
+        navigation.navigate('LeafHealth', treeInfo);
+        break;
+      case 'branchHealth':
+        navigation.navigate('BranchHealth', treeInfo);
+        break;
+      case 'leafDisease':
+        navigation.navigate('DiseaseDetection', treeInfo);
+        break;
+      case 'bunch':
+        navigation.navigate('BunchDetection', treeInfo);
+        break;
+      case 'yield':
+        navigation.navigate('YieldEstimator', treeInfo);
+        break;
+      case 'assistant':
+        navigation.navigate('Chat', treeInfo);
+        break;
+      default:
+        navigation.navigate('PestDetection', treeInfo);
+    }
   };
+
+  // Scan options for the tree
+  const scanOptions = [
+    { id: 'pest', icon: '🐛', label: 'All Pests', color: '#F44336' },
+    { id: 'mite', icon: '🔬', label: 'Mite Detection', color: '#E91E63' },
+    { id: 'caterpillar', icon: '🐛', label: 'Caterpillar', color: '#9C27B0' },
+    { id: 'whitefly', icon: '🦟', label: 'White Fly', color: '#673AB7' },
+    { id: 'treeHealth', icon: '🌴', label: 'Tree Health', color: '#2e7d32' },
+    { id: 'leafHealth', icon: '🍃', label: 'Leaf Health', color: '#4CAF50' },
+    { id: 'branchHealth', icon: '🌿', label: 'Branch Health', color: '#8BC34A' },
+    { id: 'leafDisease', icon: '🦠', label: 'Leaf Disease', color: '#FF9800' },
+    { id: 'bunch', icon: '🥥', label: 'Bunch Detection', color: '#795548' },
+    { id: 'yield', icon: '📊', label: 'Yield Estimator', color: '#6D4C41' },
+    { id: 'assistant', icon: '🤖', label: 'AI Assistant', color: '#2196F3' },
+  ];
 
   const handleDeleteTree = () => {
     Alert.alert(
@@ -749,56 +807,113 @@ export default function PlantationMapScreen({navigation, route}) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Health Status:</Text>
-                <View style={[
-                  styles.statusBadge,
-                  {backgroundColor: getStatusColor(selectedTree?.lastHealthStatus)}
-                ]}>
-                  <Text style={styles.statusBadgeText}>
-                    {getStatusText(selectedTree?.lastHealthStatus)}
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              {/* Tree Info Section */}
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>📋 Tree Information</Text>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Health Status:</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    {backgroundColor: getStatusColor(selectedTree?.lastHealthStatus)}
+                  ]}>
+                    <Text style={styles.statusBadgeText}>
+                      {getStatusText(selectedTree?.lastHealthStatus)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Latitude:</Text>
+                  <Text style={styles.detailValue}>{selectedTree?.latitude?.toFixed(6) || 'N/A'}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Longitude:</Text>
+                  <Text style={styles.detailValue}>{selectedTree?.longitude?.toFixed(6) || 'N/A'}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>GPS Accuracy:</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedTree?.accuracy ? `${selectedTree.accuracy.toFixed(1)}m` : 'N/A'}
                   </Text>
                 </View>
-              </View>
 
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Latitude:</Text>
-                <Text style={styles.detailValue}>{selectedTree?.latitude.toFixed(6)}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Longitude:</Text>
-                <Text style={styles.detailValue}>{selectedTree?.longitude.toFixed(6)}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>GPS Accuracy:</Text>
-                <Text style={styles.detailValue}>
-                  {selectedTree?.accuracy ? `${selectedTree.accuracy.toFixed(1)}m` : 'N/A'}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Added On:</Text>
-                <Text style={styles.detailValue}>
-                  {selectedTree?.createdAt
-                    ? new Date(selectedTree.createdAt).toLocaleDateString()
-                    : 'N/A'}
-                </Text>
-              </View>
-
-              {selectedTree?.notes && (
-                <View style={styles.notesSection}>
-                  <Text style={styles.detailLabel}>Notes:</Text>
-                  <Text style={styles.notesText}>{selectedTree.notes}</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Added On:</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedTree?.createdAt
+                      ? new Date(selectedTree.createdAt).toLocaleDateString()
+                      : 'N/A'}
+                  </Text>
                 </View>
-              )}
+
+                {selectedTree?.notes && (
+                  <View style={styles.notesSection}>
+                    <Text style={styles.detailLabel}>Notes:</Text>
+                    <Text style={styles.notesText}>{selectedTree.notes}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Scan Results Section */}
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>📊 Latest Scan Results</Text>
+
+                <View style={styles.scanResultsGrid}>
+                  <View style={styles.scanResultCard}>
+                    <Text style={styles.scanResultIcon}>🥥</Text>
+                    <Text style={styles.scanResultValue}>
+                      {selectedTree?.nutCount ?? '-'}
+                    </Text>
+                    <Text style={styles.scanResultLabel}>Nuts</Text>
+                  </View>
+
+                  <View style={styles.scanResultCard}>
+                    <Text style={styles.scanResultIcon}>🌿</Text>
+                    <Text style={styles.scanResultValue}>
+                      {selectedTree?.bunchCount ?? '-'}
+                    </Text>
+                    <Text style={styles.scanResultLabel}>Bunches</Text>
+                  </View>
+
+                  <View style={styles.scanResultCard}>
+                    <Text style={styles.scanResultIcon}>🐛</Text>
+                    <Text style={styles.scanResultValue}>
+                      {selectedTree?.pestCount ?? '-'}
+                    </Text>
+                    <Text style={styles.scanResultLabel}>Pests</Text>
+                  </View>
+                </View>
+
+                {/* Detected Issues */}
+                {selectedTree?.detectedIssues?.length > 0 && (
+                  <View style={styles.issuesContainer}>
+                    <Text style={styles.issuesTitle}>⚠️ Detected Issues:</Text>
+                    {selectedTree.detectedIssues.map((issue, index) => (
+                      <View key={index} style={styles.issueItem}>
+                        <Text style={styles.issueBullet}>•</Text>
+                        <Text style={styles.issueText}>{issue}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {!selectedTree?.nutCount && !selectedTree?.bunchCount && !selectedTree?.detectedIssues?.length && (
+                  <Text style={styles.noScanText}>No scan results yet. Use scan options below.</Text>
+                )}
+              </View>
 
               {/* Health History */}
               {selectedTree?.healthHistory?.length > 0 && (
-                <View style={styles.historySection}>
-                  <Text style={styles.historySectionTitle}>Health History</Text>
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionTitle}>📅 Health History</Text>
                   {selectedTree.healthHistory.slice(-5).reverse().map((scan, index) => (
                     <View key={scan.id || index} style={styles.historyItem}>
                       <Text style={styles.historyDate}>
@@ -814,23 +929,34 @@ export default function PlantationMapScreen({navigation, route}) {
                   ))}
                 </View>
               )}
-            </ScrollView>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.scanButton}
-                onPress={handleScanTree}
-              >
-                <Text style={styles.scanButtonText}>🔬 Scan for Diseases</Text>
-              </TouchableOpacity>
+              {/* Scan Options Section */}
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>🔬 Scan Options</Text>
+                <View style={styles.scanOptionsGrid}>
+                  {scanOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[styles.scanOptionButton, { borderColor: option.color }]}
+                      onPress={() => handleScanTree(option.id)}
+                    >
+                      <Text style={styles.scanOptionIcon}>{option.icon}</Text>
+                      <Text style={styles.scanOptionLabel}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
+              {/* Delete Button */}
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={handleDeleteTree}
               >
                 <Text style={styles.deleteButtonText}>🗑️ Delete Tree</Text>
               </TouchableOpacity>
-            </View>
+
+              <View style={{height: 20}} />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1293,7 +1419,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '85%',
+    minHeight: '60%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1313,8 +1440,93 @@ const styles = StyleSheet.create({
     color: '#666',
     padding: 5,
   },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    padding: 15,
+    paddingBottom: 30,
+  },
   modalBody: {
     padding: 20,
+  },
+  infoSection: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+  },
+  infoSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  scanResultsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  scanResultCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  scanResultIcon: {
+    fontSize: 24,
+    marginBottom: 5,
+  },
+  scanResultValue: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+  },
+  scanResultLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  issuesContainer: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 10,
+  },
+  issuesTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#e65100',
+    marginBottom: 8,
+  },
+  issueItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  issueBullet: {
+    fontSize: 14,
+    color: '#e65100',
+    marginRight: 8,
+  },
+  issueText: {
+    fontSize: 13,
+    color: '#333',
+    flex: 1,
+  },
+  noScanText: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 10,
   },
   detailRow: {
     flexDirection: 'row',
@@ -1385,6 +1597,42 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     gap: 10,
+  },
+  scanSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  scanOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  scanOptionButton: {
+    width: '31%',
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  scanOptionIcon: {
+    fontSize: 24,
+    marginBottom: 5,
+  },
+  scanOptionLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
   },
   scanButton: {
     backgroundColor: '#2e7d32',

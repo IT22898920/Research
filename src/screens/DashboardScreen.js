@@ -102,6 +102,17 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
+          onPress={() => navigation.navigate('TreeHealth')}>
+          <Text style={styles.featureIcon}>🌴</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Tree Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Overall tree health analysis</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
           onPress={() => navigation.navigate('DiseaseDetection')}>
           <Text style={styles.featureIcon}>🍃</Text>
           <View style={styles.featureContent}>
@@ -118,6 +129,17 @@ export default function DashboardScreen({navigation, route}) {
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>{t('bunchDetection.title')}</Text>
             <Text style={styles.featureSubtext}>{t('bunchDetection.subtitle')}</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('YieldEstimator')}>
+          <Text style={styles.featureIcon}>📊</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Yield Estimator</Text>
+            <Text style={styles.featureSubtext}>Count nuts per tree</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>

@@ -411,6 +411,62 @@ export const detectLeafHealth = async (imageUri) => {
 };
 
 /**
+ * Detect Tree Health (healthy vs unhealthy)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - unhealthy_percentage: percentage indicating tree health issues
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ */
+export const detectTreeHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/tree-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'tree_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        unhealthyPercentage: data.unhealthy_percentage,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        label: data.label,
+        status: data.status,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Detect Branch Health (healthy vs unhealthy)
  *
  * Response includes:
@@ -558,6 +614,79 @@ export const detectBunches = async (imageUri1, imageUri2 = null) => {
   }
 };
 
+/**
+ * Estimate Coconut Yield by counting individual nuts
+ * Accepts 1 or 2 images from opposite sides of tree
+ *
+ * Response includes:
+ * - total_nut_count: Total nuts detected across all images
+ * - estimated_total: Estimated total considering tree coverage
+ * - yield_category: none, low, moderate, good, excellent
+ * - results: Per-image results with nut_count and detections
+ */
+export const detectYield = async (imageUri1, imageUri2 = null) => {
+  try {
+    const formData = new FormData();
+
+    // Add first image (required)
+    const filename1 = imageUri1.split('/').pop();
+    formData.append('image1', {
+      uri: imageUri1,
+      type: 'image/jpeg',
+      name: filename1 || 'image1.jpg',
+    });
+
+    // Add second image if provided (optional)
+    if (imageUri2) {
+      const filename2 = imageUri2.split('/').pop();
+      formData.append('image2', {
+        uri: imageUri2,
+        type: 'image/jpeg',
+        name: filename2 || 'image2.jpg',
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/predict/yield`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'yield',
+        totalNutCount: data.total_nut_count,
+        estimatedTotal: data.estimated_total,
+        estimationNote: data.estimation_note,
+        yieldCategory: data.yield_category,
+        averageConfidence: data.average_confidence,
+        imagesProcessed: data.images_processed,
+        results: data.results,
+        message: data.message,
+        recommendation: data.recommendation,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze images',
+    };
+  }
+};
+
 export default {
   checkApiHealth,
   getModelsInfo,
@@ -568,8 +697,10 @@ export default {
   detectDisease,
   detectLeafDieback,
   detectLeafHealth,
+  detectTreeHealth,
   detectBranchHealth,
   detectBunches,
+  detectYield,
   predictPest,
   PEST_TYPES,
   DISEASE_TYPES,

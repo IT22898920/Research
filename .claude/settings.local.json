@@ -180,7 +180,31 @@
       "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR shell pm list packages)",
       "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R5CWC0FNGHR shell pm list packages -3)",
       "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:5000 tcp:5000)",
-      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:5001 tcp:5001)"
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse tcp:5001 tcp:5001)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s R58R523YVXD reverse --list)",
+      "Bash(python -c:*)",
+      "Bash(python -m jupyter:*)",
+      "Bash(where:*)",
+      "Bash(start \"\" \"http://localhost:8889/lab?token=4facf267449d63757adc2ea68969070263fadd7dd50d9ec7\")",
+      "Bash(python train_mite_v11.py:*)",
+      "Bash(set PYTHONUNBUFFERED=1)",
+      "Bash(python -u train_mite_v11.py:*)",
+      "Bash(cmd /c \"adb devices\")",
+      "Bash(powershell -Command \"& ''C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe'' devices\")",
+      "Bash(powershell -Command \"taskkill /PID 28208 /F\")",
+      "Bash(powershell -Command \"netstat -ano | findstr 5037\")",
+      "Bash(powershell -Command \"Get-Process | Where-Object { $_ProcessName -like ''*adb*'' }\")",
+      "Bash(powershell -Command \"cd ''C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools''; .\\\\adb.exe devices\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 15; cd ''C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools''; .\\\\adb.exe devices\")",
+      "Bash(powershell -Command \"cd ''C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools''; .\\\\adb.exe reconnect offline; Start-Sleep -Seconds 5; .\\\\adb.exe devices\")",
+      "Bash(timeout 120 tail:*)",
+      "Bash(timeout 240 tail:*)",
+      "Bash(timeout 60 tail:*)",
+      "Bash(for f in helthy/*.jpeg)",
+      "Bash(do echo \"Testing: $f\")"
     ]
   }
 }
