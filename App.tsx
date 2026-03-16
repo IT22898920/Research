@@ -18,6 +18,7 @@ import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
 import LeafHealthScreen from './src/screens/LeafHealthScreen';
 import BranchHealthScreen from './src/screens/BranchHealthScreen';
+import TreeHealthScreen from './src/screens/TreeHealthScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
@@ -25,6 +26,7 @@ import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ScanDetailScreen from './src/screens/ScanDetailScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import DiseaseDetectionScreen from './src/screens/DiseaseDetectionScreen';
+import TreeHealthHistoryScreen from './src/screens/TreeHealthHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,13 +37,17 @@ function App(): React.JSX.Element {
   console.log('=== About to render SafeAreaProvider ===');
   useEffect(() => {
     // Initialize push notifications
-    initializeNotifications()
-      .then(token => {
-        if (token) {
-          console.log('Notifications initialized with token:', token.substring(0, 20) + '...');
-        }
-      })
-      .catch(err => console.log('Notification init error:', err));
+    // Wrapped in setTimeout to avoid blocking app startup
+    const timer = setTimeout(() => {
+      initializeNotifications()
+        .then(token => {
+          if (token) {
+            console.log('Notifications initialized with token:', token.substring(0, 20) + '...');
+          }
+        })
+        .catch(err => console.log('Notification init error:', err));
+    }, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
 
@@ -66,6 +72,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
             <Stack.Screen name="LeafHealth" component={LeafHealthScreen} />
             <Stack.Screen name="BranchHealth" component={BranchHealthScreen} />
+            <Stack.Screen name="TreeHealth" component={TreeHealthScreen} />
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />
@@ -73,6 +80,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Analytics" component={AnalyticsScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="DiseaseDetection" component={DiseaseDetectionScreen} />
+            <Stack.Screen name="TreeHealthHistory" component={TreeHealthHistoryScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

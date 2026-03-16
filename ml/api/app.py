@@ -119,12 +119,14 @@ DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 
 # Disease model class indices (alphabetical order from ImageDataGenerator)
 DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
-# Leaf Health model paths (v1 - 2-class)
-LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
-LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'model_info.json')
+# Leaf Health model paths (v4 - MobileNetV2, 95.00% accuracy on new dataset)
+LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v4', 'best_model.keras')
+LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v4', 'model_info.json')
 
 # Leaf Health v1 class indices
 LEAF_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
+# Leaf Health v4 uses MobileNetV2 preprocess_input (no temperature scaling needed)
 
 # Branch Health model paths (v1 - 2-class)
 BRANCH_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'best_model.keras')
@@ -132,6 +134,13 @@ BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_he
 
 # Branch Health v1 class indices
 BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
+
+# Tree Health model paths (v2 - EfficientNetB0, oversampled healthy class)
+TREE_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v2', 'best_model.keras')
+TREE_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v2', 'model_info.json')
+
+# Tree Health v1 class indices
+TREE_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
 # Global variables for models
 models = {}
@@ -147,6 +156,17 @@ def focal_loss(gamma=2.0, alpha=0.25):
         focal_loss = alpha * focal_weight * cross_entropy
         return tf.keras.backend.sum(focal_loss, axis=-1)
     return focal_loss_fn
+
+def apply_temperature_scaling(probs, temperature):
+    """
+    Apply temperature scaling to calibrate overconfident model predictions.
+    Formula: calibrated_p_i = p_i^(1/T) / sum(p_j^(1/T))
+    Higher T = less confident predictions (more realistic for real-world use).
+    """
+    epsilon = 1e-10
+    probs = np.clip(probs, epsilon, 1.0 - epsilon)
+    scaled = np.power(probs, 1.0 / temperature)
+    return scaled / np.sum(scaled)
 
 def load_models():
     """Load all trained models"""
@@ -252,30 +272,28 @@ def load_models():
         models['disease'] = None
         model_infos['disease'] = None
 
-    # Load Leaf Health Model (v1 - 2-class)
+    # Load Leaf Health Model (v4 - MobileNetV2, 95.00% accuracy on new dataset)
     try:
-        print("\n[4] Loading Leaf Health model (v1 - 2-class)...")
+        print("\n[4] Loading Leaf Health model (v4 - 2-class)...")
 
-        # Load model with custom focal loss
         models['leaf_health'] = tf.keras.models.load_model(
-            LEAF_HEALTH_MODEL_PATH,
-            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+            LEAF_HEALTH_MODEL_PATH
         )
 
-        # Try to load model info
         try:
             with open(LEAF_HEALTH_MODEL_INFO_PATH, 'r') as f:
                 model_infos['leaf_health'] = json.load(f)
         except:
             model_infos['leaf_health'] = {
-                'version': 'v1_2class',
+                'version': 'v4_2class',
                 'classes': LEAF_HEALTH_CLASSES,
-                'performance': {'test_accuracy': 0.9370}
+                'performance': {'test_accuracy': 0.9500, 'macro_f1': 0.9488}
             }
 
-        print(f"    Version: v1 (2-class, Focal Loss)")
+        print(f"    Version: v4 (2-class, MobileNetV2)")
         print(f"    Classes: {LEAF_HEALTH_CLASSES}")
-        print(f"    Accuracy: 93.70%")
+        print(f"    Accuracy: 95.00%")
+        print(f"    Macro F1: 94.88%")
         print("    Status: LOADED")
     except Exception as e:
         print(f"    ERROR loading leaf health model: {e}")
@@ -312,9 +330,38 @@ def load_models():
         models['branch_health'] = None
         model_infos['branch_health'] = None
 
+    # Load Tree Health Model (v2 - EfficientNetB0, oversampled healthy class)
+    try:
+        print("\n[6] Loading Tree Health model (v2 - 2-class)...")
+
+        models['tree_health'] = tf.keras.models.load_model(
+            TREE_HEALTH_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=3.0, alpha=0.25)}
+        )
+
+        try:
+            with open(TREE_HEALTH_MODEL_INFO_PATH, 'r') as f:
+                model_infos['tree_health'] = json.load(f)
+        except:
+            model_infos['tree_health'] = {
+                'version': 'v2_2class',
+                'classes': TREE_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 1.0, 'macro_f1': 1.0}
+            }
+
+        print(f"    Version: v2 (2-class, EfficientNetB0, Focal Loss + Oversampling)")
+        print(f"    Classes: {TREE_HEALTH_CLASSES}")
+        print(f"    Accuracy: 100%")
+        print(f"    Macro F1: 100%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading tree health model: {e}")
+        models['tree_health'] = None
+        model_infos['tree_health'] = None
+
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/5")
+    print(f"  Models loaded: {loaded_count}/6")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -380,13 +427,18 @@ def home():
             },
             'leaf_health': {
                 'status': 'loaded' if models.get('leaf_health') is not None else 'not loaded',
-                'version': 'v1 (2-class: healthy, unhealthy)',
-                'accuracy': '93.70%'
+                'version': 'v4 (MobileNetV2, 2-class: healthy, unhealthy)',
+                'accuracy': '95.00%'
             },
             'branch_health': {
                 'status': 'loaded' if models.get('branch_health') is not None else 'not loaded',
                 'version': 'v1 (2-class: healthy, unhealthy)',
                 'accuracy': '99.63%'
+            },
+            'tree_health': {
+                'status': 'loaded' if models.get('tree_health') is not None else 'not loaded',
+                'version': 'v2 (EfficientNetB0, oversampled healthy class)',
+                'accuracy': '100%'
             }
         },
         'endpoints': {
@@ -400,6 +452,7 @@ def home():
             '/predict/disease': 'POST - Detect leaf diseases (Leaf Rot, Leaf Spot)',
             '/predict/leaf-health': 'POST - Detect leaf health (healthy vs unhealthy/yellowing)',
             '/predict/branch-health': 'POST - Detect branch health (healthy vs unhealthy)',
+            '/predict/tree-health': 'POST - Detect tree health (healthy vs unhealthy)',
             '/predict/all': 'POST - Run all pest detection with smart combined logic'
         }
     })
@@ -414,7 +467,8 @@ def health_check():
             'unified': models.get('unified') is not None,
             'disease': models.get('disease') is not None,
             'leaf_health': models.get('leaf_health') is not None,
-            'branch_health': models.get('branch_health') is not None
+            'branch_health': models.get('branch_health') is not None,
+            'tree_health': models.get('tree_health') is not None
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -460,10 +514,10 @@ def list_models():
     if model_infos.get('leaf_health'):
         result['leaf_health'] = {
             'name': 'Coconut Leaf Health Detection Model',
-            'version': 'v1 (2-class, Focal Loss)',
+            'version': 'v4 (2-class, MobileNetV2)',
             'classes': LEAF_HEALTH_CLASSES,
-            'accuracy': 0.9370,
-            'macro_f1': 0.9324,
+            'accuracy': 0.9500,
+            'macro_f1': 0.9488,
             'loaded': models.get('leaf_health') is not None
         }
 
@@ -474,6 +528,16 @@ def list_models():
             'classes': BRANCH_HEALTH_CLASSES,
             'accuracy': 0.9963,
             'loaded': models.get('branch_health') is not None
+        }
+
+    if model_infos.get('tree_health'):
+        result['tree_health'] = {
+            'name': 'Coconut Tree Health Detection Model',
+            'version': 'v2 (2-class, EfficientNetB0, Focal Loss + Oversampling)',
+            'classes': TREE_HEALTH_CLASSES,
+            'accuracy': 1.0,
+            'macro_f1': 1.0,
+            'loaded': models.get('tree_health') is not None
         }
 
     return jsonify(result)
@@ -1097,17 +1161,40 @@ def predict_leaf_health():
         image_file = request.files['image']
         image_bytes = image_file.read()
 
-        # Preprocess image (same as mite model - 224x224, 0-1 scaling)
+        # Preprocess image for MobileNetV2 (v4): resize + preprocess_input -> [-1, 1]
         img = Image.open(io.BytesIO(image_bytes))
         if img.mode != 'RGB':
             img = img.convert('RGB')
         img = img.resize((224, 224), Image.Resampling.LANCZOS)
         img_array = np.array(img, dtype=np.float32)
-        img_array = img_array / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
 
-        # Make prediction
-        predictions = models['leaf_health'].predict(img_array, verbose=0)
+        # ── Color Health Score (HSV-based green pixel ratio) ──────────────────
+        img_norm = img_array / 255.0
+        r, g, b = img_norm[..., 0], img_norm[..., 1], img_norm[..., 2]
+        cmax = np.maximum(np.maximum(r, g), b)
+        cmin = np.minimum(np.minimum(r, g), b)
+        delta = cmax - cmin
+        # Hue (0-180 OpenCV scale)
+        h = np.zeros_like(r)
+        m = delta > 0
+        mr = m & (cmax == r); mg = m & (cmax == g); mb = m & (cmax == b)
+        h[mr] = 60 * (((g[mr] - b[mr]) / delta[mr]) % 6)
+        h[mg] = 60 * ((b[mg] - r[mg]) / delta[mg] + 2)
+        h[mb] = 60 * ((r[mb] - g[mb]) / delta[mb] + 4)
+        h = h / 2.0  # 0-180
+        s = np.where(cmax > 0, delta / cmax, 0) * 255
+        sat_mask = s > 40
+        green_mask = sat_mask & (h >= 35) & (h <= 85)
+        brown_mask = sat_mask & ((h < 20) | (h > 160)) & (r > 0.3)  # reddish-brown hues
+        total_sat = np.sum(sat_mask)
+        green_ratio = float(np.sum(green_mask) / total_sat) * 100 if total_sat > 0 else 0
+        brown_ratio = float(np.sum(brown_mask) / total_sat) * 100 if total_sat > 0 else 0
+
+        # ── Model Prediction (MobileNetV2 preprocess_input: [0,255] -> [-1,1]) ─
+        img_mobilenet = img_array.copy()
+        img_mobilenet = (img_mobilenet / 127.5) - 1.0   # preprocess_input equivalent
+        img_input = np.expand_dims(img_mobilenet, axis=0)
+        predictions = models['leaf_health'].predict(img_input, verbose=0)
 
         # Get class probabilities
         healthy_prob = float(predictions[0][0])
@@ -1117,6 +1204,17 @@ def predict_leaf_health():
         predicted_class_idx = np.argmax(predictions[0])
         predicted_class = LEAF_HEALTH_CLASSES[predicted_class_idx]
         confidence = float(np.max(predictions[0]))
+
+        # ── Color Override: brown/dried leaves the model may miss ─────────────
+        # If green pixels very low AND brown/orange pixels dominant → force unhealthy
+        color_override = False
+        if predicted_class == 'healthy' and green_ratio < 15.0 and brown_ratio > 20.0:
+            predicted_class = 'unhealthy'
+            confidence = max(0.82, brown_ratio / 100.0)
+            healthy_prob = 1.0 - confidence
+            unhealthy_prob = confidence
+            color_override = True
+            print(f"[LeafHealth] Color override: green={green_ratio:.1f}% brown={brown_ratio:.1f}% -> unhealthy")
 
         # Prepare response
         result = {
@@ -1131,9 +1229,11 @@ def predict_leaf_health():
             'message': get_leaf_health_message(predicted_class, confidence),
             'recommendation': get_leaf_health_recommendation(predicted_class),
             'model_info': {
-                'version': 'v1',
+                'version': 'v4',
                 'classes': LEAF_HEALTH_CLASSES,
-                'accuracy': '93.70%'
+                'accuracy': '95.00%',
+                'macro_f1': '94.88%',
+                'color_override': color_override
             },
             'timestamp': datetime.now().isoformat()
         }
@@ -1378,6 +1478,714 @@ def predict_branch_health():
             'error': str(e)
         }), 500
 
+# Tree Health Detection Endpoint
+def get_tree_health_meditations(unhealthy_percentage):
+    """
+    Returns severity-based meditations and solutions for unhealthy coconut trees.
+    Severity is determined by the unhealthy_percentage from the model.
+    """
+    if unhealthy_percentage <= 30:
+        severity = "Mild"
+        urgency = "Low"
+        urgency_color = "#FFC107"
+        severity_description = "Early signs of stress detected. The tree is showing minor health issues that can be managed with timely intervention."
+        possible_conditions = [
+            {
+                "name": "Early Nutrient Deficiency",
+                "icon": "🌿",
+                "reason": "Low availability of Nitrogen, Potassium, or Magnesium in the soil disrupts chlorophyll production and overall tree metabolism.",
+                "symptoms": [
+                    "Slight yellowing on older or lower leaves",
+                    "Pale green or dull leaf color",
+                    "Marginally reduced new growth"
+                ],
+                "solution": "Apply a balanced NPK fertilizer (14-14-14) at 500g per tree. Re-test soil pH (ideal: 5.5–7.0) and correct with lime or sulfur as needed.",
+                "urgency": "low"
+            },
+            {
+                "name": "Minor Pest Activity",
+                "icon": "🐛",
+                "reason": "Low populations of coconut mites, white flies, or caterpillars begin feeding on leaf surfaces, causing early stress.",
+                "symptoms": [
+                    "Small brown or silvery spots on leaf surfaces",
+                    "Minor leaf edge damage or curling",
+                    "Tiny insects visible on leaf undersides"
+                ],
+                "solution": "Spray neem oil solution (2ml/L water) on affected leaves. Inspect weekly and apply systemic insecticide if population grows.",
+                "urgency": "low"
+            },
+            {
+                "name": "Mild Water Stress",
+                "icon": "💧",
+                "reason": "Inconsistent watering or slight drought conditions reduce the tree's ability to absorb nutrients and maintain healthy growth.",
+                "symptoms": [
+                    "Slightly drooping or limp fronds",
+                    "Dry soil around the root zone",
+                    "Leaf tips beginning to brown"
+                ],
+                "solution": "Water the tree deeply every 7–10 days. Apply a 10cm layer of mulch around the base to retain soil moisture.",
+                "urgency": "low"
+            },
+            {
+                "name": "Environmental Stress",
+                "icon": "🌤️",
+                "reason": "Sudden weather changes, strong winds, or prolonged sun exposure can temporarily stress the tree and affect leaf appearance.",
+                "symptoms": [
+                    "Mild leaf discoloration or sunburn patches",
+                    "Wind-damaged frond edges",
+                    "Temporary wilting during hot periods"
+                ],
+                "solution": "No chemical treatment needed. Ensure adequate irrigation during heat waves. Protect young trees from strong winds using windbreaks.",
+                "urgency": "low"
+            }
+        ]
+        immediate_actions = [
+            "Visually inspect leaves and trunk for any visible pests or discoloration",
+            "Check soil moisture — ensure it's neither too dry nor waterlogged",
+            "Review recent fertilizer application schedule"
+        ]
+        treatment_steps = [
+            {
+                "step": 1,
+                "title": "Soil Inspection",
+                "detail": "Test soil pH (ideal: 5.5–7.0). Apply balanced NPK fertilizer (14-14-14) at 500g per tree if deficiency is suspected."
+            },
+            {
+                "step": 2,
+                "title": "Pest Monitoring",
+                "detail": "Check undersides of leaves for mites or white flies. Apply neem oil spray (2ml/L water) as a preventive measure."
+            },
+            {
+                "step": 3,
+                "title": "Watering Adjustment",
+                "detail": "Water the tree deeply once every 7–10 days. Ensure good drainage to avoid root waterlogging."
+            },
+            {
+                "step": 4,
+                "title": "Follow-up Monitoring",
+                "detail": "Re-inspect the tree after 2 weeks to check if the condition has improved."
+            }
+        ]
+        preventive_measures = [
+            "Apply mulch (10cm layer) around the base to retain moisture",
+            "Maintain regular fertilization schedule (every 3 months)",
+            "Keep weeds cleared around the tree base"
+        ]
+
+    elif unhealthy_percentage <= 60:
+        severity = "Moderate"
+        urgency = "Medium"
+        urgency_color = "#FF9800"
+        severity_description = "Significant health issues detected. The tree requires attention within the next few days to prevent further deterioration."
+        possible_conditions = [
+            {
+                "name": "Nutrient Deficiency",
+                "icon": "🌿",
+                "reason": "Prolonged shortage of Nitrogen, Potassium, or Magnesium weakens the tree, reducing its ability to produce healthy fronds and coconuts.",
+                "symptoms": [
+                    "Visible yellowing or browning of leaves",
+                    "Stunted or slow new frond growth",
+                    "Orange tints on mid-canopy leaves"
+                ],
+                "solution": "Apply high-potassium fertilizer (MOP 0-0-60) at 1kg/tree + magnesium sulphate 200g/tree. Follow up with foliar micronutrient spray (Zinc, Boron) monthly.",
+                "urgency": "medium"
+            },
+            {
+                "name": "Pest Infestation",
+                "icon": "🐛",
+                "reason": "Moderate populations of coconut mites, caterpillars, or white flies are actively feeding on leaves and sap, causing structural damage.",
+                "symptoms": [
+                    "Visible chewed leaf edges or holes",
+                    "White/silvery patches on fronds",
+                    "Presence of pest colonies on leaf undersides"
+                ],
+                "solution": "Apply systemic insecticide (Imidacloprid 17.8% SL at 0.5ml/L) by foliar spray. Repeat after 14 days. Install yellow sticky traps to monitor population.",
+                "urgency": "medium"
+            },
+            {
+                "name": "Fungal or Bacterial Infection",
+                "icon": "🍄",
+                "reason": "Humid conditions or physical damage allow fungal pathogens (Phytophthora, Colletotrichum) or bacteria to enter and infect foliage or trunk tissue.",
+                "symptoms": [
+                    "Brown or black spots on leaf surfaces",
+                    "Rotting smell from the crown area",
+                    "Wilting or collapse of young fronds"
+                ],
+                "solution": "Spray Copper Oxychloride (3g/L water) on affected areas. For crown symptoms, pour Bordeaux mixture (1%) into the crown. Repeat every 10 days for 3 applications.",
+                "urgency": "medium"
+            },
+            {
+                "name": "Root Stress",
+                "icon": "🌱",
+                "reason": "Waterlogging, soil compaction, or root disease reduces oxygen availability and blocks nutrient uptake, causing visible wilting and decline.",
+                "symptoms": [
+                    "General wilting despite adequate rainfall",
+                    "Yellowing starting from lower fronds upward",
+                    "Soggy or waterlogged soil at the base"
+                ],
+                "solution": "Improve drainage by creating trenches around the root zone. Drench with Trichoderma viride (10g/L water) to combat root pathogens and promote root recovery.",
+                "urgency": "high"
+            }
+        ]
+        immediate_actions = [
+            "Closely examine the entire tree — trunk, leaves, and root base",
+            "Identify visible pest colonies or fungal spots immediately",
+            "Stop any waterlogging by improving drainage around the tree",
+            "Isolate affected fronds to prevent disease spread if possible"
+        ]
+        treatment_steps = [
+            {
+                "step": 1,
+                "title": "Pest Control Treatment",
+                "detail": "Apply systemic insecticide (Imidacloprid 17.8% SL at 0.5ml/L water) by soil drenching or foliar spray. Repeat after 14 days."
+            },
+            {
+                "step": 2,
+                "title": "Fungicide Application",
+                "detail": "Spray Copper Oxychloride (3g/L water) on affected areas. For bud rot, pour Bordeaux mixture (1%) into the crown."
+            },
+            {
+                "step": 3,
+                "title": "Fertilizer Boost",
+                "detail": "Apply a high-potassium fertilizer (0-0-60 MOP) at 1kg per tree to strengthen tree immunity. Follow with magnesium sulphate (200g/tree)."
+            },
+            {
+                "step": 4,
+                "title": "Root Treatment",
+                "detail": "Mix Trichoderma viride (10g/L water) and drench around the root zone to combat root diseases and promote recovery."
+            },
+            {
+                "step": 5,
+                "title": "Reassessment",
+                "detail": "Monitor progress after 1 week. If condition persists or worsens, escalate to severe treatment protocol."
+            }
+        ]
+        preventive_measures = [
+            "Install yellow sticky traps to monitor and reduce white fly population",
+            "Apply neem cake (500g/tree) to the soil every 3 months as pest deterrent",
+            "Ensure proper spacing between trees for good air circulation",
+            "Avoid over-irrigation — use drip irrigation if available"
+        ]
+
+    elif unhealthy_percentage <= 80:
+        severity = "Severe"
+        urgency = "High"
+        urgency_color = "#F44336"
+        severity_description = "Serious condition detected. Immediate treatment is required to save the tree. Delay may lead to irreversible damage."
+        possible_conditions = [
+            {
+                "name": "Advanced Pest Infestation",
+                "icon": "🐛",
+                "reason": "Heavy infestations of rhinoceros beetles, coconut mites, or red palm weevils bore into and feed on trunk and crown tissue, causing extensive structural damage.",
+                "symptoms": [
+                    "Large entry holes in the trunk or crown",
+                    "Fronds cut or chewed at the base",
+                    "Sawdust-like frass around trunk entry points",
+                    "Extensive browning or collapse of multiple fronds"
+                ],
+                "solution": "Inject Imidacloprid solution (1ml in 4ml water) into trunk entry holes and seal with mud. Apply Metarhizium anisopliae bio-pesticide to soil. Install pheromone traps for rhinoceros beetle monitoring.",
+                "urgency": "high"
+            },
+            {
+                "name": "Bud Rot Disease",
+                "icon": "🍄",
+                "reason": "Phytophthora palmivora fungal infection attacks the growing bud (heart) of the coconut palm, rapidly decaying the crown and preventing new growth.",
+                "symptoms": [
+                    "Foul smell from the crown area",
+                    "Soft, water-soaked crown base when pressed",
+                    "Young spear leaf turning brown and collapsing",
+                    "Crown fronds wilting and falling together"
+                ],
+                "solution": "Pour Metalaxyl + Mancozeb solution (3g/L) into the crown. Remove rotting tissue with a sterilized knife. Apply Bordeaux paste on all cut surfaces. Repeat every 2 weeks.",
+                "urgency": "high"
+            },
+            {
+                "name": "Stem Bleeding",
+                "icon": "🩸",
+                "reason": "Bacterial infection (Erwinia or Thielaviopsis) causes internal trunk decay, resulting in reddish-brown sap oozing from cracks in the bark.",
+                "symptoms": [
+                    "Reddish-brown or dark liquid oozing from trunk",
+                    "Soft, spongy areas on the trunk surface",
+                    "Foul fermentation smell from affected trunk areas",
+                    "Bark cracking or peeling around the oozing zone"
+                ],
+                "solution": "Chisel out decayed trunk tissue completely. Disinfect with Bordeaux paste or copper-based fungicide. Inject Fosetyl Aluminum (Aliette 3g/L) into the soil root zone. Monitor weekly.",
+                "urgency": "high"
+            },
+            {
+                "name": "Severe Nutrient Depletion",
+                "icon": "⚠️",
+                "reason": "Long-term neglect of fertilization causes critical multi-nutrient deficiency, starving the tree of essential elements needed for growth and defense.",
+                "symptoms": [
+                    "Widespread yellowing and browning of most fronds",
+                    "Dramatically reduced or no new frond production",
+                    "Very small or no coconut development",
+                    "Thin, pale trunk with sparse canopy"
+                ],
+                "solution": "Apply 2kg NPK (12-12-17-2) + 1kg Muriate of Potash + 500g Magnesium Sulphate per tree. Split into 2 applications 1 month apart. Follow with foliar micronutrient spray (Zinc, Boron, Iron) every 3 weeks.",
+                "urgency": "high"
+            }
+        ]
+        immediate_actions = [
+            "IMMEDIATELY inspect the tree crown for bud rot (foul smell, soft crown base)",
+            "Check trunk for weevil entry holes or bleeding sap",
+            "Remove and burn all severely infected fronds away from the plantation",
+            "Isolate the tree from adjacent trees to prevent disease spread",
+            "Contact an agricultural officer or expert as soon as possible"
+        ]
+        treatment_steps = [
+            {
+                "step": 1,
+                "title": "Emergency Crown Treatment",
+                "detail": "Pour Metalaxyl + Mancozeb solution (3g/L) into the crown. Remove rotting tissues with a sterilized knife. Apply Bordeaux paste on cut surfaces."
+            },
+            {
+                "step": 2,
+                "title": "Trunk Injection",
+                "detail": "Inject Imidacloprid solution (1ml in 4ml water) into trunk holes to combat internal pests. Seal holes with mud after injection."
+            },
+            {
+                "step": 3,
+                "title": "Intensive Fertilization",
+                "detail": "Apply 2kg NPK (12-12-17-2) + 1kg Muriate of Potash + 500g Magnesium Sulphate per tree. Split into 2 applications 1 month apart."
+            },
+            {
+                "step": 4,
+                "title": "Soil Drench Treatment",
+                "detail": "Drench root zone with Fosetyl Aluminum (Aliette 3g/L) to combat root and soil-borne pathogens. Apply 5L per tree."
+            },
+            {
+                "step": 5,
+                "title": "Weekly Monitoring",
+                "detail": "Inspect the tree every week. Document any changes. If no improvement after 3 weeks, consider expert consultation for possible removal."
+            }
+        ]
+        preventive_measures = [
+            "Install pheromone traps for rhinoceros beetle monitoring",
+            "Apply Metarhizium anisopliae (bio-pesticide) to soil around root zone",
+            "Remove all dead organic matter around the tree immediately",
+            "Increase monitoring frequency to twice weekly for adjacent trees"
+        ]
+
+    else:
+        severity = "Critical"
+        urgency = "Emergency"
+        urgency_color = "#B71C1C"
+        severity_description = "CRITICAL condition detected. The tree is at high risk of death. Emergency intervention is required immediately."
+        possible_conditions = [
+            {
+                "name": "Fatal Crown Rot",
+                "icon": "💀",
+                "reason": "Advanced Phytophthora bud rot has completely destroyed the growing point (apical meristem). Without a functional growing tip, the tree cannot produce new growth.",
+                "symptoms": [
+                    "All young fronds collapsed and rotted",
+                    "Crown emitting strong foul odor",
+                    "No new spear leaf visible",
+                    "Crown base completely soft and black when touched"
+                ],
+                "solution": "Emergency: bring agricultural officer within 24 hours. Excavate all rotted crown tissue, disinfect with formalin (2%), apply copper-based fungicide paste. Recovery chance is low — prepare for possible removal.",
+                "urgency": "high"
+            },
+            {
+                "name": "Red Palm Weevil",
+                "icon": "🪲",
+                "reason": "Rhynchophorus ferrugineus larvae bore through and consume the internal trunk tissue, destroying vascular bundles essential for water and nutrient transport.",
+                "symptoms": [
+                    "Squeaking or rustling sounds from inside the trunk",
+                    "Multiple large entry holes with fermented sap",
+                    "Trunk feels hollow when tapped",
+                    "Wilting of entire crown despite no obvious external cause"
+                ],
+                "solution": "Inject Emamectin Benzoate (0.4g in 4ml water) at 1m intervals along the trunk. Install pheromone traps. If damage exceeds 60% of trunk internally, tree removal may be required to protect the plantation.",
+                "urgency": "high"
+            },
+            {
+                "name": "Root System Collapse",
+                "icon": "🌱",
+                "reason": "Severe Ganoderma or Pythium root disease, or prolonged waterlogging, has destroyed the majority of the root system, cutting off all nutrient and water supply to the tree.",
+                "symptoms": [
+                    "Tree leaning or unstable despite no wind",
+                    "Mushroom-like growth (Ganoderma conk) at trunk base",
+                    "Entire crown wilting uniformly",
+                    "Roots pulling out easily when dug up"
+                ],
+                "solution": "No curative treatment available for advanced Ganoderma. Remove the tree immediately. Sterilize soil with lime (2kg/m²) and leave fallow for 6 months before replanting with resistant varieties.",
+                "urgency": "high"
+            },
+            {
+                "name": "Multiple Disease Complex",
+                "icon": "⛔",
+                "reason": "Simultaneous infestation by multiple pests AND pathogens has overwhelmed the tree's immune defenses, causing rapid and widespread breakdown of all systems.",
+                "symptoms": [
+                    "Simultaneous symptoms from multiple disease types",
+                    "Rapid decline with no response to treatment",
+                    "Almost all fronds affected with different damage patterns",
+                    "Tree shows no new healthy growth for several months"
+                ],
+                "solution": "Contact Sri Lanka Coconut Research Institute (CRI) immediately for expert assessment. Apply broad-spectrum treatment (systemic insecticide + fungicide + fertilizer) while awaiting expert. Isolate tree from neighbors.",
+                "urgency": "high"
+            }
+        ]
+        immediate_actions = [
+            "EMERGENCY: Contact an agricultural expert or plant pathologist immediately",
+            "Do NOT delay — within 24–48 hours the condition may become irreversible",
+            "Isolate the tree completely to protect neighboring trees",
+            "Remove all fallen leaves and debris around the tree — burn or bury them",
+            "Photograph all symptoms for expert diagnosis assistance"
+        ]
+        treatment_steps = [
+            {
+                "step": 1,
+                "title": "Expert Assessment",
+                "detail": "Bring a certified agricultural officer to assess whether the tree can be saved. In many critical cases, removal is the only option to protect other trees."
+            },
+            {
+                "step": 2,
+                "title": "Emergency Chemical Treatment",
+                "detail": "Inject Emamectin Benzoate (0.4g in 4ml water) directly into the trunk at 1m intervals. Apply Phosphorous Acid (Fosetyl-Al) soil drench immediately."
+            },
+            {
+                "step": 3,
+                "title": "Crown Excavation",
+                "detail": "If crown rot is present, carefully excavate all rotted tissue, disinfect with formalin (2%), and apply protective copper-based fungicide paste."
+            },
+            {
+                "step": 4,
+                "title": "Intensive Care Protocol",
+                "detail": "Daily monitoring for 2 weeks. Apply foliar micronutrient spray (Zinc, Boron, Iron) weekly to support any remaining healthy tissue."
+            },
+            {
+                "step": 5,
+                "title": "Removal Decision",
+                "detail": "If no improvement after 3 weeks of intensive treatment, remove the tree immediately. Sterilize the soil with lime (2kg/m²) before replanting."
+            }
+        ]
+        preventive_measures = [
+            "Replant with certified disease-resistant coconut seedlings after soil treatment",
+            "Implement plantation-wide pest surveillance program",
+            "Establish buffer zone of 10m around the affected area",
+            "Consult with Sri Lanka Coconut Research Institute (CRI) for region-specific advice"
+        ]
+
+    return {
+        "severity": severity,
+        "urgency": urgency,
+        "urgency_color": urgency_color,
+        "severity_description": severity_description,
+        "possible_conditions": possible_conditions,
+        "immediate_actions": immediate_actions,
+        "treatment_steps": treatment_steps,
+        "preventive_measures": preventive_measures
+    }
+
+
+# ==== Tree Health Visual Analysis ====
+
+TREE_VISUAL_CONDITIONS = {
+    'sparse_crown': {
+        'name': 'Sparse Crown / Few Fronds',
+        'icon': '🌴',
+        'reason': 'The tree crown appears to have fewer fronds than a healthy coconut palm. A healthy tree should carry 25–30 live fronds at all times. Sparse fronds drastically reduce photosynthesis, weakening the tree and lowering coconut yield.',
+        'symptoms': [
+            'Crown looks thin or patchy when viewed from a distance',
+            'Sky or background visible through wide gaps between fronds',
+            'Less shade cast under the tree than a healthy coconut palm'
+        ],
+        'solution': 'Inspect the crown for rhinoceros beetle entry holes or bud rot symptoms. Apply NPK fertilizer (12-12-17) at 1kg per tree and water regularly (50–100L/week) to stimulate new frond growth.',
+        'urgency': 'high'
+    },
+    'yellowing_fronds': {
+        'name': 'Yellowing or Pale Fronds',
+        'icon': '🍂',
+        'reason': 'Fronds turning yellow or pale indicate Nitrogen or Potassium deficiency, or water stress. Yellow fronds cannot photosynthesize effectively, slowing tree growth and nut development.',
+        'symptoms': [
+            'Fronds showing yellow or pale green coloration',
+            'Yellowing starting from older lower fronds and progressing upward',
+            'Leaves look washed-out or dull rather than vibrant green'
+        ],
+        'solution': 'Apply urea (46-0-0) at 200g per tree for Nitrogen, or muriate of potash (60% KCl) at 250g per tree for Potassium. Water the tree 50–100L per week. Spray magnesium sulphate (20g/L water) as foliar feed monthly.',
+        'urgency': 'medium'
+    },
+    'dead_fronds': {
+        'name': 'Dead or Browning Fronds',
+        'icon': '🍁',
+        'reason': 'Brown or dead fronds still attached to the tree indicate frond death from disease, severe pest damage, or prolonged stress. Dead fronds harbour pests and fungal spores that can spread to healthy fronds.',
+        'symptoms': [
+            'Brown or blackened fronds hanging on the tree',
+            'Dead fronds not naturally shedding as healthy fronds do',
+            'Browning progressing from frond tips inward toward the midrib'
+        ],
+        'solution': 'Prune all dead fronds with a sterilized cutting tool. Apply Bordeaux paste or copper fungicide on all cut surfaces. Spray Copper Oxychloride (3g/L) on remaining fronds to prevent fungal spread.',
+        'urgency': 'medium'
+    },
+    'crown_damage': {
+        'name': 'Crown Damage or Distortion',
+        'icon': '🌪️',
+        'reason': 'The crown appears abnormally dark, asymmetric, or structurally damaged — likely from pest boring, mechanical damage, or disease affecting the growing point of the tree.',
+        'symptoms': [
+            'Crown appears lopsided or asymmetric when viewed from the side',
+            'Abnormal dark patches or discoloration visible in the crown area',
+            'Fronds growing in unusual directions or collapsing inward'
+        ],
+        'solution': 'Inspect the crown closely for rhinoceros beetle holes or bud rot (soft crown base, foul smell). Pour Metalaxyl + Mancozeb (3g/L) into the crown as a precaution. Consult an agricultural officer if symptoms persist.',
+        'urgency': 'high'
+    },
+    'general_decline': {
+        'name': 'General Tree Decline',
+        'icon': '⚠️',
+        'reason': 'The tree shows overall health decline without a single dominant visual cause — likely from combined stressors including nutrient depletion, inconsistent watering, or early-stage disease.',
+        'symptoms': [
+            'Overall dull or unhealthy appearance compared to healthy palms',
+            'Reduced vigor with slow or no new frond production',
+            'Tree appears stressed without a clearly dominant visible cause'
+        ],
+        'solution': 'Apply balanced NPK fertilizer (14-14-14) at 500g per tree. Water regularly (50–100L per week). Inspect crown, trunk, and root zone thoroughly. Consult an agricultural expert if no improvement within 4 weeks.',
+        'urgency': 'medium'
+    }
+}
+
+
+def analyze_tree_visual_reasons(img_array):
+    """
+    Analyzes color distribution in the tree image to detect visual health indicators.
+    img_array: numpy array of shape (1, 224, 224, 3), values 0-1
+    Returns: list of condition keys (max 3) from TREE_VISUAL_CONDITIONS
+    """
+    img = img_array[0]  # Shape: (224, 224, 3)
+
+    # Upper 55% of image = crown/frond area
+    crown = img[:123, :, :]
+    r = crown[:, :, 0]
+    g = crown[:, :, 1]
+    b = crown[:, :, 2]
+
+    # Healthy green fronds: green channel dominates
+    green_mask = (g > r + 0.04) & (g > b + 0.04) & (g > 0.18)
+    # Yellowing fronds: warm pale tones — high R, medium G, low B
+    yellow_mask = (r > 0.42) & (g > 0.34) & (b < 0.28) & ~green_mask
+    # Dead/brown fronds: brownish — medium-high R, low G, low B
+    brown_mask = (r > 0.28) & (g < 0.28) & (b < 0.22) & ~green_mask
+    # Sky visible through sparse crown: blue dominant, fairly bright
+    sky_mask = (b > r + 0.06) & (b > g + 0.06) & (b > 0.38)
+    # Dark areas suggesting crown damage or abnormality
+    dark_mask = (r < 0.18) & (g < 0.18) & (b < 0.18)
+
+    green_ratio = float(np.mean(green_mask))
+    yellow_ratio = float(np.mean(yellow_mask))
+    brown_ratio = float(np.mean(brown_mask))
+    sky_ratio = float(np.mean(sky_mask))
+    dark_ratio = float(np.mean(dark_mask))
+
+    detected = []
+
+    # Sparse crown: too much sky visible OR very low green coverage
+    if sky_ratio > 0.16 or green_ratio < 0.10:
+        detected.append('sparse_crown')
+
+    # Yellowing: significant yellow/pale tones in crown area
+    if yellow_ratio > 0.09:
+        detected.append('yellowing_fronds')
+
+    # Dead fronds: significant brown tones in crown area
+    if brown_ratio > 0.09:
+        detected.append('dead_fronds')
+
+    # Crown damage: high dark ratio suggesting structural abnormality
+    if dark_ratio > 0.28 and 'sparse_crown' not in detected:
+        detected.append('crown_damage')
+
+    # Fallback if nothing specific detected
+    if not detected:
+        if green_ratio < 0.22:
+            detected.append('sparse_crown')
+        else:
+            detected.append('general_decline')
+
+    return detected[:1]
+
+
+def build_tree_health_analysis(visual_reasons, confidence):
+    """
+    Builds the complete health analysis info from detected visual reasons.
+    """
+    conditions = [TREE_VISUAL_CONDITIONS[r] for r in visual_reasons if r in TREE_VISUAL_CONDITIONS]
+
+    urgencies = [c['urgency'] for c in conditions]
+    if 'high' in urgencies:
+        urgency = 'High'
+        urgency_color = '#F44336'
+    elif 'medium' in urgencies:
+        urgency = 'Medium'
+        urgency_color = '#FF9800'
+    else:
+        urgency = 'Low'
+        urgency_color = '#FFC107'
+
+    condition_names = ' and '.join([c['name'] for c in conditions])
+    severity_description = (
+        f"Visual analysis identified {len(conditions)} health concern(s): {condition_names}. "
+        f"Address these issues promptly to prevent further decline."
+    )
+
+    immediate_actions = []
+    if 'sparse_crown' in visual_reasons:
+        immediate_actions.append("Closely inspect the crown for beetle entry holes or soft/rotting areas")
+    if 'yellowing_fronds' in visual_reasons:
+        immediate_actions.append("Check soil moisture — yellowing is linked to water stress or nutrient deficiency")
+    if 'dead_fronds' in visual_reasons:
+        immediate_actions.append("Prune all dead fronds immediately using a sterilized cutting tool")
+    if 'crown_damage' in visual_reasons:
+        immediate_actions.append("Inspect crown closely for pest boring, bud rot smell, or mechanical damage")
+    if 'general_decline' in visual_reasons:
+        immediate_actions.append("Conduct a full tree inspection — check trunk, crown, and root zone")
+    immediate_actions.append("Apply balanced NPK fertilizer if last application was more than 3 months ago")
+    immediate_actions.append("Ensure the tree receives adequate water (50–100 liters per week)")
+
+    step_num = 1
+    treatment_steps = []
+
+    if 'sparse_crown' in visual_reasons or 'crown_damage' in visual_reasons:
+        treatment_steps.append({
+            'step': step_num,
+            'title': 'Crown Inspection & Pest Control',
+            'detail': 'Check for rhinoceros beetle holes. If found, inject Imidacloprid (1ml in 4ml water) into entry holes and seal with mud. Pour Metalaxyl + Mancozeb (3g/L) into the crown as disease prevention.'
+        })
+        step_num += 1
+
+    if 'yellowing_fronds' in visual_reasons:
+        treatment_steps.append({
+            'step': step_num,
+            'title': 'Nutrient Correction',
+            'detail': 'Apply urea (200g/tree) for Nitrogen or muriate of potash (250g/tree) for Potassium. Follow with magnesium sulphate foliar spray (20g/L). Repeat monthly for 3 months.'
+        })
+        step_num += 1
+
+    if 'dead_fronds' in visual_reasons:
+        treatment_steps.append({
+            'step': step_num,
+            'title': 'Frond Pruning & Sanitation',
+            'detail': 'Prune all dead fronds cleanly. Apply Bordeaux paste on all cut surfaces. Spray Copper Oxychloride (3g/L) on remaining fronds. Burn or bury removed fronds away from the tree.'
+        })
+        step_num += 1
+
+    treatment_steps.append({
+        'step': step_num,
+        'title': 'General Fertilization',
+        'detail': 'Apply NPK fertilizer (12-12-17-2) at 1kg per tree. Follow with 200g of magnesium sulphate. Irrigate thoroughly after application. Repeat every 3 months.'
+    })
+    step_num += 1
+
+    treatment_steps.append({
+        'step': step_num,
+        'title': 'Follow-up Monitoring',
+        'detail': 'Re-inspect the tree after 2–3 weeks. Photograph the crown to track progress. If condition worsens, consult the Sri Lanka Coconut Research Institute (CRI) or your local agricultural officer.'
+    })
+
+    preventive_measures = [
+        "Monitor the tree weekly and photograph the crown for comparison over time",
+        "Maintain a regular fertilization schedule every 3 months (NPK + magnesium)",
+        "Ensure consistent irrigation — 50–100 liters per week, more during dry seasons",
+        "Install pheromone traps nearby to monitor and control rhinoceros beetle populations",
+        "Keep the area around the tree base free of weeds and decaying organic matter"
+    ]
+
+    return {
+        'severity': 'Detected',
+        'urgency': urgency,
+        'urgency_color': urgency_color,
+        'severity_description': severity_description,
+        'possible_conditions': conditions,
+        'immediate_actions': immediate_actions,
+        'treatment_steps': treatment_steps,
+        'preventive_measures': preventive_measures
+    }
+
+
+@app.route('/predict/tree-health', methods=['POST'])
+def predict_tree_health():
+    """
+    Predict if a coconut tree is healthy or unhealthy
+
+    Returns:
+        JSON with prediction results
+    """
+    if models.get('tree_health') is None:
+        return jsonify({'error': 'Tree health model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    try:
+        image_file = request.files['image']
+        image_bytes = image_file.read()
+
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32)
+        img_array = img_array / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+
+        predictions = models['tree_health'].predict(img_array, verbose=0)
+
+        healthy_prob = float(predictions[0][0])
+        unhealthy_prob = float(predictions[0][1])
+
+        predicted_class_idx = np.argmax(predictions[0])
+        predicted_class = TREE_HEALTH_CLASSES[predicted_class_idx]
+        confidence = float(np.max(predictions[0]))
+
+        unhealthy_percentage = int(unhealthy_prob * 100) if predicted_class == 'unhealthy' else 0
+
+        if predicted_class == 'healthy':
+            if confidence > 0.95:
+                message = "Tree appears to be very healthy!"
+            elif confidence > 0.80:
+                message = "Tree appears to be healthy."
+            else:
+                message = "Tree seems healthy but with lower confidence."
+            recommendation = "Continue regular monitoring and maintain good care practices."
+            severity_info = None
+        else:
+            if confidence > 0.80:
+                message = f"Tree shows signs of being unhealthy ({unhealthy_percentage}% unhealthy)."
+            else:
+                message = f"Possible unhealthy condition detected ({unhealthy_percentage}% unhealthy)."
+            recommendation = "Inspect the tree for pest damage, disease, or nutrient deficiencies. Consider consulting an agricultural expert."
+            visual_reasons = analyze_tree_visual_reasons(img_array)
+            severity_info = build_tree_health_analysis(visual_reasons, confidence)
+
+        result = {
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'probabilities': {
+                'healthy': healthy_prob,
+                'unhealthy': unhealthy_prob
+            },
+            'unhealthy_percentage': unhealthy_percentage,
+            'is_healthy': predicted_class == 'healthy',
+            'message': message,
+            'recommendation': recommendation,
+            'severity_info': severity_info,
+            'model_info': {
+                'version': 'v2',
+                'classes': TREE_HEALTH_CLASSES,
+                'accuracy': model_infos['tree_health'].get('test_performance', {}).get('accuracy', 'TBD') if model_infos.get('tree_health') else 'TBD',
+                'macro_f1': model_infos['tree_health'].get('test_performance', {}).get('macro_f1', 'TBD') if model_infos.get('tree_health') else 'TBD'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Legacy endpoint for backward compatibility
 
 # Legacy endpoint
@@ -1570,18 +2378,13 @@ if __name__ == '__main__':
 
 
     # Run the Flask app on port 5001 (port 5000 is used by Node.js auth backend)
-    print("\nStarting Coconut Health Monitor ML API v5.0...")
-    print("  Mite Model: v10 (3-class, 91.44% accuracy, 79% mite recall)")
-    print("  Caterpillar Model: v2 (3-class, 97.47% accuracy, 91.49% caterpillar recall)")
-    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
-    print("  Mite & Caterpillar models support 'not_coconut' class for image validation!")
-
     print("\nStarting Coconut Health Monitor ML API v8.0...")
     print("  Mite Model: v10 (3-class, 91.44% accuracy)")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
-    print("  Leaf Health Model: v1 (2-class, 93.70% accuracy)")
+    print("  Leaf Health Model: v4 (2-class, MobileNetV2, 95.00% accuracy)")
     print("  Branch Health Model: v1 (2-class, 99.63% accuracy)")
+    print("  Tree Health Model: v2 (2-class, EfficientNetB0, 100% accuracy)")
 
     print("=" * 60)
     app.run(host='0.0.0.0', port=5001, debug=False)

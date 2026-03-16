@@ -1,6 +1,7 @@
 import messaging from '@react-native-firebase/messaging';
 import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Platform} from 'react-native';
 
 const FCM_TOKEN_KEY = '@fcm_token';
 
@@ -12,18 +13,20 @@ const CHANNEL_ID = 'coconut_health_alerts';
  */
 export const initializeNotifications = async () => {
   try {
-    // Create Android notification channel
-    const channelId = await notifee.createChannel({
-      id: CHANNEL_ID,
-      name: 'Coconut Health Alerts',
-      description: 'Pest detection and health monitoring alerts',
-      importance: AndroidImportance.HIGH,
-      sound: 'default',
-      vibration: true,
-      lights: true,
-      badge: true,
-    });
-    console.log('📣 Notification channel created:', channelId);
+    // Notification channels require API 26+ (Android 8.0)
+    if (Platform.OS === 'android' && Platform.Version >= 26) {
+      const channelId = await notifee.createChannel({
+        id: CHANNEL_ID,
+        name: 'Coconut Health Alerts',
+        description: 'Pest detection and health monitoring alerts',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        lights: true,
+        badge: true,
+      });
+      console.log('📣 Notification channel created:', channelId);
+    }
 
     // Request permission
     const hasPermission = await requestNotificationPermission();
@@ -97,12 +100,6 @@ const setupMessageHandlers = () => {
   // Handle foreground messages
   messaging().onMessage(async remoteMessage => {
     console.log('Foreground message received:', remoteMessage);
-    await displayNotification(remoteMessage);
-  });
-
-  // Handle background messages (when app is in background)
-  messaging().setBackgroundMessageHandler(async remoteMessage => {
-    console.log('Background message received:', remoteMessage);
     await displayNotification(remoteMessage);
   });
 

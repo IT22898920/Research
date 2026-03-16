@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {configureGoogleSignIn, signInWithGoogle} from '../config/googleAuth';
 import {authAPI} from '../services/api';
+import auth from '@react-native-firebase/auth';
 import {useLanguage} from '../context/LanguageContext';
 
 export default function LoginScreen({navigation}) {
@@ -68,15 +69,32 @@ export default function LoginScreen({navigation}) {
 
     setIsLoading(true);
     try {
-      const response = await authAPI.login(email, password);
-
-      if (response.success) {
-        navigateToDashboard(response.data.user);
-      } else {
-        Alert.alert('Login Failed', response.message || 'Invalid credentials');
+      // Firebase direct login
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const user = userCredential.user;
+      navigateToDashboard({
+        email: user.email,
+        displayName: user.displayName || user.email,
+        photoURL: user.photoURL,
+        uid: user.uid,
+      });
+    } catch (firebaseError) {
+      // Fallback to backend if Firebase fails
+      try {
+        const response = await authAPI.login(email, password);
+        if (response.success) {
+          navigateToDashboard(response.data.user);
+        } else {
+          Alert.alert('Login Failed', response.message || 'Invalid credentials');
+        }
+      } catch (error) {
+        const msg = firebaseError.code === 'auth/invalid-credential'
+          ? 'Invalid email or password'
+          : firebaseError.code === 'auth/user-not-found'
+          ? 'No account found with this email'
+          : firebaseError.message || 'Login failed';
+        Alert.alert('Login Failed', msg);
       }
-    } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Something went wrong');
     } finally {
       setIsLoading(false);
     }
@@ -90,18 +108,22 @@ export default function LoginScreen({navigation}) {
       const googleResult = await signInWithGoogle();
 
       if (googleResult.success) {
-        // Then, register/login with our backend
-        const backendResponse = await authAPI.googleAuth({
-          email: googleResult.data.email,
-          displayName: googleResult.data.displayName,
-          photoURL: googleResult.data.photoURL,
-          firebaseUid: googleResult.data.uid,
-        });
-
-        if (backendResponse.success) {
-          navigateToDashboard(backendResponse.data.user);
-        } else {
-          Alert.alert('Error', backendResponse.message || 'Backend authentication failed');
+        // Try backend sync, but don't block login if backend is unavailable
+        try {
+          const backendResponse = await authAPI.googleAuth({
+            email: googleResult.data.email,
+            displayName: googleResult.data.displayName,
+            photoURL: googleResult.data.photoURL,
+            firebaseUid: googleResult.data.uid,
+          });
+          if (backendResponse.success) {
+            navigateToDashboard(backendResponse.data.user);
+          } else {
+            navigateToDashboard(googleResult.data);
+          }
+        } catch (backendError) {
+          // Backend unavailable - use Firebase user data directly
+          navigateToDashboard(googleResult.data);
         }
       } else {
         Alert.alert('Sign-In Failed', googleResult.error || 'Google sign-in failed');

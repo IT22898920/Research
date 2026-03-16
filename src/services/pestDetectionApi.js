@@ -1,13 +1,14 @@
 /**
- * Pest & Disease Detection API Service v7.0
+ * Pest & Disease Detection API Service v8.0
  * Connects to Flask ML API for pest and disease detection
  *
  * Models:
  * - Mite: v10 (3-class: coconut_mite, healthy, not_coconut) - 91.44% accuracy
  * - Unified: v1 (4-class: caterpillar, healthy, not_coconut, white_fly) - 96.08% accuracy
  * - Disease: v2 (4-class: Leaf Rot, Leaf_Spot, healthy, not_cocount) - 98.69% accuracy
- * - Leaf Health: v1 (2-class: healthy, unhealthy) - 93.70% accuracy
+ * - Leaf Health: v4 (2-class: healthy, unhealthy) - 95.00% accuracy (MobileNetV2)
  * - Branch Health: v1 (2-class: healthy, unhealthy) - 99.63% accuracy
+ * - Tree Health: v2 (2-class: healthy, unhealthy) - 100% accuracy (EfficientNetB0)
  *
  * Features:
  * - All models can detect non-coconut images
@@ -15,6 +16,7 @@
  * - Disease detection for Leaf Rot and Leaf Spot
  * - Leaf health detection with detailed conditions and solutions
  * - Branch health detection with unhealthy percentage
+ * - Tree health detection with visual analysis and severity-based treatment
  * - One coherent answer with recommendations
  */
 
@@ -417,6 +419,71 @@ export const detectBranchHealth = async (imageUri) => {
 };
 
 /**
+ * Detect Coconut Tree Health (healthy vs unhealthy)
+ *
+ * Response includes:
+ * - prediction: class name (healthy/unhealthy)
+ * - confidence: prediction confidence
+ * - probabilities: healthy, unhealthy
+ * - unhealthyPercentage: percentage indicating severity
+ * - severityInfo: severity-based meditations and solutions (if unhealthy)
+ * - message: detailed message about condition
+ * - recommendation: action to take
+ */
+export const detectTreeHealth = async (imageUri) => {
+  try {
+    const formData = createFormData(imageUri);
+
+    const response = await fetch(`${API_BASE_URL}/predict/tree-health`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        success: true,
+        detectionType: 'tree_health',
+        prediction: data.prediction,
+        confidence: data.confidence,
+        probabilities: data.probabilities,
+        unhealthyPercentage: data.unhealthy_percentage,
+        isHealthy: data.is_healthy,
+        message: data.message,
+        recommendation: data.recommendation,
+        severityInfo: data.severity_info ? {
+          severity: data.severity_info.severity,
+          urgency: data.severity_info.urgency,
+          urgencyColor: data.severity_info.urgency_color,
+          severityDescription: data.severity_info.severity_description,
+          possibleConditions: data.severity_info.possible_conditions,
+          immediateActions: data.severity_info.immediate_actions,
+          treatmentSteps: data.severity_info.treatment_steps,
+          preventiveMeasures: data.severity_info.preventive_measures,
+        } : null,
+        modelInfo: data.model_info,
+        timestamp: data.timestamp,
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || 'Prediction failed',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to analyze image',
+    };
+  }
+};
+
+/**
  * Legacy function - Predict pest (defaults to mite for backward compatibility)
  * @deprecated Use detectMite, detectCaterpillar, or detectAllPests instead
  */
@@ -450,6 +517,7 @@ export default {
   detectDisease,
   detectLeafHealth,
   detectBranchHealth,
+  detectTreeHealth,
   predictPest,
   PEST_TYPES,
   DISEASE_TYPES,

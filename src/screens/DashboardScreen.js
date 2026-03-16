@@ -88,13 +88,13 @@ export default function DashboardScreen({navigation, route}) {
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+<TouchableOpacity
           style={styles.featureCardActive}
-          onPress={() => navigation.navigate('BranchHealth')}>
-          <Text style={styles.featureIcon}>🌳</Text>
+          onPress={() => navigation.navigate('TreeHealth')}>
+          <Text style={styles.featureIcon}>🌴</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Branch Health Monitor</Text>
-            <Text style={styles.featureSubtext}>Check branch health status</Text>
+            <Text style={styles.featureText}>Tree Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Check overall tree health status</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>
