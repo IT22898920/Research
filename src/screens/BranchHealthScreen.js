@@ -9,10 +9,18 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {detectBranchHealth} from '../services/pestDetectionApi';
+import {ML_API_URL} from '../config/apiConfig';
 import {treeAPI} from '../services/treeApi';
+import {
+  getHealthTreatmentRecommendations,
+  isApiKeyConfigured,
+  setApiKey,
+} from '../services/treatmentApi';
 
 export default function BranchHealthScreen({navigation, route}) {
   // Get tree info from navigation params (if scanning a specific tree)
@@ -24,9 +32,69 @@ export default function BranchHealthScreen({navigation, route}) {
   const [result, setResult] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
 
+  // Treatment states
+  const [treatment, setTreatment] = useState(null);
+  const [isLoadingTreatment, setIsLoadingTreatment] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   useEffect(() => {
     checkApi();
+    checkApiKeyStatus();
   }, []);
+
+  const checkApiKeyStatus = async () => {
+    const configured = await isApiKeyConfigured();
+    setHasApiKey(configured);
+  };
+
+  // Get treatment recommendations
+  const handleGetTreatment = async () => {
+    if (!result || result.isHealthy) return;
+
+    if (!hasApiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    setIsLoadingTreatment(true);
+    try {
+      const severity = result.unhealthyPercentage > 60 ? 'severe' : result.unhealthyPercentage > 30 ? 'moderate' : 'mild';
+      const response = await getHealthTreatmentRecommendations({
+        conditionType: 'unhealthy_branch',
+        severity,
+        confidence: result.confidence,
+        additionalInfo: {
+          unhealthyPercentage: result.unhealthyPercentage,
+        },
+        language: 'en',
+      });
+
+      if (response.success) {
+        setTreatment(response.data);
+      } else if (response.fallback) {
+        setTreatment(response.fallback);
+      } else {
+        Alert.alert('Error', response.error || 'Failed to get treatment recommendations');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get treatment recommendations');
+    } finally {
+      setIsLoadingTreatment(false);
+    }
+  };
+
+  // Save API key
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setShowApiKeyModal(false);
+      setApiKeyInput('');
+      handleGetTreatment();
+    }
+  };
 
   // Save scan result to tree record (for map integration)
   const saveToTreeRecord = async (scanResult) => {
@@ -70,8 +138,8 @@ export default function BranchHealthScreen({navigation, route}) {
 
   const checkApi = async () => {
     try {
-      // For Real Device via USB (adb reverse)
-      const response = await fetch('http://localhost:5001/health');
+      // Uses centralized config
+      const response = await fetch(`${ML_API_URL}/health`);
       const data = await response.json();
       setApiStatus(
         data.status === 'healthy' && data.models.branch_health
@@ -162,6 +230,7 @@ export default function BranchHealthScreen({navigation, route}) {
   const handleReset = () => {
     setSelectedImage(null);
     setResult(null);
+    setTreatment(null);
   };
 
   const getHealthColor = () => {
@@ -372,6 +441,88 @@ export default function BranchHealthScreen({navigation, route}) {
               </View>
             </View>
 
+            {/* Get Treatment Button - Only for unhealthy */}
+            {!result.isHealthy && !treatment && (
+              <TouchableOpacity
+                style={[styles.treatmentButton, isLoadingTreatment && styles.treatmentButtonDisabled]}
+                onPress={handleGetTreatment}
+                disabled={isLoadingTreatment}>
+                {isLoadingTreatment ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#FFF" size="small" />
+                    <Text style={styles.treatmentButtonText}>Getting Treatment Plan...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.treatmentButtonText}>💊 Get AI Treatment Plan</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Treatment Results */}
+            {treatment && (
+              <View style={styles.treatmentContainer}>
+                <Text style={styles.treatmentTitle}>💊 AI Treatment Plan</Text>
+
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>📋 Summary</Text>
+                  <Text style={styles.treatmentText}>{treatment.summary}</Text>
+                  <View style={[styles.urgencyBadgeLarge, {
+                    backgroundColor: treatment.urgency === 'critical' ? '#d32f2f' :
+                      treatment.urgency === 'high' ? '#f44336' :
+                      treatment.urgency === 'medium' ? '#ff9800' : '#4caf50'
+                  }]}>
+                    <Text style={styles.urgencyTextLarge}>
+                      Urgency: {treatment.urgency?.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                {treatment.diagnosis && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🔍 Diagnosis</Text>
+                    <Text style={styles.treatmentText}>{treatment.diagnosis}</Text>
+                  </View>
+                )}
+
+                {treatment.treatments && treatment.treatments.length > 0 && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>💉 Treatments</Text>
+                    {treatment.treatments.map((t, idx) => (
+                      <View key={idx} style={styles.treatmentItem}>
+                        <View style={styles.treatmentItemHeader}>
+                          <Text style={styles.treatmentItemName}>{t.name}</Text>
+                          <View style={[styles.treatmentTypeBadge, {
+                            backgroundColor: t.type === 'chemical' ? '#e57373' :
+                              t.type === 'organic' ? '#81c784' : '#ffb74d'
+                          }]}>
+                            <Text style={styles.treatmentTypeText}>{t.type}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.treatmentItemDesc}>{t.description}</Text>
+                        <Text style={styles.treatmentDetail}>📏 {t.dosage}</Text>
+                        <Text style={styles.treatmentDetail}>🔄 {t.frequency}</Text>
+                        <Text style={styles.treatmentDetail}>💰 {t.cost_estimate}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {treatment.preventive_measures && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🛡️ Prevention</Text>
+                    {treatment.preventive_measures.map((item, idx) => (
+                      <Text key={idx} style={styles.listItem}>• {item}</Text>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>📅 Expected Recovery</Text>
+                  <Text style={styles.treatmentText}>{treatment.expected_recovery}</Text>
+                </View>
+              </View>
+            )}
+
             {/* Model Info */}
             <View style={styles.modelInfoCard}>
               <Text style={styles.modelInfoTitle}>🤖 Model Information</Text>
@@ -432,6 +583,42 @@ export default function BranchHealthScreen({navigation, route}) {
           </View>
         )}
       </ScrollView>
+
+      {/* API Key Modal */}
+      <Modal
+        visible={showApiKeyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowApiKeyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🔑 Enter Groq API Key</Text>
+            <Text style={styles.modalSubtitle}>
+              Get your free API key from groq.com for AI treatment recommendations
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="gsk_xxxxxxxxxxxx"
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowApiKeyModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleSaveApiKey}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -787,5 +974,172 @@ const styles = StyleSheet.create({
     color: '#1565C0',
     marginBottom: 6,
     paddingLeft: 8,
+  },
+  // Treatment styles
+  treatmentButton: {
+    backgroundColor: '#7B1FA2',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  treatmentButtonDisabled: {
+    backgroundColor: '#CE93D8',
+  },
+  treatmentButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  treatmentContainer: {
+    marginTop: 16,
+  },
+  treatmentTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#7B1FA2',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  treatmentCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  treatmentCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  treatmentText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+  },
+  urgencyBadgeLarge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  urgencyTextLarge: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  treatmentItem: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+  treatmentItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  treatmentItemName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  treatmentTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  treatmentTypeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  treatmentItemDesc: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 8,
+  },
+  treatmentDetail: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  listItem: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  apiKeyInput: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#7B1FA2',
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: '#FFF',
+    fontWeight: '600',
   },
 });

@@ -21,8 +21,9 @@ import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {detectYield} from '../services/pestDetectionApi';
 import {treeAPI} from '../services/treeApi';
 
-// For Real Device via USB (adb reverse)
-const API_BASE_URL = 'http://localhost:5001';
+// Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
+import {ML_API_URL} from '../config/apiConfig';
+const API_BASE_URL = ML_API_URL;
 
 export default function YieldEstimatorScreen({navigation, route}) {
   // Get tree info from navigation params (if scanning a specific tree)
@@ -316,16 +317,6 @@ export default function YieldEstimatorScreen({navigation, route}) {
                 <Text style={styles.countNumber}>{result.totalNutCount}</Text>
                 <Text style={styles.countLabel}>Nuts Detected</Text>
               </View>
-              <View style={styles.countDivider} />
-              <View style={styles.countBox}>
-                <Text style={styles.countNumber}>{result.estimatedTotal}</Text>
-                <Text style={styles.countLabel}>Estimated Total</Text>
-              </View>
-            </View>
-
-            {/* Estimation Note */}
-            <View style={styles.noteContainer}>
-              <Text style={styles.noteText}>ℹ️ {result.estimationNote}</Text>
             </View>
 
             {/* Message */}

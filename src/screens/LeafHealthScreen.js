@@ -10,12 +10,20 @@ import {
   ScrollView,
   SafeAreaView,
   Animated,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {treeAPI} from '../services/treeApi';
+import {
+  getHealthTreatmentRecommendations,
+  isApiKeyConfigured,
+  setApiKey,
+} from '../services/treatmentApi';
 
-// For Real Device via USB (adb reverse)
-const API_BASE_URL = 'http://localhost:5001';
+// Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
+import {ML_API_URL} from '../config/apiConfig';
+const API_BASE_URL = ML_API_URL;
 
 // Condition Card Component - Always Expanded with All Details
 const ConditionCard = ({condition, index}) => {
@@ -83,10 +91,71 @@ export default function LeafHealthScreen({navigation, route}) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
+  const [imageMode, setImageMode] = useState('phone'); // 'phone' or 'drone'
+
+  // Treatment states
+  const [treatment, setTreatment] = useState(null);
+  const [isLoadingTreatment, setIsLoadingTreatment] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
     checkApi();
+    checkApiKeyStatus();
   }, []);
+
+  const checkApiKeyStatus = async () => {
+    const configured = await isApiKeyConfigured();
+    setHasApiKey(configured);
+  };
+
+  // Get treatment recommendations
+  const handleGetTreatment = async () => {
+    if (!result || result.is_healthy) return;
+
+    if (!hasApiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    setIsLoadingTreatment(true);
+    try {
+      const severity = result.confidence > 0.8 ? 'severe' : result.confidence > 0.5 ? 'moderate' : 'mild';
+      const response = await getHealthTreatmentRecommendations({
+        conditionType: 'unhealthy_leaf',
+        severity,
+        confidence: result.confidence,
+        additionalInfo: {
+          possibleConditions: result.possible_conditions?.slice(0, 3),
+        },
+        language: 'en',
+      });
+
+      if (response.success) {
+        setTreatment(response.data);
+      } else if (response.fallback) {
+        setTreatment(response.fallback);
+      } else {
+        Alert.alert('Error', response.error || 'Failed to get treatment recommendations');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get treatment recommendations');
+    } finally {
+      setIsLoadingTreatment(false);
+    }
+  };
+
+  // Save API key
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setShowApiKeyModal(false);
+      setApiKeyInput('');
+      handleGetTreatment();
+    }
+  };
 
   // Save scan result to tree record (for map integration)
   const saveToTreeRecord = async (scanResult) => {
@@ -207,6 +276,7 @@ export default function LeafHealthScreen({navigation, route}) {
         type: selectedImage.type || 'image/jpeg',
         name: selectedImage.fileName || 'image.jpg',
       });
+      formData.append('mode', imageMode);
 
       const response = await fetch(`${API_BASE_URL}/predict/leaf-health`, {
         method: 'POST',
@@ -238,10 +308,31 @@ export default function LeafHealthScreen({navigation, route}) {
   const handleReset = () => {
     setSelectedImage(null);
     setResult(null);
+    setTreatment(null);
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Top Header Bar */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerBarTitle}>Leaf Health</Text>
+        <View
+          style={[
+            styles.apiStatusBadge,
+            apiStatus === 'online' ? styles.apiOnline : styles.apiOffline,
+          ]}>
+          <Text style={styles.apiStatusBadgeText}>
+            {apiStatus === 'online' ? 'API Online' : 'API Offline'}
+          </Text>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Tree Info Banner - Show when scanning a specific tree */}
         {treeId && (
@@ -254,29 +345,58 @@ export default function LeafHealthScreen({navigation, route}) {
           </View>
         )}
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Leaf Health Monitor</Text>
-          <Text style={styles.subtitle}>
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoIcon}>🍃</Text>
+          <Text style={styles.infoTitle}>Leaf Health Monitor</Text>
+          <Text style={styles.infoSubtitle}>
             Check if your coconut leaf is healthy or unhealthy
           </Text>
-          <View style={styles.apiStatusContainer}>
-            <View
+        </View>
+
+        {/* Image Mode Selection */}
+        <View style={styles.modeSelectionContainer}>
+          <Text style={styles.modeSelectionTitle}>Select Image Source</Text>
+          <View style={styles.modeButtonsRow}>
+            <TouchableOpacity
               style={[
-                styles.statusDot,
-                {
-                  backgroundColor:
-                    apiStatus === 'online'
-                      ? '#4CAF50'
-                      : apiStatus === 'offline'
-                      ? '#F44336'
-                      : '#FFC107',
-                },
+                styles.modeButton,
+                imageMode === 'phone' && styles.modeButtonActive,
               ]}
-            />
-            <Text style={styles.apiStatusText}>
-              API: {apiStatus.toUpperCase()}
-            </Text>
+              onPress={() => {
+                setImageMode('phone');
+                setResult(null);
+              }}>
+              <Text style={styles.modeButtonIcon}>📱</Text>
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  imageMode === 'phone' && styles.modeButtonTextActive,
+                ]}>
+                Phone Camera
+              </Text>
+              <Text style={styles.modeButtonHint}>For close-up photos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                imageMode === 'drone' && styles.modeButtonActive,
+              ]}
+              onPress={() => {
+                setImageMode('drone');
+                setResult(null);
+              }}>
+              <Text style={styles.modeButtonIcon}>🚁</Text>
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  imageMode === 'drone' && styles.modeButtonTextActive,
+                ]}>
+                Drone Camera
+              </Text>
+              <Text style={styles.modeButtonHint}>For aerial photos</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -449,6 +569,122 @@ export default function LeafHealthScreen({navigation, route}) {
               </View>
             )}
 
+            {/* Get Treatment Button - Only for unhealthy */}
+            {!result.is_healthy && !treatment && (
+              <TouchableOpacity
+                style={[styles.treatmentButton, isLoadingTreatment && styles.treatmentButtonDisabled]}
+                onPress={handleGetTreatment}
+                disabled={isLoadingTreatment}>
+                {isLoadingTreatment ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#FFF" size="small" />
+                    <Text style={styles.treatmentButtonText}>Getting Treatment Plan...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.treatmentButtonText}>💊 Get AI Treatment Plan</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Treatment Results */}
+            {treatment && (
+              <View style={styles.treatmentContainer}>
+                <Text style={styles.treatmentTitle}>💊 AI Treatment Plan</Text>
+
+                {/* Summary */}
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>📋 Summary</Text>
+                  <Text style={styles.treatmentText}>{treatment.summary}</Text>
+                  <View style={[styles.urgencyBadgeLarge, {
+                    backgroundColor: treatment.urgency === 'critical' ? '#d32f2f' :
+                      treatment.urgency === 'high' ? '#f44336' :
+                      treatment.urgency === 'medium' ? '#ff9800' : '#4caf50'
+                  }]}>
+                    <Text style={styles.urgencyTextLarge}>
+                      Urgency: {treatment.urgency?.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Diagnosis */}
+                {treatment.diagnosis && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🔍 Diagnosis</Text>
+                    <Text style={styles.treatmentText}>{treatment.diagnosis}</Text>
+                  </View>
+                )}
+
+                {/* Treatments */}
+                {treatment.treatments && treatment.treatments.length > 0 && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>💉 Recommended Treatments</Text>
+                    {treatment.treatments.map((t, idx) => (
+                      <View key={idx} style={styles.treatmentItem}>
+                        <View style={styles.treatmentItemHeader}>
+                          <Text style={styles.treatmentItemName}>{t.name}</Text>
+                          <View style={[styles.treatmentTypeBadge, {
+                            backgroundColor: t.type === 'chemical' ? '#e57373' :
+                              t.type === 'organic' ? '#81c784' :
+                              t.type === 'nutritional' ? '#64b5f6' : '#ffb74d'
+                          }]}>
+                            <Text style={styles.treatmentTypeText}>{t.type}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.treatmentItemDesc}>{t.description}</Text>
+                        <View style={styles.treatmentDetails}>
+                          <Text style={styles.treatmentDetail}>📏 {t.dosage}</Text>
+                          <Text style={styles.treatmentDetail}>🔄 {t.frequency}</Text>
+                          <Text style={styles.treatmentDetail}>⏱️ {t.duration}</Text>
+                          <Text style={styles.treatmentDetail}>💰 {t.cost_estimate}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Nutritional Recommendations */}
+                {treatment.nutritional_recommendations && treatment.nutritional_recommendations.length > 0 && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🌱 Nutritional Recommendations</Text>
+                    {treatment.nutritional_recommendations.map((item, idx) => (
+                      <Text key={idx} style={styles.listItem}>• {item}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Preventive Measures */}
+                {treatment.preventive_measures && treatment.preventive_measures.length > 0 && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🛡️ Preventive Measures</Text>
+                    {treatment.preventive_measures.map((item, idx) => (
+                      <Text key={idx} style={styles.listItem}>• {item}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Safety Precautions */}
+                {treatment.safety_precautions && treatment.safety_precautions.length > 0 && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>⚠️ Safety Precautions</Text>
+                    {treatment.safety_precautions.map((item, idx) => (
+                      <Text key={idx} style={styles.listItem}>• {item}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Recovery & Expert */}
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>📅 Recovery Timeline</Text>
+                  <Text style={styles.treatmentText}>{treatment.expected_recovery}</Text>
+                </View>
+
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>👨‍🌾 When to Seek Expert</Text>
+                  <Text style={styles.treatmentText}>{treatment.when_to_seek_expert}</Text>
+                </View>
+              </View>
+            )}
+
             {/* Model Info */}
             <View style={styles.modelInfoCard}>
               <Text style={styles.modelInfoText}>
@@ -468,6 +704,42 @@ export default function LeafHealthScreen({navigation, route}) {
           </View>
         )}
       </ScrollView>
+
+      {/* API Key Modal */}
+      <Modal
+        visible={showApiKeyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowApiKeyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🔑 Enter Groq API Key</Text>
+            <Text style={styles.modalSubtitle}>
+              Get your free API key from groq.com to enable AI-powered treatment recommendations
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="gsk_xxxxxxxxxxxx"
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowApiKeyModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleSaveApiKey}>
+                <Text style={styles.modalSaveText}>Save & Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -475,10 +747,128 @@ export default function LeafHealthScreen({navigation, route}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f0f4f0',
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    backgroundColor: '#2e7d32',
+  },
+  backButton: {
+    padding: 10,
+    marginLeft: -5,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  headerBarTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  apiStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  apiOnline: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  apiOffline: {
+    backgroundColor: '#c62828',
+  },
+  apiStatusBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   scrollContent: {
     padding: 16,
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  infoIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  infoTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 8,
+  },
+  infoSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  modeSelectionContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modeSelectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modeButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modeButton: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  modeButtonActive: {
+    backgroundColor: '#e8f5e9',
+    borderColor: '#2e7d32',
+  },
+  modeButtonIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  modeButtonTextActive: {
+    color: '#2e7d32',
+  },
+  modeButtonHint: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 4,
   },
   treeBanner: {
     flexDirection: 'row',
@@ -543,29 +933,33 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginBottom: 24,
+    gap: 12,
   },
   actionButton: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    width: '45%',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    flex: 1,
+    elevation: 4,
+    shadowColor: '#2e7d32',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e8f5e9',
   },
   actionButtonIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+    fontSize: 52,
+    marginBottom: 12,
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#2e7d32',
+    textAlign: 'center',
   },
   imageContainer: {
     alignItems: 'center',
@@ -849,5 +1243,183 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#1976D2',
     lineHeight: 16,
+  },
+  // Treatment styles
+  treatmentButton: {
+    backgroundColor: '#7B1FA2',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  treatmentButtonDisabled: {
+    backgroundColor: '#CE93D8',
+  },
+  treatmentButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  treatmentContainer: {
+    marginTop: 16,
+  },
+  treatmentTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#7B1FA2',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  treatmentCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  treatmentCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  treatmentText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+  },
+  urgencyBadgeLarge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  urgencyTextLarge: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  treatmentItem: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+  treatmentItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  treatmentItemName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  treatmentTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  treatmentTypeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  treatmentItemDesc: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 8,
+  },
+  treatmentDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 8,
+  },
+  treatmentDetail: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  listItem: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  apiKeyInput: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#7B1FA2',
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: '#FFF',
+    fontWeight: '600',
   },
 });

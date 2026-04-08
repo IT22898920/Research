@@ -4,7 +4,7 @@
  * Supports GPS + Manual location selection
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,9 @@ import {
   Platform,
   Modal,
   PermissionsAndroid,
+  Dimensions,
 } from 'react-native';
+import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import {treeAPI} from '../services/treeApi';
 
@@ -50,9 +52,95 @@ export default function AddTreeScreen({navigation, route}) {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
 
+  // Map Picker states
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
+  const [existingTrees, setExistingTrees] = useState([]);
+  const [loadingTrees, setLoadingTrees] = useState(false);
+  const [currentMapLocation, setCurrentMapLocation] = useState(null);
+  const mapPickerRef = useRef(null);
+
   useEffect(() => {
     checkPermission();
   }, []);
+
+  // Load existing trees for the plantation when map picker opens
+  const loadExistingTrees = async () => {
+    if (!plantationId) return;
+
+    setLoadingTrees(true);
+    try {
+      const response = await treeAPI.getTreesByPlantation(plantationId);
+      const trees = response.trees || [];
+      setExistingTrees(trees.map(tree => ({
+        ...tree,
+        id: tree._id || tree.id,
+      })));
+    } catch (error) {
+      console.log('Error loading existing trees:', error);
+    } finally {
+      setLoadingTrees(false);
+    }
+  };
+
+  // Open map picker and load data
+  const openMapPicker = async () => {
+    setShowMapPicker(true);
+    loadExistingTrees();
+
+    // Try to get current location for initial map position
+    if (hasPermission || await requestPermission()) {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentMapLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log('Map picker location error:', error);
+          // Default to Sri Lanka center if location fails
+          setCurrentMapLocation({
+            latitude: 7.8731,
+            longitude: 80.7718,
+          });
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      // Default to Sri Lanka center
+      setCurrentMapLocation({
+        latitude: 7.8731,
+        longitude: 80.7718,
+      });
+    }
+  };
+
+  // Handle map tap to select location
+  const handleMapPress = (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setMapSelectedLocation({ latitude, longitude });
+  };
+
+  // Confirm map selection
+  const confirmMapSelection = () => {
+    if (mapSelectedLocation) {
+      setLatitude(mapSelectedLocation.latitude);
+      setLongitude(mapSelectedLocation.longitude);
+      setLocationName('Selected from Map');
+      setAccuracy(null);
+      setShowMapPicker(false);
+      setMapSelectedLocation(null);
+    } else {
+      Alert.alert('No Location', 'Please tap on the map to select a location.');
+    }
+  };
+
+  // Cancel map selection
+  const cancelMapSelection = () => {
+    setShowMapPicker(false);
+    setMapSelectedLocation(null);
+  };
 
   const checkPermission = async () => {
     if (Platform.OS === 'android') {
@@ -262,18 +350,21 @@ export default function AddTreeScreen({navigation, route}) {
       return;
     }
 
+    if (!plantationId) {
+      Alert.alert('Error', 'No plantation selected. Please go back and select a plantation first.');
+      return;
+    }
+
     setSaving(true);
     try {
       const treeData = {
-        plantationId: plantationId || 'default',
-        plantationName: plantationName,
+        plantation: plantationId, // Backend uses 'plantation' not 'plantationId'
         label: treeLabel.trim(),
         latitude: latitude,
         longitude: longitude,
         locationName: locationName,
         accuracy: accuracy,
         notes: notes.trim(),
-        lastHealthStatus: null,
       };
 
       await treeAPI.addTree(treeData);
@@ -292,7 +383,7 @@ export default function AddTreeScreen({navigation, route}) {
           },
           {
             text: 'View All Trees',
-            onPress: () => navigation.navigate('PlantationMap', {plantationId}),
+            onPress: () => navigation.navigate('PlantationMap', {plantationId, plantationName}),
           },
         ],
       );
@@ -355,13 +446,22 @@ export default function AddTreeScreen({navigation, route}) {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Manual Selection Button */}
+          {/* Map Picker Button */}
           <TouchableOpacity
             style={styles.manualButton}
-            onPress={() => setShowLocationPicker(true)}
+            onPress={openMapPicker}
           >
             <Text style={styles.manualButtonIcon}>🗺️</Text>
-            <Text style={styles.manualButtonText}>Select Location Manually</Text>
+            <Text style={styles.manualButtonText}>Select on Map</Text>
+          </TouchableOpacity>
+
+          {/* Predefined Locations Button */}
+          <TouchableOpacity
+            style={styles.presetButton}
+            onPress={() => setShowLocationPicker(true)}
+          >
+            <Text style={styles.presetButtonIcon}>📍</Text>
+            <Text style={styles.presetButtonText}>Select from Preset Locations</Text>
           </TouchableOpacity>
 
           {/* Selected Location Display */}
@@ -430,13 +530,13 @@ export default function AddTreeScreen({navigation, route}) {
         {/* View Trees Button */}
         <TouchableOpacity
           style={styles.viewTreesButton}
-          onPress={() => navigation.navigate('PlantationMap', {plantationId})}
+          onPress={() => navigation.navigate('PlantationMap', {plantationId, plantationName})}
         >
           <Text style={styles.viewTreesButtonText}>🌴 View All Trees</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Location Picker Modal */}
+      {/* Location Picker Modal (Preset Locations) */}
       <Modal
         visible={showLocationPicker}
         animationType="slide"
@@ -444,7 +544,7 @@ export default function AddTreeScreen({navigation, route}) {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Location</Text>
+            <Text style={styles.modalTitle}>Preset Locations</Text>
             <TouchableOpacity onPress={() => setShowLocationPicker(false)}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -466,6 +566,119 @@ export default function AddTreeScreen({navigation, route}) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Map Picker Modal */}
+      <Modal
+        visible={showMapPicker}
+        animationType="slide"
+        onRequestClose={cancelMapSelection}
+      >
+        <View style={styles.mapPickerContainer}>
+          {/* Map Header */}
+          <View style={styles.mapPickerHeader}>
+            <TouchableOpacity onPress={cancelMapSelection} style={styles.mapPickerCancelBtn}>
+              <Text style={styles.mapPickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.mapPickerTitle}>Tap to Select Location</Text>
+            <TouchableOpacity
+              onPress={confirmMapSelection}
+              style={[
+                styles.mapPickerConfirmBtn,
+                !mapSelectedLocation && styles.mapPickerConfirmBtnDisabled
+              ]}
+              disabled={!mapSelectedLocation}
+            >
+              <Text style={[
+                styles.mapPickerConfirmText,
+                !mapSelectedLocation && styles.mapPickerConfirmTextDisabled
+              ]}>
+                Confirm
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Map View */}
+          <View style={styles.mapPickerMapContainer}>
+            {currentMapLocation ? (
+              <MapView
+                ref={mapPickerRef}
+                style={styles.mapPickerMap}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={{
+                  latitude: currentMapLocation.latitude,
+                  longitude: currentMapLocation.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onPress={handleMapPress}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+              >
+                {/* Existing Trees Markers */}
+                {existingTrees.map((tree) => (
+                  <Marker
+                    key={tree.id}
+                    coordinate={{
+                      latitude: tree.latitude,
+                      longitude: tree.longitude,
+                    }}
+                    title={tree.label}
+                    pinColor="#4CAF50"
+                  />
+                ))}
+
+                {/* Selected Location Marker */}
+                {mapSelectedLocation && (
+                  <Marker
+                    coordinate={mapSelectedLocation}
+                    pinColor="#F44336"
+                    title="New Tree Location"
+                  />
+                )}
+              </MapView>
+            ) : (
+              <View style={styles.mapLoadingContainer}>
+                <ActivityIndicator size="large" color="#2e7d32" />
+                <Text style={styles.mapLoadingText}>Loading map...</Text>
+              </View>
+            )}
+
+            {/* Legend */}
+            <View style={styles.mapPickerLegend}>
+              <View style={styles.legendRow}>
+                <View style={[styles.legendMarker, {backgroundColor: '#4CAF50'}]} />
+                <Text style={styles.legendLabel}>Existing Trees ({existingTrees.length})</Text>
+              </View>
+              <View style={styles.legendRow}>
+                <View style={[styles.legendMarker, {backgroundColor: '#F44336'}]} />
+                <Text style={styles.legendLabel}>New Tree Location</Text>
+              </View>
+            </View>
+
+            {/* Selected Location Info */}
+            {mapSelectedLocation && (
+              <View style={styles.selectedLocationInfo}>
+                <Text style={styles.selectedLocationTitle}>📍 Selected Location</Text>
+                <Text style={styles.selectedLocationCoords}>
+                  Lat: {mapSelectedLocation.latitude.toFixed(6)}
+                </Text>
+                <Text style={styles.selectedLocationCoords}>
+                  Lng: {mapSelectedLocation.longitude.toFixed(6)}
+                </Text>
+              </View>
+            )}
+
+            {/* Instructions */}
+            {!mapSelectedLocation && (
+              <View style={styles.mapInstructions}>
+                <Text style={styles.mapInstructionsText}>
+                  👆 Tap on the map to select tree location
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -729,5 +942,160 @@ const styles = StyleSheet.create({
   locationItemArrow: {
     fontSize: 20,
     color: '#ccc',
+  },
+  // Preset Button Styles
+  presetButton: {
+    backgroundColor: '#f5f5f5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    gap: 10,
+  },
+  presetButtonIcon: {
+    fontSize: 20,
+  },
+  presetButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  // Map Picker Styles
+  mapPickerContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mapPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 15,
+    backgroundColor: '#2e7d32',
+  },
+  mapPickerCancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  mapPickerCancelText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  mapPickerTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  mapPickerConfirmBtn: {
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  mapPickerConfirmBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  mapPickerConfirmText: {
+    color: '#2e7d32',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  mapPickerConfirmTextDisabled: {
+    color: '#999',
+  },
+  mapPickerMapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  mapPickerMap: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  mapLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  mapLoadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  mapPickerLegend: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 10,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  legendMarker: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  legendLabel: {
+    fontSize: 12,
+    color: '#333',
+  },
+  selectedLocationInfo: {
+    position: 'absolute',
+    bottom: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  selectedLocationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 8,
+  },
+  selectedLocationCoords: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  mapInstructions: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(46, 125, 50, 0.9)',
+    borderRadius: 25,
+    padding: 15,
+    alignItems: 'center',
+  },
+  mapInstructionsText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

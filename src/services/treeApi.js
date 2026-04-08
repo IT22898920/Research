@@ -1,26 +1,41 @@
 /**
- * Tree Location API Service
- * Manages coconut tree locations and data
- * Version: 1.0
+ * Tree API Service
+ * Handles all tree-related API calls to the backend
+ * Version: 2.0 - Backend Integration
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {BACKEND_API_URL} from '../config/apiConfig';
 
-const TREES_STORAGE_KEY = '@coconut_trees';
-const PLANTATIONS_STORAGE_KEY = '@plantations';
-
-/**
- * Generate unique ID for trees
- */
-const generateTreeId = () => {
-  return 'TREE_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-};
+const TOKEN_KEY = '@auth_token';
 
 /**
- * Generate unique ID for plantations
+ * Make authenticated API request
  */
-const generatePlantationId = () => {
-  return 'PLANT_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+const apiRequest = async (endpoint, options = {}) => {
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${BACKEND_API_URL}${endpoint}`, config);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed');
+  }
+
+  return data;
 };
 
 /**
@@ -28,12 +43,16 @@ const generatePlantationId = () => {
  */
 export const treeAPI = {
   /**
-   * Get all trees
+   * Get all trees for current user
+   * @param {Object} params - Query params (page, limit, sort)
+   * @returns {Promise<Array>} - Trees list
    */
-  getAllTrees: async () => {
+  getAllTrees: async (params = {}) => {
     try {
-      const treesJson = await AsyncStorage.getItem(TREES_STORAGE_KEY);
-      return treesJson ? JSON.parse(treesJson) : [];
+      const queryString = new URLSearchParams(params).toString();
+      const endpoint = queryString ? `/trees?${queryString}` : '/trees';
+      const response = await apiRequest(endpoint);
+      return response.data || [];
     } catch (error) {
       console.error('Error getting trees:', error);
       return [];
@@ -42,24 +61,32 @@ export const treeAPI = {
 
   /**
    * Get trees by plantation ID
+   * @param {string} plantationId - Plantation ID
+   * @returns {Promise<Object>} - { trees, plantation, pagination }
    */
   getTreesByPlantation: async (plantationId) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      return trees.filter(tree => tree.plantationId === plantationId);
+      const response = await apiRequest(`/trees/plantation/${plantationId}`);
+      return {
+        trees: response.data || [],
+        plantation: response.plantation || null,
+        pagination: response.pagination || null,
+      };
     } catch (error) {
       console.error('Error getting trees by plantation:', error);
-      return [];
+      return {trees: [], plantation: null, pagination: null};
     }
   },
 
   /**
    * Get single tree by ID
+   * @param {string} treeId - Tree ID
+   * @returns {Promise<Object|null>} - Tree data
    */
   getTreeById: async (treeId) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      return trees.find(tree => tree.id === treeId) || null;
+      const response = await apiRequest(`/trees/${treeId}`);
+      return response.data || null;
     } catch (error) {
       console.error('Error getting tree:', error);
       return null;
@@ -67,22 +94,17 @@ export const treeAPI = {
   },
 
   /**
-   * Add new tree
+   * Add new tree to a plantation
+   * @param {Object} treeData - { plantation, label, latitude, longitude, accuracy, locationName, notes }
+   * @returns {Promise<Object>} - Created tree
    */
   addTree: async (treeData) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const newTree = {
-        id: generateTreeId(),
-        ...treeData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        healthHistory: [],
-        yieldHistory: [],
-      };
-      trees.push(newTree);
-      await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
-      return newTree;
+      const response = await apiRequest('/trees', {
+        method: 'POST',
+        body: JSON.stringify(treeData),
+      });
+      return response.data;
     } catch (error) {
       console.error('Error adding tree:', error);
       throw error;
@@ -91,21 +113,17 @@ export const treeAPI = {
 
   /**
    * Update tree data
+   * @param {string} treeId - Tree ID
+   * @param {Object} updateData - Fields to update
+   * @returns {Promise<Object>} - Updated tree
    */
   updateTree: async (treeId, updateData) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const index = trees.findIndex(tree => tree.id === treeId);
-      if (index !== -1) {
-        trees[index] = {
-          ...trees[index],
-          ...updateData,
-          updatedAt: new Date().toISOString(),
-        };
-        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
-        return trees[index];
-      }
-      return null;
+      const response = await apiRequest(`/trees/${treeId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      });
+      return response.data;
     } catch (error) {
       console.error('Error updating tree:', error);
       throw error;
@@ -114,24 +132,17 @@ export const treeAPI = {
 
   /**
    * Add health scan to tree
+   * @param {string} treeId - Tree ID
+   * @param {Object} scanData - { status, scanType, confidence, details }
+   * @returns {Promise<Object>} - Updated tree with health record
    */
   addHealthScan: async (treeId, scanData) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const index = trees.findIndex(tree => tree.id === treeId);
-      if (index !== -1) {
-        const healthRecord = {
-          id: 'SCAN_' + Date.now(),
-          ...scanData,
-          scannedAt: new Date().toISOString(),
-        };
-        trees[index].healthHistory.push(healthRecord);
-        trees[index].lastHealthStatus = scanData.status;
-        trees[index].updatedAt = new Date().toISOString();
-        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
-        return healthRecord;
-      }
-      return null;
+      const response = await apiRequest(`/trees/${treeId}/health-scan`, {
+        method: 'POST',
+        body: JSON.stringify(scanData),
+      });
+      return response.data;
     } catch (error) {
       console.error('Error adding health scan:', error);
       throw error;
@@ -140,44 +151,17 @@ export const treeAPI = {
 
   /**
    * Update scan results (nuts, bunches, pests, issues)
+   * @param {string} treeId - Tree ID
+   * @param {Object} scanResults - { nutCount, bunchCount, pestCount, detectedIssues, healthStatus }
+   * @returns {Promise<Object>} - Updated tree
    */
   updateScanResults: async (treeId, scanResults) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const index = trees.findIndex(tree => tree.id === treeId);
-      if (index !== -1) {
-        // Update counts
-        if (scanResults.nutCount !== undefined) {
-          trees[index].nutCount = scanResults.nutCount;
-        }
-        if (scanResults.bunchCount !== undefined) {
-          trees[index].bunchCount = scanResults.bunchCount;
-        }
-        if (scanResults.pestCount !== undefined) {
-          trees[index].pestCount = scanResults.pestCount;
-        }
-
-        // Update detected issues (append new ones, avoid duplicates)
-        if (scanResults.detectedIssues && scanResults.detectedIssues.length > 0) {
-          const existingIssues = trees[index].detectedIssues || [];
-          const newIssues = scanResults.detectedIssues.filter(
-            issue => !existingIssues.includes(issue)
-          );
-          trees[index].detectedIssues = [...existingIssues, ...newIssues];
-        }
-
-        // Update health status if provided
-        if (scanResults.healthStatus) {
-          trees[index].lastHealthStatus = scanResults.healthStatus;
-        }
-
-        trees[index].lastScanAt = new Date().toISOString();
-        trees[index].updatedAt = new Date().toISOString();
-
-        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
-        return trees[index];
-      }
-      return null;
+      const response = await apiRequest(`/trees/${treeId}/scan-results`, {
+        method: 'PUT',
+        body: JSON.stringify(scanResults),
+      });
+      return response.data;
     } catch (error) {
       console.error('Error updating scan results:', error);
       throw error;
@@ -186,18 +170,15 @@ export const treeAPI = {
 
   /**
    * Clear detected issues for a tree
+   * @param {string} treeId - Tree ID
+   * @returns {Promise<Object>} - Updated tree
    */
   clearDetectedIssues: async (treeId) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const index = trees.findIndex(tree => tree.id === treeId);
-      if (index !== -1) {
-        trees[index].detectedIssues = [];
-        trees[index].updatedAt = new Date().toISOString();
-        await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(trees));
-        return trees[index];
-      }
-      return null;
+      const response = await apiRequest(`/trees/${treeId}/issues`, {
+        method: 'DELETE',
+      });
+      return response.data;
     } catch (error) {
       console.error('Error clearing issues:', error);
       throw error;
@@ -206,12 +187,14 @@ export const treeAPI = {
 
   /**
    * Delete tree
+   * @param {string} treeId - Tree ID
+   * @returns {Promise<boolean>} - Success status
    */
   deleteTree: async (treeId) => {
     try {
-      const trees = await treeAPI.getAllTrees();
-      const filteredTrees = trees.filter(tree => tree.id !== treeId);
-      await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(filteredTrees));
+      await apiRequest(`/trees/${treeId}`, {
+        method: 'DELETE',
+      });
       return true;
     } catch (error) {
       console.error('Error deleting tree:', error);
@@ -221,112 +204,71 @@ export const treeAPI = {
 
   /**
    * Get tree statistics
+   * @param {string|null} plantationId - Optional plantation ID to filter
+   * @returns {Promise<Object>} - Stats { totalTrees, healthyTrees, unhealthyTrees, infectedTrees, notScannedTrees }
    */
   getTreeStats: async (plantationId = null) => {
     try {
-      let trees = await treeAPI.getAllTrees();
-      if (plantationId) {
-        trees = trees.filter(tree => tree.plantationId === plantationId);
-      }
+      const endpoint = plantationId
+        ? `/trees/stats?plantationId=${plantationId}`
+        : '/trees/stats';
+      const response = await apiRequest(endpoint);
 
-      const stats = {
-        total: trees.length,
-        healthy: trees.filter(t => t.lastHealthStatus === 'healthy').length,
-        unhealthy: trees.filter(t => t.lastHealthStatus === 'unhealthy').length,
-        infected: trees.filter(t => t.lastHealthStatus === 'infected').length,
-        notScanned: trees.filter(t => !t.lastHealthStatus).length,
+      // Map to consistent format
+      const data = response.data || {};
+      return {
+        total: data.totalTrees || 0,
+        healthy: data.healthyTrees || 0,
+        unhealthy: data.unhealthyTrees || 0,
+        infected: data.infectedTrees || 0,
+        notScanned: data.notScannedTrees || 0,
       };
-
-      return stats;
     } catch (error) {
       console.error('Error getting tree stats:', error);
-      return { total: 0, healthy: 0, unhealthy: 0, infected: 0, notScanned: 0 };
+      return {total: 0, healthy: 0, unhealthy: 0, infected: 0, notScanned: 0};
     }
   },
-};
 
-/**
- * Plantation API functions
- */
-export const plantationAPI = {
   /**
-   * Get all plantations
+   * Bulk import trees
+   * @param {Array} trees - Array of tree objects
+   * @param {string} plantationId - Plantation ID
+   * @returns {Promise<Array>} - Imported trees
    */
-  getAllPlantations: async () => {
+  bulkImport: async (trees, plantationId) => {
     try {
-      const plantationsJson = await AsyncStorage.getItem(PLANTATIONS_STORAGE_KEY);
-      return plantationsJson ? JSON.parse(plantationsJson) : [];
+      const response = await apiRequest('/trees/bulk', {
+        method: 'POST',
+        body: JSON.stringify({trees, plantationId}),
+      });
+      return response.data || [];
     } catch (error) {
-      console.error('Error getting plantations:', error);
+      console.error('Error bulk importing trees:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get nearby trees
+   * @param {number} lat - Latitude
+   * @param {number} lng - Longitude
+   * @param {number} radius - Radius in meters (default 1000)
+   * @returns {Promise<Array>} - Nearby trees
+   */
+  getNearby: async (lat, lng, radius = 1000) => {
+    try {
+      const response = await apiRequest(
+        `/trees/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error('Error getting nearby trees:', error);
       return [];
     }
   },
-
-  /**
-   * Add new plantation
-   */
-  addPlantation: async (plantationData) => {
-    try {
-      const plantations = await plantationAPI.getAllPlantations();
-      const newPlantation = {
-        id: generatePlantationId(),
-        ...plantationData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      plantations.push(newPlantation);
-      await AsyncStorage.setItem(PLANTATIONS_STORAGE_KEY, JSON.stringify(plantations));
-      return newPlantation;
-    } catch (error) {
-      console.error('Error adding plantation:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Update plantation
-   */
-  updatePlantation: async (plantationId, updateData) => {
-    try {
-      const plantations = await plantationAPI.getAllPlantations();
-      const index = plantations.findIndex(p => p.id === plantationId);
-      if (index !== -1) {
-        plantations[index] = {
-          ...plantations[index],
-          ...updateData,
-          updatedAt: new Date().toISOString(),
-        };
-        await AsyncStorage.setItem(PLANTATIONS_STORAGE_KEY, JSON.stringify(plantations));
-        return plantations[index];
-      }
-      return null;
-    } catch (error) {
-      console.error('Error updating plantation:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Delete plantation and all its trees
-   */
-  deletePlantation: async (plantationId) => {
-    try {
-      // Delete plantation
-      const plantations = await plantationAPI.getAllPlantations();
-      const filteredPlantations = plantations.filter(p => p.id !== plantationId);
-      await AsyncStorage.setItem(PLANTATIONS_STORAGE_KEY, JSON.stringify(filteredPlantations));
-
-      // Delete all trees in this plantation
-      const trees = await treeAPI.getAllTrees();
-      const filteredTrees = trees.filter(t => t.plantationId !== plantationId);
-      await AsyncStorage.setItem(TREES_STORAGE_KEY, JSON.stringify(filteredTrees));
-
-      return true;
-    } catch (error) {
-      console.error('Error deleting plantation:', error);
-      throw error;
-    }
-  },
 };
 
-export default { treeAPI, plantationAPI };
+// Re-export plantationAPI from the new service for backwards compatibility
+export {plantationAPI} from './plantationApi';
+
+export default {treeAPI};

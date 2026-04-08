@@ -15,12 +15,20 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {treeAPI} from '../services/treeApi';
+import {
+  getHealthTreatmentRecommendations,
+  isApiKeyConfigured,
+  setApiKey,
+} from '../services/treatmentApi';
 
-// For Real Device via USB (adb reverse)
-const API_BASE_URL = 'http://localhost:5001';
+// Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
+import {ML_API_URL} from '../config/apiConfig';
+const API_BASE_URL = ML_API_URL;
 
 export default function TreeHealthScreen({navigation, route}) {
   // Get tree info from navigation params (if scanning a specific tree)
@@ -32,9 +40,67 @@ export default function TreeHealthScreen({navigation, route}) {
   const [result, setResult] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
 
+  // Treatment states
+  const [treatment, setTreatment] = useState(null);
+  const [isLoadingTreatment, setIsLoadingTreatment] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   useEffect(() => {
     checkApi();
+    checkApiKeyStatus();
   }, []);
+
+  const checkApiKeyStatus = async () => {
+    const configured = await isApiKeyConfigured();
+    setHasApiKey(configured);
+  };
+
+  const handleGetTreatment = async () => {
+    if (!result || result.is_healthy) return;
+
+    if (!hasApiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    setIsLoadingTreatment(true);
+    try {
+      const severity = result.unhealthy_percentage > 60 ? 'severe' : result.unhealthy_percentage > 30 ? 'moderate' : 'mild';
+      const response = await getHealthTreatmentRecommendations({
+        conditionType: 'unhealthy_tree',
+        severity,
+        confidence: result.confidence,
+        additionalInfo: {
+          unhealthyPercentage: result.unhealthy_percentage,
+        },
+        language: 'en',
+      });
+
+      if (response.success) {
+        setTreatment(response.data);
+      } else if (response.fallback) {
+        setTreatment(response.fallback);
+      } else {
+        Alert.alert('Error', response.error || 'Failed to get treatment');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get treatment');
+    } finally {
+      setIsLoadingTreatment(false);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setShowApiKeyModal(false);
+      setApiKeyInput('');
+      handleGetTreatment();
+    }
+  };
 
   // Save scan result to tree record (for map integration)
   const saveToTreeRecord = async (scanResult) => {
@@ -177,6 +243,7 @@ export default function TreeHealthScreen({navigation, route}) {
   const handleReset = () => {
     setSelectedImage(null);
     setResult(null);
+    setTreatment(null);
   };
 
   const getStatusStyle = () => {
@@ -197,7 +264,8 @@ export default function TreeHealthScreen({navigation, route}) {
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backButton}>
+          style={styles.backButton}
+          hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tree Health</Text>
@@ -384,6 +452,51 @@ export default function TreeHealthScreen({navigation, route}) {
               </View>
             </View>
 
+            {/* Get Treatment Button */}
+            {!result.is_healthy && !treatment && (
+              <TouchableOpacity
+                style={[styles.treatmentButton, isLoadingTreatment && styles.treatmentButtonDisabled]}
+                onPress={handleGetTreatment}
+                disabled={isLoadingTreatment}>
+                {isLoadingTreatment ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color="#FFF" size="small" />
+                    <Text style={styles.treatmentButtonText}>Getting Treatment...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.treatmentButtonText}>💊 Get AI Treatment Plan</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Treatment Results */}
+            {treatment && (
+              <View style={styles.treatmentContainer}>
+                <Text style={styles.treatmentTitle}>💊 AI Treatment Plan</Text>
+                <View style={styles.treatmentCard}>
+                  <Text style={styles.treatmentCardTitle}>📋 Summary</Text>
+                  <Text style={styles.treatmentText}>{treatment.summary}</Text>
+                </View>
+                {treatment.treatments?.map((t, idx) => (
+                  <View key={idx} style={styles.treatmentCard}>
+                    <Text style={styles.treatmentItemName}>{t.name}</Text>
+                    <Text style={styles.treatmentText}>{t.description}</Text>
+                    <Text style={styles.treatmentDetail}>📏 {t.dosage}</Text>
+                    <Text style={styles.treatmentDetail}>🔄 {t.frequency}</Text>
+                    <Text style={styles.treatmentDetail}>💰 {t.cost_estimate}</Text>
+                  </View>
+                ))}
+                {treatment.preventive_measures && (
+                  <View style={styles.treatmentCard}>
+                    <Text style={styles.treatmentCardTitle}>🛡️ Prevention</Text>
+                    {treatment.preventive_measures.map((item, idx) => (
+                      <Text key={idx} style={styles.listItem}>• {item}</Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Model Info */}
             <View style={styles.modelInfoContainer}>
               <Text style={styles.modelInfoText}>
@@ -417,6 +530,23 @@ export default function TreeHealthScreen({navigation, route}) {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal visible={showApiKeyModal} transparent animationType="slide" onRequestClose={() => setShowApiKeyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🔑 Enter Groq API Key</Text>
+            <TextInput style={styles.apiKeyInput} placeholder="gsk_xxxx" value={apiKeyInput} onChangeText={setApiKeyInput} secureTextEntry />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowApiKeyModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={handleSaveApiKey}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -435,7 +565,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7d32',
   },
   backButton: {
-    padding: 5,
+    padding: 10,
+    marginLeft: -5,
   },
   backButtonText: {
     color: '#fff',
@@ -776,4 +907,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
+  treatmentButton: { backgroundColor: '#7B1FA2', borderRadius: 12, padding: 16, alignItems: 'center', marginVertical: 16 },
+  treatmentButtonDisabled: { backgroundColor: '#CE93D8' },
+  treatmentButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  treatmentContainer: { marginTop: 16 },
+  treatmentTitle: { fontSize: 20, fontWeight: 'bold', color: '#7B1FA2', marginBottom: 16, textAlign: 'center' },
+  treatmentCard: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12, elevation: 2 },
+  treatmentCardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  treatmentText: { fontSize: 14, color: '#555', lineHeight: 20 },
+  treatmentItemName: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  treatmentDetail: { fontSize: 12, color: '#666', marginBottom: 4 },
+  listItem: { fontSize: 13, color: '#555', marginBottom: 6 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 16, textAlign: 'center' },
+  apiKeyInput: { backgroundColor: '#F5F5F5', borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 16, borderWidth: 1, borderColor: '#E0E0E0' },
+  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalCancelButton: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#F5F5F5', alignItems: 'center' },
+  modalCancelText: { color: '#666', fontWeight: '600' },
+  modalSaveButton: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#7B1FA2', alignItems: 'center' },
+  modalSaveText: { color: '#FFF', fontWeight: '600' },
 });

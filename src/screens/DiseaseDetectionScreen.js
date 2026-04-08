@@ -8,12 +8,19 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {useLanguage} from '../context/LanguageContext';
 import {detectDisease, detectLeafDieback, checkApiHealth} from '../services/pestDetectionApi';
 import {scanAPI} from '../services/scanApi';
 import {treeAPI} from '../services/treeApi';
+import {
+  getHealthTreatmentRecommendations,
+  isApiKeyConfigured,
+  setApiKey,
+} from '../services/treatmentApi';
 
 // Disease detection types
 const DISEASE_DETECTION_TYPES = {
@@ -34,13 +41,88 @@ export default function DiseaseDetectionScreen({navigation, route}) {
   const [apiStatus, setApiStatus] = useState('checking');
   const [selectedType, setSelectedType] = useState(DISEASE_DETECTION_TYPES.BABY_COCONUT);
 
+  // Treatment states
+  const [treatmentData, setTreatmentData] = useState(null);
+  const [isLoadingTreatment, setIsLoadingTreatment] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   useEffect(() => {
     checkApi();
+    checkApiKeyStatus();
   }, []);
 
   const checkApi = async () => {
     const health = await checkApiHealth();
     setApiStatus(health.success ? 'online' : 'offline');
+  };
+
+  const checkApiKeyStatus = async () => {
+    const configured = await isApiKeyConfigured();
+    setHasApiKey(configured);
+  };
+
+  const handleGetTreatment = async () => {
+    if (!result?.prediction) return;
+
+    // Determine condition type based on detection
+    let conditionType = 'leaf_spot'; // default
+    if (selectedType === DISEASE_DETECTION_TYPES.BABY_COCONUT) {
+      conditionType = 'leaf_dieback';
+    } else {
+      if (result.prediction.is_leaf_rot) {
+        conditionType = 'leaf_rot';
+      } else if (result.prediction.is_leaf_spot) {
+        conditionType = 'leaf_spot';
+      }
+    }
+
+    // Determine severity based on confidence
+    let severity = 'moderate';
+    const confidence = result.prediction.confidence || 0;
+    if (confidence > 0.8) {
+      severity = 'severe';
+    } else if (confidence < 0.5) {
+      severity = 'mild';
+    }
+
+    setIsLoadingTreatment(true);
+
+    try {
+      const response = await getHealthTreatmentRecommendations({
+        conditionType,
+        severity,
+        confidence,
+        language: 'en',
+      });
+
+      if (response.success) {
+        setTreatmentData({...response.data, source: 'ai'});
+      } else if (response.fallback) {
+        setTreatmentData({...response.fallback, source: 'fallback'});
+        if (response.error === 'API key not configured') {
+          setShowApiKeyModal(true);
+        }
+      } else {
+        Alert.alert('Error', response.error || 'Failed to get treatment recommendations');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get treatment recommendations');
+    } finally {
+      setIsLoadingTreatment(false);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (apiKeyInput.trim()) {
+      await setApiKey(apiKeyInput.trim());
+      setHasApiKey(true);
+      setShowApiKeyModal(false);
+      setApiKeyInput('');
+      // Retry getting treatment
+      handleGetTreatment();
+    }
   };
 
   const handleTakePhoto = () => {
@@ -202,6 +284,7 @@ export default function DiseaseDetectionScreen({navigation, route}) {
   const resetScan = () => {
     setSelectedImage(null);
     setResult(null);
+    setTreatmentData(null);
   };
 
   const getStatusColor = status => {
@@ -444,6 +527,141 @@ export default function DiseaseDetectionScreen({navigation, route}) {
         {/* Probabilities */}
         {renderProbabilities()}
 
+        {/* Treatment Button - only show for diseased results */}
+        {result.prediction.is_diseased || result.prediction.is_leaf_dieback ? (
+          !treatmentData ? (
+            <TouchableOpacity
+              style={[styles.treatmentButton, {backgroundColor: getThemeColor()}]}
+              onPress={handleGetTreatment}
+              disabled={isLoadingTreatment}>
+              {isLoadingTreatment ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.treatmentButtonIcon}>💊</Text>
+                  <Text style={styles.treatmentButtonText}>Get AI Treatment Plan</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.treatmentContainer}>
+              <View style={styles.treatmentHeader}>
+                <Text style={styles.treatmentTitle}>💊 Treatment Plan</Text>
+                {treatmentData.source === 'fallback' && (
+                  <View style={styles.fallbackBadge}>
+                    <Text style={styles.fallbackBadgeText}>Offline</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Summary */}
+              <View style={styles.treatmentSection}>
+                <Text style={styles.treatmentSectionTitle}>Summary</Text>
+                <Text style={styles.treatmentText}>{treatmentData.summary}</Text>
+              </View>
+
+              {/* Urgency */}
+              <View style={[styles.urgencyBadge, {
+                backgroundColor: treatmentData.urgency === 'critical' ? '#d32f2f' :
+                  treatmentData.urgency === 'high' ? '#f57c00' :
+                  treatmentData.urgency === 'medium' ? '#fbc02d' : '#4caf50'
+              }]}>
+                <Text style={styles.urgencyText}>
+                  Urgency: {treatmentData.urgency?.toUpperCase()}
+                </Text>
+              </View>
+
+              {/* Diagnosis */}
+              {treatmentData.diagnosis && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>🔍 Diagnosis</Text>
+                  <Text style={styles.treatmentText}>{treatmentData.diagnosis}</Text>
+                </View>
+              )}
+
+              {/* Treatments */}
+              {treatmentData.treatments?.length > 0 && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>🧪 Treatments</Text>
+                  {treatmentData.treatments.map((treatment, index) => (
+                    <View key={index} style={styles.treatmentCard}>
+                      <View style={styles.treatmentCardHeader}>
+                        <Text style={styles.treatmentCardTitle}>{treatment.name}</Text>
+                        <View style={[styles.treatmentTypeBadge, {
+                          backgroundColor: treatment.type === 'chemical' ? '#e3f2fd' :
+                            treatment.type === 'organic' ? '#e8f5e9' :
+                            treatment.type === 'nutritional' ? '#fff3e0' : '#f3e5f5'
+                        }]}>
+                          <Text style={[styles.treatmentTypeText, {
+                            color: treatment.type === 'chemical' ? '#1565c0' :
+                              treatment.type === 'organic' ? '#2e7d32' :
+                              treatment.type === 'nutritional' ? '#ef6c00' : '#7b1fa2'
+                          }]}>{treatment.type}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.treatmentCardDesc}>{treatment.description}</Text>
+                      <View style={styles.treatmentDetails}>
+                        <Text style={styles.treatmentDetailItem}>💧 {treatment.dosage}</Text>
+                        <Text style={styles.treatmentDetailItem}>🔄 {treatment.frequency}</Text>
+                        <Text style={styles.treatmentDetailItem}>⏱️ {treatment.duration}</Text>
+                        {treatment.cost_estimate && (
+                          <Text style={styles.treatmentDetailItem}>💰 {treatment.cost_estimate}</Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Nutritional Recommendations */}
+              {treatmentData.nutritional_recommendations?.length > 0 && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>🌱 Nutrition</Text>
+                  {treatmentData.nutritional_recommendations.map((rec, index) => (
+                    <Text key={index} style={styles.listItem}>• {rec}</Text>
+                  ))}
+                </View>
+              )}
+
+              {/* Preventive Measures */}
+              {treatmentData.preventive_measures?.length > 0 && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>🛡️ Prevention</Text>
+                  {treatmentData.preventive_measures.map((measure, index) => (
+                    <Text key={index} style={styles.listItem}>• {measure}</Text>
+                  ))}
+                </View>
+              )}
+
+              {/* Safety */}
+              {treatmentData.safety_precautions?.length > 0 && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>⚠️ Safety</Text>
+                  {treatmentData.safety_precautions.map((precaution, index) => (
+                    <Text key={index} style={styles.listItem}>• {precaution}</Text>
+                  ))}
+                </View>
+              )}
+
+              {/* Recovery */}
+              {treatmentData.expected_recovery && (
+                <View style={styles.treatmentSection}>
+                  <Text style={styles.treatmentSectionTitle}>📅 Expected Recovery</Text>
+                  <Text style={styles.treatmentText}>{treatmentData.expected_recovery}</Text>
+                </View>
+              )}
+
+              {/* When to Seek Expert */}
+              {treatmentData.when_to_seek_expert && (
+                <View style={[styles.treatmentSection, styles.expertSection]}>
+                  <Text style={styles.treatmentSectionTitle}>👨‍🌾 When to Seek Expert</Text>
+                  <Text style={styles.treatmentText}>{treatmentData.when_to_seek_expert}</Text>
+                </View>
+              )}
+            </View>
+          )
+        ) : null}
+
         {/* Scan Again Button */}
         <TouchableOpacity
           style={[styles.resetButton, {backgroundColor: getThemeColor()}]}
@@ -578,6 +796,43 @@ export default function DiseaseDetectionScreen({navigation, route}) {
 
       {/* Info Section */}
       {!result && renderInfoSection()}
+
+      {/* API Key Modal */}
+      <Modal
+        visible={showApiKeyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowApiKeyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🔑 Configure AI Treatment</Text>
+            <Text style={styles.modalDescription}>
+              Enter your Groq API key to get AI-powered treatment recommendations.
+              Get a free key at console.groq.com
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="Enter Groq API Key"
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              secureTextEntry={true}
+              autoCapitalize="none"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowApiKeyModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveButton, {backgroundColor: getThemeColor()}]}
+                onPress={handleSaveApiKey}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -861,5 +1116,208 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     lineHeight: 20,
+  },
+  // Treatment styles
+  treatmentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    borderRadius: 10,
+    margin: 15,
+    marginBottom: 0,
+  },
+  treatmentButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  treatmentButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  treatmentContainer: {
+    margin: 15,
+    marginBottom: 0,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  treatmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  treatmentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  fallbackBadge: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  fallbackBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  treatmentSection: {
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  treatmentSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+  },
+  treatmentText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  urgencyBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginBottom: 15,
+  },
+  urgencyText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  treatmentCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  treatmentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  treatmentCardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  treatmentTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  treatmentTypeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  treatmentCardDesc: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 8,
+  },
+  treatmentDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  treatmentDetailItem: {
+    fontSize: 11,
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+  },
+  listItem: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 22,
+    marginLeft: 5,
+  },
+  expertSection: {
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    borderBottomWidth: 0,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  apiKeyInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 15,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  modalSaveButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

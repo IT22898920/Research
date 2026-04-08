@@ -213,9 +213,472 @@ const getPestDisplayName = (pestType, language) => {
       si: 'පොල් සුදු මැස්සා (Aleurodicus destructor)',
       ta: 'தென்னை வெள்ளை ஈ (Aleurodicus destructor)',
     },
+    // Health conditions
+    unhealthy_leaf: {
+      en: 'Unhealthy/Yellowing Coconut Leaf',
+      si: 'අසෞඛ්‍ය/කහ පැහැ පොල් කොළ',
+      ta: 'ஆரோக்கியமற்ற/மஞ்சள் தென்னை இலை',
+    },
+    unhealthy_branch: {
+      en: 'Unhealthy Coconut Branch/Frond',
+      si: 'අසෞඛ්‍ය පොල් අත්ත',
+      ta: 'ஆரோக்கியமற்ற தென்னை கிளை',
+    },
+    unhealthy_tree: {
+      en: 'Unhealthy Coconut Tree',
+      si: 'අසෞඛ්‍ය පොල් ගස',
+      ta: 'ஆரோக்கியமற்ற தென்னை மரம்',
+    },
+    leaf_rot: {
+      en: 'Leaf Rot Disease',
+      si: 'කොළ කුණුවීම රෝගය',
+      ta: 'இலை அழுகல் நோய்',
+    },
+    leaf_spot: {
+      en: 'Leaf Spot Disease',
+      si: 'කොළ ලප රෝගය',
+      ta: 'இலை புள்ளி நோய்',
+    },
+    leaf_dieback: {
+      en: 'Leaf Dieback Disease (Baby Coconut)',
+      si: 'කොළ මැරීයාම රෝගය (බබා පොල්)',
+      ta: 'இலை இறப்பு நோய் (குழந்தை தென்னை)',
+    },
   };
 
   return names[pestType]?.[language] || names[pestType]?.en || pestType;
+};
+
+/**
+ * Generate treatment recommendations for health conditions
+ */
+export const getHealthTreatmentRecommendations = async ({
+  conditionType,
+  severity,
+  confidence,
+  additionalInfo = {},
+  language = 'en',
+}) => {
+  const apiKey = await getApiKey();
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: 'API key not configured',
+      fallback: getHealthFallbackTreatment(conditionType, severity, language),
+    };
+  }
+
+  const languageInstruction = getLanguageInstruction(language);
+  const conditionName = getPestDisplayName(conditionType, language);
+
+  // Build additional context based on condition type
+  let additionalContext = '';
+  if (additionalInfo.possibleConditions) {
+    additionalContext = `\nPossible causes identified:\n${additionalInfo.possibleConditions.map(c => `- ${c.condition}: ${c.reason}`).join('\n')}`;
+  }
+  if (additionalInfo.unhealthyPercentage) {
+    additionalContext += `\nUnhealthy percentage: ${additionalInfo.unhealthyPercentage}%`;
+  }
+
+  const prompt = `You are an expert agricultural consultant specializing in coconut palm health management in Sri Lanka.
+
+A farmer has detected the following health issue on their coconut tree:
+- Condition: ${conditionName}
+- Severity Level: ${severity} (${getSeverityDescription(severity)})
+- Detection Confidence: ${(confidence * 100).toFixed(1)}%
+${additionalContext}
+
+${languageInstruction}
+
+Provide comprehensive treatment recommendations in the following JSON format:
+{
+  "summary": "Brief 1-2 sentence summary of the condition and its impact",
+  "urgency": "low|medium|high|critical",
+  "diagnosis": "Detailed explanation of what might be causing this condition",
+  "treatments": [
+    {
+      "type": "chemical|organic|cultural|nutritional",
+      "name": "Treatment name",
+      "description": "How to apply/implement",
+      "dosage": "Amount per liter/tree (if applicable)",
+      "frequency": "How often to apply",
+      "duration": "For how long",
+      "cost_estimate": "Approximate cost in LKR"
+    }
+  ],
+  "nutritional_recommendations": ["List of fertilizers or nutrients to apply"],
+  "preventive_measures": ["List of prevention tips"],
+  "safety_precautions": ["Safety tips when applying treatments"],
+  "expected_recovery": "Expected recovery timeline",
+  "when_to_seek_expert": "When to contact agricultural officer"
+}
+
+Important:
+- Include both chemical and organic treatment options
+- Include nutritional corrections if applicable (NPK, micronutrients)
+- Use locally available products in Sri Lanka
+- Consider the severity level when recommending treatments
+- Be specific about dosages and frequencies
+
+Respond ONLY with valid JSON, no additional text or markdown.`;
+
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{
+          role: 'user',
+          content: prompt
+        }],
+        temperature: 0.7,
+        max_tokens: 2500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error?.message || 'API request failed',
+        fallback: getHealthFallbackTreatment(conditionType, severity, language),
+      };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      return {
+        success: false,
+        error: 'Empty response from API',
+        fallback: getHealthFallbackTreatment(conditionType, severity, language),
+      };
+    }
+
+    // Clean the response
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith('```json')) {
+      cleanedContent = cleanedContent.slice(7);
+    } else if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.slice(3);
+    }
+    if (cleanedContent.endsWith('```')) {
+      cleanedContent = cleanedContent.slice(0, -3);
+    }
+    cleanedContent = cleanedContent.trim();
+
+    try {
+      const treatmentData = JSON.parse(cleanedContent);
+      return {
+        success: true,
+        data: treatmentData,
+        source: 'ai',
+      };
+    } catch (parseError) {
+      return {
+        success: false,
+        error: 'Failed to parse treatment data',
+        fallback: getHealthFallbackTreatment(conditionType, severity, language),
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Network error',
+      fallback: getHealthFallbackTreatment(conditionType, severity, language),
+    };
+  }
+};
+
+/**
+ * Fallback treatment data for health conditions
+ */
+const getHealthFallbackTreatment = (conditionType, severity, language) => {
+  const fallbackData = {
+    unhealthy_leaf: {
+      summary: 'Unhealthy/yellowing leaves detected. This may indicate nutrient deficiency, water stress, or disease.',
+      urgency: severity === 'severe' ? 'high' : 'medium',
+      diagnosis: 'Yellowing leaves can be caused by nitrogen deficiency, magnesium deficiency, water stress, or pest damage.',
+      treatments: [
+        {
+          type: 'nutritional',
+          name: 'NPK Fertilizer Application',
+          description: 'Apply balanced NPK fertilizer around the tree base',
+          dosage: '2-3 kg per tree',
+          frequency: 'Every 3 months',
+          duration: 'Ongoing',
+          cost_estimate: 'LKR 500-800 per application',
+        },
+        {
+          type: 'nutritional',
+          name: 'Magnesium Sulphate',
+          description: 'Apply to correct magnesium deficiency',
+          dosage: '500g per tree',
+          frequency: 'Every 6 months',
+          duration: 'Until recovery',
+          cost_estimate: 'LKR 200-400',
+        },
+      ],
+      nutritional_recommendations: [
+        'Apply Urea (46% N) - 500g per tree',
+        'Apply Muriate of Potash - 1kg per tree',
+        'Apply Dolomite for magnesium - 1kg per tree',
+      ],
+      preventive_measures: [
+        'Ensure proper irrigation during dry season',
+        'Apply organic mulch around tree base',
+        'Regular soil testing every 2 years',
+        'Maintain proper drainage',
+      ],
+      safety_precautions: [
+        'Wear gloves when handling fertilizers',
+        'Do not apply fertilizer during heavy rain',
+        'Keep fertilizers away from trunk base',
+      ],
+      expected_recovery: '4-8 weeks with proper nutrition',
+      when_to_seek_expert: 'If no improvement after 6 weeks or condition worsens',
+    },
+    unhealthy_branch: {
+      summary: 'Unhealthy branch/frond detected. May indicate disease, pest damage, or nutritional issues.',
+      urgency: severity === 'severe' ? 'high' : 'medium',
+      diagnosis: 'Branch deterioration can be caused by bud rot, stem bleeding, or severe nutrient deficiency.',
+      treatments: [
+        {
+          type: 'cultural',
+          name: 'Pruning of Affected Branches',
+          description: 'Remove severely affected branches and burn them',
+          dosage: 'N/A',
+          frequency: 'As needed',
+          duration: 'Immediate',
+          cost_estimate: 'LKR 500-1000 (labor)',
+        },
+        {
+          type: 'chemical',
+          name: 'Bordeaux Mixture',
+          description: 'Apply on cut surfaces to prevent fungal infection',
+          dosage: '1% solution',
+          frequency: 'After each pruning',
+          duration: 'One-time per cut',
+          cost_estimate: 'LKR 300-500',
+        },
+      ],
+      nutritional_recommendations: [
+        'Apply complete fertilizer mixture',
+        'Add boron micronutrient - 50g per tree',
+        'Apply organic compost - 25kg per tree',
+      ],
+      preventive_measures: [
+        'Regular inspection of crown area',
+        'Proper drainage around tree',
+        'Avoid mechanical damage to fronds',
+        'Control beetle and pest populations',
+      ],
+      safety_precautions: [
+        'Use sharp, sterilized tools for pruning',
+        'Wear protective gear when climbing',
+        'Dispose of infected material properly',
+      ],
+      expected_recovery: '2-4 months depending on severity',
+      when_to_seek_expert: 'If multiple branches affected or trunk shows symptoms',
+    },
+    unhealthy_tree: {
+      summary: 'Overall tree health issues detected. Comprehensive treatment approach recommended.',
+      urgency: severity === 'severe' ? 'critical' : 'high',
+      diagnosis: 'Poor tree health may result from root problems, severe nutrient deficiency, disease complex, or environmental stress.',
+      treatments: [
+        {
+          type: 'nutritional',
+          name: 'Complete Fertilizer Program',
+          description: 'Apply balanced fertilizer mixture in two splits per year',
+          dosage: '3-4 kg NPK mixture per tree',
+          frequency: 'Twice yearly (April & October)',
+          duration: 'Ongoing',
+          cost_estimate: 'LKR 1500-2500 per year',
+        },
+        {
+          type: 'organic',
+          name: 'Organic Matter Application',
+          description: 'Apply compost or green manure around tree base',
+          dosage: '25-50 kg per tree',
+          frequency: 'Annually',
+          duration: 'Ongoing',
+          cost_estimate: 'LKR 500-1000',
+        },
+      ],
+      nutritional_recommendations: [
+        'Soil test to identify specific deficiencies',
+        'Apply micronutrient mixture (Zn, B, Mn)',
+        'Use salt-tolerant fertilizer formulations',
+      ],
+      preventive_measures: [
+        'Ensure proper drainage system',
+        'Maintain optimal plant spacing',
+        'Regular pest and disease monitoring',
+        'Mulching to conserve moisture',
+      ],
+      safety_precautions: [
+        'Follow integrated pest management practices',
+        'Avoid over-fertilization',
+        'Monitor for secondary infections',
+      ],
+      expected_recovery: '6-12 months for full recovery',
+      when_to_seek_expert: 'Immediately if tree shows rapid decline or multiple symptoms',
+    },
+    leaf_rot: {
+      summary: 'Leaf rot disease detected. Fungal infection requiring immediate treatment.',
+      urgency: 'high',
+      diagnosis: 'Leaf rot is typically caused by fungal pathogens, often triggered by excess moisture and poor air circulation.',
+      treatments: [
+        {
+          type: 'chemical',
+          name: 'Mancozeb Fungicide',
+          description: 'Spray on affected and surrounding leaves',
+          dosage: '2.5g per liter of water',
+          frequency: 'Every 14 days',
+          duration: '3-4 applications',
+          cost_estimate: 'LKR 400-600 per application',
+        },
+        {
+          type: 'chemical',
+          name: 'Copper Oxychloride',
+          description: 'Apply as preventive and curative treatment',
+          dosage: '3g per liter of water',
+          frequency: 'Every 21 days',
+          duration: '2-3 applications',
+          cost_estimate: 'LKR 350-500 per application',
+        },
+      ],
+      nutritional_recommendations: [
+        'Apply potassium-rich fertilizer to boost immunity',
+        'Avoid excess nitrogen which promotes soft growth',
+      ],
+      preventive_measures: [
+        'Improve air circulation through pruning',
+        'Avoid overhead irrigation',
+        'Remove and destroy infected leaves',
+        'Apply preventive fungicide during monsoon',
+      ],
+      safety_precautions: [
+        'Wear mask and gloves when spraying fungicides',
+        'Do not spray during rain or wind',
+        'Follow pre-harvest interval guidelines',
+      ],
+      expected_recovery: '4-6 weeks with proper treatment',
+      when_to_seek_expert: 'If rot spreads to crown or multiple trees affected',
+    },
+    leaf_spot: {
+      summary: 'Leaf spot disease identified. Fungal/bacterial infection requiring treatment.',
+      urgency: severity === 'severe' ? 'high' : 'medium',
+      diagnosis: 'Leaf spots are caused by various fungal or bacterial pathogens, often appearing as circular lesions with distinct margins.',
+      treatments: [
+        {
+          type: 'chemical',
+          name: 'Carbendazim',
+          description: 'Systemic fungicide spray on affected leaves',
+          dosage: '1g per liter of water',
+          frequency: 'Every 10-14 days',
+          duration: '3 applications',
+          cost_estimate: 'LKR 300-450 per application',
+        },
+        {
+          type: 'organic',
+          name: 'Neem Oil Spray',
+          description: 'Natural fungicide and pest deterrent',
+          dosage: '20ml per liter of water',
+          frequency: 'Weekly',
+          duration: '4-5 weeks',
+          cost_estimate: 'LKR 250-400 per application',
+        },
+      ],
+      nutritional_recommendations: [
+        'Maintain balanced nutrition',
+        'Apply silicon-based fertilizer for stronger leaves',
+      ],
+      preventive_measures: [
+        'Remove fallen infected leaves',
+        'Ensure proper spacing between trees',
+        'Avoid wetting leaves during irrigation',
+        'Apply preventive sprays during wet season',
+      ],
+      safety_precautions: [
+        'Use appropriate PPE when handling chemicals',
+        'Store chemicals safely',
+        'Follow manufacturer instructions',
+      ],
+      expected_recovery: '3-5 weeks with consistent treatment',
+      when_to_seek_expert: 'If spots enlarge rapidly or cover more than 30% of leaf area',
+    },
+    leaf_dieback: {
+      summary: 'Leaf dieback disease detected in baby/young coconut. Early intervention is critical.',
+      urgency: severity === 'severe' ? 'critical' : 'high',
+      diagnosis: 'Leaf dieback in young coconuts is often caused by fungal pathogens, particularly affecting seedlings. May be linked to Phytophthora or other soil-borne fungi.',
+      treatments: [
+        {
+          type: 'chemical',
+          name: 'Metalaxyl + Mancozeb',
+          description: 'Apply as soil drench and foliar spray for systemic protection',
+          dosage: '2.5g per liter of water',
+          frequency: 'Every 10-14 days',
+          duration: '4-5 applications',
+          cost_estimate: 'LKR 500-700 per application',
+        },
+        {
+          type: 'chemical',
+          name: 'Copper Hydroxide',
+          description: 'Spray on affected leaves and growing point',
+          dosage: '2g per liter of water',
+          frequency: 'Every 14 days',
+          duration: '3-4 applications',
+          cost_estimate: 'LKR 300-450 per application',
+        },
+        {
+          type: 'organic',
+          name: 'Trichoderma Application',
+          description: 'Apply bio-fungicide to soil around seedling',
+          dosage: '50g per seedling mixed with compost',
+          frequency: 'Every 30 days',
+          duration: '3 applications',
+          cost_estimate: 'LKR 200-350 per application',
+        },
+      ],
+      nutritional_recommendations: [
+        'Apply balanced seedling fertilizer (NPK 14-14-14)',
+        'Add micronutrients especially Zinc and Boron',
+        'Apply organic matter to improve soil health',
+      ],
+      preventive_measures: [
+        'Ensure proper drainage in nursery/planting area',
+        'Avoid overwatering young seedlings',
+        'Maintain proper spacing between seedlings',
+        'Use disease-free planting material',
+        'Apply preventive fungicide during rainy season',
+      ],
+      safety_precautions: [
+        'Wear gloves when handling fungicides',
+        'Do not apply during rain',
+        'Keep seedlings isolated if heavily infected',
+        'Sterilize tools between plants',
+      ],
+      expected_recovery: '4-8 weeks with proper treatment',
+      when_to_seek_expert: 'If growing point is affected or multiple seedlings show symptoms',
+    },
+  };
+
+  return fallbackData[conditionType] || {
+    summary: 'Health issue detected. General treatment recommended.',
+    urgency: 'medium',
+    treatments: [],
+    preventive_measures: ['Consult local agricultural officer for specific advice'],
+    safety_precautions: [],
+    expected_recovery: 'Varies based on condition',
+    when_to_seek_expert: 'If condition persists or worsens',
+  };
 };
 
 /**
@@ -487,6 +950,7 @@ const getFallbackTreatment = (pestType, severity, language) => {
 
 export default {
   getTreatmentRecommendations,
+  getHealthTreatmentRecommendations,
   setApiKey,
   getApiKey,
   isApiKeyConfigured,

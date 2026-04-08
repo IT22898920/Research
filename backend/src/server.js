@@ -45,6 +45,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/scans', require('./routes/scans'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/plantations', require('./routes/plantations'));
+app.use('/api/trees', require('./routes/trees'));
 
 // 404 Handler
 app.use((req, res) => {

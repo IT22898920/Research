@@ -1,0 +1,64 @@
+{
+  "version": "v12",
+  "model_name": "coconut_mite_v12_fruit_focused",
+  "architecture": "MobileNetV2 + Squeeze-Excite Attention",
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "num_classes": 2,
+  "class_names": [
+    "healthy",
+    "mite"
+  ],
+  "class_indices": {
+    "healthy": 0,
+    "mite": 1
+  },
+  "training_config": {
+    "img_size": 224,
+    "batch_size": 32,
+    "epochs": 60,
+    "learning_rate": 0.0001,
+    "patience": 15,
+    "min_delta": 0.001,
+    "l2_reg": 0.01,
+    "dropout": 0.4,
+    "focal_gamma": 2.0,
+    "focal_alpha": 0.25,
+    "train_split": 0.7,
+    "val_split": 0.15,
+    "test_split": 0.15
+  },
+  "focus": "Coconut fruit surface patterns - mite damage detection",
+  "metrics": {
+    "test_accuracy": 0.9743589743589743,
+    "test_precision": 0.9761742682096665,
+    "test_recall": 0.9743589743589743,
+    "test_f1_score": 0.974576830951396,
+    "test_macro_f1": 0.9717991593980205,
+    "test_roc_auc": 0.99949390384173,
+    "class_wise": {
+      "healthy": {
+        "precision": 0.9292035398230089,
+        "recall": 1.0,
+        "f1-score": 0.963302752293578,
+        "support": 105
+      },
+      "mite": {
+        "precision": 1.0,
+        "recall": 0.961352657004831,
+        "f1-score": 0.9802955665024631,
+        "support": 207
+      }
+    }
+  },
+  "dataset": {
+    "source": "mite - new",
+    "train_samples": 1454,
+    "validation_samples": 314,
+    "test_samples": 312
+  },
+  "trained_at": "2026-03-11T00:53:16.941324"
+}

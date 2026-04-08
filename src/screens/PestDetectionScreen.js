@@ -62,6 +62,13 @@ export default function PestDetectionScreen({navigation, route}) {
   useEffect(() => {
     checkApi();
     checkApiKeyStatus();
+
+    // Check API status every 10 seconds
+    const interval = setInterval(() => {
+      checkApi();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const checkApi = async () => {

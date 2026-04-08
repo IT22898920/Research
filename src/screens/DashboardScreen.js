@@ -91,17 +91,6 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
-          onPress={() => navigation.navigate('BranchHealth')}>
-          <Text style={styles.featureIcon}>🌳</Text>
-          <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Branch Health Monitor</Text>
-            <Text style={styles.featureSubtext}>Check branch health status</Text>
-          </View>
-          <Text style={styles.featureArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.featureCardActive}
           onPress={() => navigation.navigate('TreeHealth')}>
           <Text style={styles.featureIcon}>🌴</Text>
           <View style={styles.featureContent}>
@@ -146,22 +135,11 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
-          onPress={() => navigation.navigate('PlantationMap')}>
-          <Text style={styles.featureIcon}>🗺️</Text>
+          onPress={() => navigation.navigate('PlantationList')}>
+          <Text style={styles.featureIcon}>🌴</Text>
           <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Plantation Map</Text>
-            <Text style={styles.featureSubtext}>View & manage all trees</Text>
-          </View>
-          <Text style={styles.featureArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.featureCardActive}
-          onPress={() => navigation.navigate('AddTree')}>
-          <Text style={styles.featureIcon}>📍</Text>
-          <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Add Tree Location</Text>
-            <Text style={styles.featureSubtext}>Mark new tree with GPS</Text>
+            <Text style={styles.featureText}>My Plantations</Text>
+            <Text style={styles.featureSubtext}>Manage plantations & trees</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>

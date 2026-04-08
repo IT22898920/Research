@@ -31,6 +31,9 @@ import TreeHealthScreen from './src/screens/TreeHealthScreen';
 import YieldEstimatorScreen from './src/screens/YieldEstimatorScreen';
 import AddTreeScreen from './src/screens/AddTreeScreen';
 import PlantationMapScreen from './src/screens/PlantationMapScreen';
+import PlantationListScreen from './src/screens/PlantationListScreen';
+import AddPlantationScreen from './src/screens/AddPlantationScreen';
+import EditPlantationScreen from './src/screens/EditPlantationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -76,6 +79,9 @@ function App(): React.JSX.Element {
             <Stack.Screen name="BunchDetection" component={BunchDetectionScreen} />
             <Stack.Screen name="AddTree" component={AddTreeScreen} />
             <Stack.Screen name="PlantationMap" component={PlantationMapScreen} />
+            <Stack.Screen name="PlantationList" component={PlantationListScreen} />
+            <Stack.Screen name="AddPlantation" component={AddPlantationScreen} />
+            <Stack.Screen name="EditPlantation" component={EditPlantationScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

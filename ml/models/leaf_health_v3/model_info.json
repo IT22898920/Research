@@ -1,0 +1,76 @@
+{
+  "model_name": "leaf_health_v3",
+  "architecture": "EfficientNetB0",
+  "version": "v3",
+  "classes": [
+    "healthy",
+    "unhealthy"
+  ],
+  "num_classes": 2,
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "color_health_score": {
+    "description": "Green pixel ratio (HSV) mapped to 0-100 scale",
+    "formula": "score = (green_pixels / total_saturated_pixels) * 100",
+    "green_hue_range": "35-85 (OpenCV scale 0-180)",
+    "sat_threshold": 40,
+    "labels": {
+      "70-100": "Healthy",
+      "30-69": "Moderate",
+      "0-29": "Unhealthy"
+    }
+  },
+  "training": {
+    "phase1_epochs": 30,
+    "phase2_epochs": 20,
+    "batch_size": 32,
+    "lr_phase1": 0.001,
+    "lr_phase2": 3e-05,
+    "loss_function": "Focal Loss (gamma=2.0, alpha=0.25) + Label Smoothing 0.1",
+    "optimizer": "Adam",
+    "augmentation": "Geometric only \u2014 NO color changes",
+    "class_weights": {
+      "0": 0.9351576442593694,
+      "1": 1.0745044429254955
+    },
+    "training_time_minutes": 95.5,
+    "final_train_accuracy": 0.9976145029067993,
+    "final_val_accuracy": 1.0
+  },
+  "data": {
+    "healthy_source": "healthy-leaves/",
+    "unhealthy_source": "unhealthy-yellowing/",
+    "split": "70% train / 15% val / 15% test",
+    "train_samples": 6288,
+    "val_samples": 1348,
+    "test_samples": 1349
+  },
+  "test_performance": {
+    "accuracy": 0.9992587101556709,
+    "macro_precision": 0.9993074792243768,
+    "macro_recall": 0.9992038216560509,
+    "macro_f1": 0.9992550932789976,
+    "healthy_precision": 0.9986149584487535,
+    "healthy_recall": 1.0,
+    "healthy_f1": 0.9993069993069993,
+    "unhealthy_precision": 1.0,
+    "unhealthy_recall": 0.9984076433121019,
+    "unhealthy_f1": 0.999203187250996
+  },
+  "color_score_stats": {
+    "healthy_mean_score": 66.87631067961163,
+    "unhealthy_mean_score": 17.505652866242038,
+    "optimal_threshold": 42.19098177292683
+  },
+  "supervisor_checks": {
+    "test_samples_500_plus": true,
+    "accuracy_95_plus": true,
+    "healthy_prf_balanced": true,
+    "unhealthy_prf_balanced": true,
+    "cross_class_balanced": true,
+    "no_overconfidence": true
+  }
+}

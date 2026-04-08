@@ -95,7 +95,7 @@ CORS(app)  # Enable CORS for React Native app
 # Configuration paths
 BASE_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models')
 
-# Mite model paths (v10 - 3-class with Focal Loss)
+# Mite model paths (v10 - 3-class with Focal Loss) - Used for /predict/all
 MITE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v10', 'best_model.keras')
 MITE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v10', 'model_info.json')
 
@@ -105,6 +105,13 @@ MITE_BOOST_FACTOR = 0.5 / MITE_THRESHOLD  # 5x boost for mite class
 
 # Mite v10 class indices
 MITE_CLASSES = ['coconut_mite', 'healthy', 'not_coconut']
+
+# Mite v12 model paths (2-class - Fruit Surface Focused) - Used for /predict/mite
+MITE_V12_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v12', 'best_model.keras')
+MITE_V12_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v12', 'model_info.json')
+
+# Mite v12 class indices (binary classification: healthy vs mite)
+MITE_V12_CLASSES = ['healthy', 'mite']
 
 # Minimum confidence threshold for valid predictions
 MIN_CONFIDENCE_THRESHOLD = 0.50
@@ -130,11 +137,15 @@ LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 
 # Leaf Dieback model class indices (alphabetical order from ImageDataGenerator)
 LEAF_DIEBACK_CLASSES = ['healthy', 'leaf_die_back', 'not_cocount']
 
-# Leaf Health model paths (v1 - 2-class)
-LEAF_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'best_model.keras')
-LEAF_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v1', 'model_info.json')
+# Leaf Health model paths (v3 - 2-class, for drone images)
+LEAF_HEALTH_V3_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v3', 'best_model.keras')
+LEAF_HEALTH_V3_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v3', 'model_info.json')
 
-# Leaf Health v1 class indices
+# Leaf Health model paths (v4 - 2-class, for phone images)
+LEAF_HEALTH_V4_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v4', 'best_model.keras')
+LEAF_HEALTH_V4_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_health_v4', 'model_info.json')
+
+# Leaf Health class indices (same for both v3 and v4)
 LEAF_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
 # Branch Health model paths (v1 - 2-class)
@@ -144,11 +155,11 @@ BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_he
 # Branch Health v1 class indices
 BRANCH_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
-# Tree Health model paths (v1 - 2-class)
-TREE_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v1', 'best_model.keras')
-TREE_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v1', 'model_info.json')
+# Tree Health model paths (v2 - 2-class, 100% accuracy)
+TREE_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v2', 'best_model.keras')
+TREE_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_tree_health_v2', 'model_info.json')
 
-# Tree Health v1 class indices
+# Tree Health v2 class indices
 TREE_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
 # Bunch Detection TFLite model path
@@ -183,6 +194,16 @@ def focal_loss(gamma=2.0, alpha=0.25):
         focal_loss = alpha * focal_weight * cross_entropy
         return tf.keras.backend.sum(focal_loss, axis=-1)
     return focal_loss_fn
+
+def focal_loss_fixed(y_true, y_pred):
+    """Custom focal loss for mite v12 model"""
+    gamma = 2.0
+    alpha = 0.25
+    y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
+    ce = -y_true * tf.math.log(y_pred)
+    weight = alpha * y_true * tf.pow(1 - y_pred, gamma)
+    fl = weight * ce
+    return tf.reduce_mean(tf.reduce_sum(fl, axis=-1))
 
 def load_models():
     """Load all trained models"""
@@ -221,6 +242,35 @@ def load_models():
         print(f"    ERROR loading mite model: {e}")
         models['mite'] = None
         model_infos['mite'] = None
+
+    # Load Mite Model v12 (2-class - Fruit Surface Focused) - For /predict/mite endpoint
+    try:
+        print("\n[1b] Loading Coconut Mite model (v12 - 2-class, Fruit Focused)...")
+
+        models['mite_v12'] = tf.keras.models.load_model(
+            MITE_V12_MODEL_PATH,
+            custom_objects={'focal_loss_fixed': focal_loss_fixed}
+        )
+
+        try:
+            with open(MITE_V12_MODEL_INFO_PATH, 'r') as f:
+                model_infos['mite_v12'] = json.load(f)
+        except:
+            model_infos['mite_v12'] = {
+                'version': 'v12_fruit_focused',
+                'classes': MITE_V12_CLASSES,
+                'performance': {'test_accuracy': 0.9744, 'mite_recall': 0.9614}
+            }
+
+        print(f"    Version: v12 (2-class, Fruit Surface Focused)")
+        print(f"    Classes: {MITE_V12_CLASSES}")
+        print(f"    Accuracy: 97.44%")
+        print(f"    Mite Recall: 96.14%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading mite v12 model: {e}")
+        models['mite_v12'] = None
+        model_infos['mite_v12'] = None
 
     # Load Unified Caterpillar & White Fly Model (v1 - 4-class with Focal Loss)
     try:
@@ -321,33 +371,59 @@ def load_models():
         models['leaf_dieback'] = None
         model_infos['leaf_dieback'] = None
 
-    # Load Leaf Health Model (v1 - 2-class)
+    # Load Leaf Health Model v3 (for drone images)
     try:
-        print("\n[5] Loading Leaf Health model (v1 - 2-class)...")
+        print("\n[5a] Loading Leaf Health model v3 (drone images)...")
 
-        models['leaf_health'] = tf.keras.models.load_model(
-            LEAF_HEALTH_MODEL_PATH,
+        models['leaf_health_v3'] = tf.keras.models.load_model(
+            LEAF_HEALTH_V3_MODEL_PATH,
             custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
         )
 
         try:
-            with open(LEAF_HEALTH_MODEL_INFO_PATH, 'r') as f:
-                model_infos['leaf_health'] = json.load(f)
+            with open(LEAF_HEALTH_V3_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_health_v3'] = json.load(f)
         except:
-            model_infos['leaf_health'] = {
-                'version': 'v1_2class',
+            model_infos['leaf_health_v3'] = {
+                'version': 'v3_drone',
                 'classes': LEAF_HEALTH_CLASSES,
-                'performance': {'test_accuracy': 0.9370}
+                'performance': {'test_accuracy': 0.9993}
             }
 
-        print(f"    Version: v1 (2-class, MobileNetV2)")
+        print(f"    Version: v3 (2-class, for drone images)")
         print(f"    Classes: {LEAF_HEALTH_CLASSES}")
-        print(f"    Accuracy: 93.70%")
         print("    Status: LOADED")
     except Exception as e:
-        print(f"    ERROR loading leaf health model: {e}")
-        models['leaf_health'] = None
-        model_infos['leaf_health'] = None
+        print(f"    ERROR loading leaf health v3 model: {e}")
+        models['leaf_health_v3'] = None
+        model_infos['leaf_health_v3'] = None
+
+    # Load Leaf Health Model v4 (for phone images)
+    try:
+        print("\n[5b] Loading Leaf Health model v4 (phone images)...")
+
+        models['leaf_health_v4'] = tf.keras.models.load_model(
+            LEAF_HEALTH_V4_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+
+        try:
+            with open(LEAF_HEALTH_V4_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_health_v4'] = json.load(f)
+        except:
+            model_infos['leaf_health_v4'] = {
+                'version': 'v4_phone',
+                'classes': LEAF_HEALTH_CLASSES,
+                'performance': {'test_accuracy': 0.95}
+            }
+
+        print(f"    Version: v4 (2-class, for phone images)")
+        print(f"    Classes: {LEAF_HEALTH_CLASSES}")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf health v4 model: {e}")
+        models['leaf_health_v4'] = None
+        model_infos['leaf_health_v4'] = None
 
     # Load Branch Health Model (v1 - 2-class)
     try:
@@ -377,13 +453,13 @@ def load_models():
         models['branch_health'] = None
         model_infos['branch_health'] = None
 
-    # Load Tree Health Model (v1 - 2-class)
+    # Load Tree Health Model (v2 - 2-class, 100% accuracy)
     try:
-        print("\n[7] Loading Tree Health model (v1 - 2-class)...")
+        print("\n[7] Loading Tree Health model (v2 - 2-class)...")
 
         models['tree_health'] = tf.keras.models.load_model(
             TREE_HEALTH_MODEL_PATH,
-            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+            custom_objects={'focal_loss_fn': focal_loss(gamma=3.0, alpha=0.25)}
         )
 
         try:
@@ -391,14 +467,14 @@ def load_models():
                 model_infos['tree_health'] = json.load(f)
         except:
             model_infos['tree_health'] = {
-                'version': 'v1_2class',
+                'version': 'v2_2class',
                 'classes': TREE_HEALTH_CLASSES,
-                'performance': {'test_accuracy': 0.9972}
+                'performance': {'test_accuracy': 1.0}
             }
 
-        print(f"    Version: v1 (2-class, MobileNetV2)")
+        print(f"    Version: v2 (2-class, EfficientNetB0)")
         print(f"    Classes: {TREE_HEALTH_CLASSES}")
-        print(f"    Accuracy: 99.72%")
+        print(f"    Accuracy: 100%")
         print("    Status: LOADED")
     except Exception as e:
         print(f"    ERROR loading tree health model: {e}")
@@ -451,7 +527,7 @@ def load_models():
 
     print("\n" + "=" * 60)
     loaded_count = sum(1 for m in models.values() if m is not None)
-    print(f"  Models loaded: {loaded_count}/9")
+    print(f"  Models loaded: {loaded_count}/10")
     print("=" * 60)
 
 def preprocess_image_mite(image_bytes):
@@ -632,12 +708,19 @@ def home():
     """API home endpoint"""
     return jsonify({
         'service': 'Coconut Health Monitor - Pest & Disease Detection API',
-        'version': '8.0.0',
+        'version': '9.0.0',
         'models': {
             'mite': {
+                'status': 'loaded' if models.get('mite_v12') is not None else 'not loaded',
+                'version': 'v12 (2-class, Fruit Surface Focused)',
+                'accuracy': '97.44%',
+                'note': 'Used for /predict/mite endpoint'
+            },
+            'mite_v10': {
                 'status': 'loaded' if models.get('mite') is not None else 'not loaded',
                 'version': 'v10 (3-class, Focal Loss)',
-                'accuracy': '91.44%'
+                'accuracy': '91.44%',
+                'note': 'Used for /predict/all endpoint'
             },
             'unified': {
                 'status': 'loaded' if models.get('unified') is not None else 'not loaded',
@@ -688,15 +771,27 @@ def list_models():
     """List all available models with their info"""
     result = {}
 
-    if model_infos.get('mite'):
+    if model_infos.get('mite_v12'):
         result['mite'] = {
-            'name': 'Coconut Mite Detection Model',
+            'name': 'Coconut Mite Detection Model (Fruit Surface Focused)',
+            'version': 'v12 (2-class)',
+            'classes': MITE_V12_CLASSES,
+            'accuracy': 0.9744,
+            'mite_recall': 0.9614,
+            'endpoint': '/predict/mite',
+            'loaded': models.get('mite_v12') is not None
+        }
+
+    if model_infos.get('mite'):
+        result['mite_v10'] = {
+            'name': 'Coconut Mite Detection Model (Legacy)',
             'version': 'v10 (3-class, Focal Loss)',
             'classes': MITE_CLASSES,
             'accuracy': 0.9144,
             'mite_recall': 0.79,
             'threshold': MITE_THRESHOLD,
             'boost_factor': MITE_BOOST_FACTOR,
+            'endpoint': '/predict/all',
             'loaded': models.get('mite') is not None
         }
 
@@ -735,10 +830,15 @@ def list_models():
 
 @app.route('/predict/mite', methods=['POST'])
 def predict_mite():
-    """Detect coconut mite infection (v10 model - 3-class classification)"""
+    """Detect coconut mite infection (v12 model - 2-class, Fruit Surface Focused)
 
-    if models.get('mite') is None:
-        return jsonify({'error': 'Mite model not loaded'}), 500
+    Uses the new v12 model trained specifically on coconut fruit surface patterns.
+    Classes: healthy, mite (binary classification)
+    Accuracy: 97.44%
+    """
+
+    if models.get('mite_v12') is None:
+        return jsonify({'error': 'Mite v12 model not loaded'}), 500
 
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
@@ -751,53 +851,40 @@ def predict_mite():
         image_bytes = file.read()
         processed_image = preprocess_image_mite(image_bytes)
 
-        # v10 3-class classification: softmax output
-        predictions = models['mite'].predict(processed_image, verbose=0)[0]
-
-        # Apply threshold adjustment (boost mite probability)
-        adjusted_probs = predictions.copy()
-        adjusted_probs[0] = adjusted_probs[0] * MITE_BOOST_FACTOR
+        # v12 2-class classification: softmax output
+        # Classes: ['healthy', 'mite']
+        predictions = models['mite_v12'].predict(processed_image, verbose=0)[0]
 
         # Get predicted class
-        predicted_idx = int(np.argmax(adjusted_probs))
-        predicted_class = MITE_CLASSES[predicted_idx]
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = MITE_V12_CLASSES[predicted_idx]
         confidence = float(predictions[predicted_idx])
-        is_mite = predicted_class == 'coconut_mite'
-        is_valid = predicted_class != 'not_coconut'
+        is_mite = predicted_class == 'mite'
 
         probabilities = {
-            'coconut_mite': float(predictions[0]),
-            'healthy': float(predictions[1]),
-            'not_coconut': float(predictions[2])
+            'healthy': float(predictions[0]),
+            'mite': float(predictions[1])
         }
 
-        if not is_valid:
-            return jsonify({
-                'success': True,
-                'pest_type': 'mite',
-                'model_version': 'v10',
-                'prediction': {
-                    'class': 'not_coconut',
-                    'confidence': confidence,
-                    'is_infected': False,
-                    'is_valid_image': False,
-                    'label': 'Not a valid coconut image',
-                    'message': 'The uploaded image does not appear to be a coconut. Please upload a clear image of a coconut fruit or leaf.'
-                },
-                'probabilities': probabilities,
-                'timestamp': datetime.now().isoformat()
-            })
+        # Map to standard response format
+        if is_mite:
+            label = 'Coconut Mite Infected'
+            message = 'This coconut fruit shows signs of mite damage on the surface.'
+        else:
+            label = 'Healthy'
+            message = 'No mite damage detected on this coconut fruit.'
 
         return jsonify({
             'success': True,
             'pest_type': 'mite',
-            'model_version': 'v10',
+            'model_version': 'v12',
             'prediction': {
-                'class': predicted_class,
+                'class': 'coconut_mite' if is_mite else 'healthy',  # Map to standard class names
                 'confidence': confidence,
                 'is_infected': is_mite,
-                'is_valid_image': True,
-                'label': 'Coconut Mite Infected' if is_mite else 'Healthy'
+                'is_valid_image': True,  # v12 is trained only on coconut images
+                'label': label,
+                'message': message
             },
             'probabilities': probabilities,
             'timestamp': datetime.now().isoformat()
@@ -1183,6 +1270,141 @@ def predict_leaf_dieback():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/predict/leaf-health', methods=['POST'])
+def predict_leaf_health():
+    """Detect coconut leaf health (2-class classification)
+
+    Supports two modes:
+    - phone: Uses leaf_health_v4 model (optimized for phone camera images)
+    - drone: Uses leaf_health_v3 model (optimized for drone aerial images)
+
+    Pass mode as form field or query parameter. Default is 'phone'.
+    Classes: healthy, unhealthy
+    """
+
+    # Get mode from form data or query parameter (default: phone)
+    mode = request.form.get('mode', request.args.get('mode', 'phone')).lower()
+
+    # Select model based on mode
+    if mode == 'drone':
+        model_key = 'leaf_health_v3'
+        model_version = 'v3_drone'
+    else:
+        model_key = 'leaf_health_v4'
+        model_version = 'v4_phone'
+
+    if models.get(model_key) is None:
+        return jsonify({'error': f'Leaf Health model ({model_version}) not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+
+        # Preprocess image (224x224, 0-1 scaling)
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32) / 255.0
+        processed_image = np.expand_dims(img_array, axis=0)
+
+        # 2-class classification: softmax output
+        # Classes: ['healthy', 'unhealthy']
+        predictions = models[model_key].predict(processed_image, verbose=0)[0]
+
+        # Get predicted class
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = LEAF_HEALTH_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+
+        is_healthy = predicted_class == 'healthy'
+
+        probabilities = {
+            'healthy': float(predictions[0]),
+            'unhealthy': float(predictions[1])
+        }
+
+        # Determine message and recommendation
+        if is_healthy:
+            message = 'This coconut leaf appears to be healthy with no visible signs of stress or disease.'
+            recommendation = 'Continue with regular maintenance and monitoring. Ensure proper watering and nutrition.'
+        else:
+            message = 'This coconut leaf shows signs of being unhealthy. It may have yellowing, wilting, or other stress indicators.'
+            recommendation = 'Inspect the tree for pest damage, nutrient deficiencies, or water stress. Consider consulting an agricultural expert.'
+
+        # Possible conditions for unhealthy leaves
+        possible_conditions = []
+        if not is_healthy:
+            possible_conditions = [
+                {
+                    'condition': 'Nitrogen Deficiency',
+                    'icon': '🌿',
+                    'urgency': 'medium',
+                    'reason': 'Lack of nitrogen in soil affects chlorophyll production',
+                    'symptoms': ['Yellowing of older leaves', 'Stunted growth', 'Pale green color'],
+                    'solution': 'Apply nitrogen-rich fertilizer (urea or ammonium sulfate) at 500g per tree'
+                },
+                {
+                    'condition': 'Potassium Deficiency',
+                    'icon': '🍂',
+                    'urgency': 'high',
+                    'reason': 'Potassium is essential for fruit development and disease resistance',
+                    'symptoms': ['Orange/yellow spotting on leaflets', 'Leaf tip necrosis', 'Reduced yield'],
+                    'solution': 'Apply potassium chloride (muriate of potash) at 1-2kg per tree annually'
+                },
+                {
+                    'condition': 'Magnesium Deficiency',
+                    'icon': '💛',
+                    'urgency': 'medium',
+                    'reason': 'Magnesium is central to chlorophyll molecule',
+                    'symptoms': ['Interveinal yellowing', 'Yellow bands along leaflets', 'Older leaves affected first'],
+                    'solution': 'Apply magnesium sulfate (Epsom salt) at 500g per tree or spray 2% solution'
+                },
+                {
+                    'condition': 'Water Stress',
+                    'icon': '💧',
+                    'urgency': 'high',
+                    'reason': 'Insufficient or excessive water affects nutrient uptake',
+                    'symptoms': ['Wilting leaves', 'Yellowing', 'Leaf drooping'],
+                    'solution': 'Ensure proper irrigation (40-50 liters per day during dry season)'
+                },
+                {
+                    'condition': 'Pest Damage',
+                    'icon': '🐛',
+                    'urgency': 'high',
+                    'reason': 'Insects feeding on leaves cause physical damage and nutrient loss',
+                    'symptoms': ['Holes in leaves', 'Discoloration', 'Webbing or insects visible'],
+                    'solution': 'Identify specific pest and apply appropriate treatment. Consider neem oil spray.'
+                }
+            ]
+
+        return jsonify({
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'is_healthy': is_healthy,
+            'probabilities': probabilities,
+            'message': message,
+            'recommendation': recommendation,
+            'possible_conditions': possible_conditions,
+            'conditions_count': len(possible_conditions),
+            'mode': mode,
+            'model_info': {
+                'version': model_version,
+                'accuracy': model_infos.get(model_key, {}).get('performance', {}).get('test_accuracy', 'N/A')
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/predict/tree-health', methods=['POST'])
 def predict_tree_health():
     """Detect overall coconut tree health (v1 model - 2-class classification)
@@ -1259,8 +1481,8 @@ def predict_tree_health():
             'recommendation': recommendation,
             'model_info': {
                 'name': 'Coconut Tree Health Model',
-                'version': 'v1',
-                'accuracy': '99.72%'
+                'version': 'v2',
+                'accuracy': '100%'
             },
             'timestamp': datetime.now().isoformat()
         })
@@ -1918,8 +2140,9 @@ def server_error(e):
 if __name__ == '__main__':
     load_models()
 
-    print("\nStarting Coconut Health Monitor ML API v8.0...")
-    print("  Mite Model: v10 (3-class, 91.44% accuracy)")
+    print("\nStarting Coconut Health Monitor ML API v9.0...")
+    print("  Mite Model: v12 (2-class, 97.44% accuracy) - /predict/mite")
+    print("  Mite Model: v10 (3-class, 91.44% accuracy) - /predict/all")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
     print("  Leaf Dieback Model: v4 (3-class - baby coconut disease)")

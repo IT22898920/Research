@@ -25,7 +25,9 @@ import {useFocusEffect} from '@react-navigation/native';
 
 export default function PlantationMapScreen({navigation, route}) {
   const plantationId = route.params?.plantationId;
+  const initialPlantationName = route.params?.plantationName;
   const mapRef = useRef(null);
+  const [plantationName, setPlantationName] = useState(initialPlantationName || 'Plantation');
 
   const [trees, setTrees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -269,11 +271,21 @@ export default function PlantationMapScreen({navigation, route}) {
     try {
       let treesData;
       if (plantationId) {
-        treesData = await treeAPI.getTreesByPlantation(plantationId);
+        const response = await treeAPI.getTreesByPlantation(plantationId);
+        treesData = response.trees || [];
+        // Update plantation name if provided
+        if (response.plantation?.name) {
+          setPlantationName(response.plantation.name);
+        }
       } else {
         treesData = await treeAPI.getAllTrees();
       }
-      setTrees(treesData);
+      // Normalize tree IDs (backend uses _id, map to id for consistency)
+      const normalizedTrees = treesData.map(tree => ({
+        ...tree,
+        id: tree._id || tree.id,
+      }));
+      setTrees(normalizedTrees);
 
       // Calculate stats
       const treeStats = await treeAPI.getTreeStats(plantationId);
@@ -518,7 +530,7 @@ export default function PlantationMapScreen({navigation, route}) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Plantation</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{plantationName}</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('AddTree', {plantationId})}

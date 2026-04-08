@@ -9,20 +9,10 @@
  * - Fast responses via Groq API (Llama 3.3 70B)
  */
 
-// API Configuration - Same as pest detection API
-const API_CONFIG = {
-  // For Android Emulator
-  emulator: 'http://10.0.2.2:5001',
-  // For iOS Simulator
-  ios: 'http://localhost:5001',
-  // For Real Device via WiFi - replace with your computer's IP
-  device: 'http://192.168.8.196:5001',
-  // For Real Device via USB (adb reverse)
-  usbDevice: 'http://localhost:5001',
-};
+// Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
+import {ML_API_URL} from '../config/apiConfig';
 
-// Change this based on your testing environment
-const API_BASE_URL = API_CONFIG.usbDevice;
+const API_BASE_URL = ML_API_URL;
 
 /**
  * Check if the chat service is available

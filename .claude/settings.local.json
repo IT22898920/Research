@@ -204,7 +204,29 @@
       "Bash(timeout 240 tail:*)",
       "Bash(timeout 60 tail:*)",
       "Bash(for f in helthy/*.jpeg)",
-      "Bash(do echo \"Testing: $f\")"
+      "Bash(do echo \"Testing: $f\")",
+      "Bash(ipconfig:*)",
+      "Bash(adb reverse:*)",
+      "Bash(C:UsersDELLAppDataLocalAndroidSdkplatform-toolsadb.exe reverse tcp:5001 tcp:5001)",
+      "Bash(python scripts/train_mite_v12.py:*)",
+      "Bash(dir /b /s \"C:\\\\Users\\\\DELL\\\\AppData\\\\Local\\\\Temp\\\\claude\")",
+      "Bash(C:UsersDELLAppDataLocalAndroidSdkplatform-toolsadb.exe reverse tcp:8081 tcp:8081)",
+      "Bash(C:UsersDELLAppDataLocalAndroidSdkplatform-toolsadb.exe reverse tcp:5000 tcp:5000)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" reverse tcp:5000 tcp:5000)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" devices)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s A2UV9X4311G00348 reverse tcp:5000 tcp:5000)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s A2UV9X4311G00348 reverse tcp:8081 tcp:8081)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s A2UV9X4311G00348 reverse --list)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 reverse tcp:5000 tcp:5000)",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 reverse tcp:8081 tcp:8081)",
+      "Bash(dir /B \"D:\\\\SLIIT\\\\Reaserch Project\\\\CoconutHealthMonitor\\\\Research\\\\ml\\\\models\")",
+      "Bash(\"C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 reverse --list)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s A2UV9X4311G00348 reverse tcp:5001 tcp:5001)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s A2UV9X4311G00348 reverse tcp:5000 tcp:5000)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s emulator-5554 reverse tcp:5001 tcp:5001)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s emulator-5554 reverse tcp:5000 tcp:5000)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s A2UV9X4311G00348 reverse --list)",
+      "Bash(C:/Users/DELL/AppData/Local/Android/Sdk/platform-tools/adb.exe -s emulator-5554 reverse --list)"
     ]
   }
 }

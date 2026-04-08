@@ -20,45 +20,45 @@
  * - One coherent answer with recommendations
  */
 
-// API Configuration
-// Use your computer's IP for real device, localhost for emulator
-// ML API runs on port 5001 (Auth backend runs on port 5000)
-const API_CONFIG = {
-  // For Android Emulator
-  emulator: 'http://10.0.2.2:5001',
-  // For iOS Simulator
-  ios: 'http://localhost:5001',
-  // For Real Device via WiFi - replace with your computer's IP
-  device: 'http://192.168.8.196:5001',
-  // For Real Device via USB (adb reverse)
-  usbDevice: 'http://localhost:5001',
-};
+// Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
+import {ML_API_URL} from '../config/apiConfig';
 
-// Change this based on your testing environment
-const API_BASE_URL = API_CONFIG.usbDevice;
+const API_BASE_URL = ML_API_URL;
 
 /**
- * Check if the ML API is available
+ * Check if the ML API is available (with timeout and retry)
  */
-export const checkApiHealth = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    const data = await response.json();
-    return {
-      success: response.ok,
-      healthy: data.status === 'healthy',
-      models: data.models, // { mite: true, caterpillar: true }
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Cannot connect to ML API',
-    };
+export const checkApiHealth = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+      return {
+        success: response.ok,
+        healthy: data.status === 'healthy',
+        models: data.models, // { mite: true, caterpillar: true }
+      };
+    } catch (error) {
+      if (i === retries - 1) {
+        return {
+          success: false,
+          error: error.message || 'Cannot connect to ML API',
+        };
+      }
+      // Wait 1 second before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 };
 
