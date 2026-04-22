@@ -154,6 +154,25 @@ const treeSchema = new mongoose.Schema(
     // Yield tracking
     yieldHistory: [yieldRecordSchema],
 
+    // IoT Device tracking
+    gpsSource: {
+      type: String,
+      enum: ['phone', 'iot_device', 'manual', null],
+      default: null,
+    },
+    gpsDeviceId: {
+      type: String,
+      trim: true,
+    },
+    gpsSatellites: {
+      type: Number,
+      min: 0,
+    },
+    gpsHdop: {
+      type: Number,
+      min: 0,
+    },
+
     // Status
     isActive: {
       type: Boolean,

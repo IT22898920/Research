@@ -34,6 +34,7 @@ import PlantationMapScreen from './src/screens/PlantationMapScreen';
 import PlantationListScreen from './src/screens/PlantationListScreen';
 import AddPlantationScreen from './src/screens/AddPlantationScreen';
 import EditPlantationScreen from './src/screens/EditPlantationScreen';
+import IoTDeviceScreen from './src/screens/IoTDeviceScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -82,6 +83,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="PlantationList" component={PlantationListScreen} />
             <Stack.Screen name="AddPlantation" component={AddPlantationScreen} />
             <Stack.Screen name="EditPlantation" component={EditPlantationScreen} />
+            <Stack.Screen name="IoTDevice" component={IoTDeviceScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

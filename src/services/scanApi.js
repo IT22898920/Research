@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Platform} from 'react-native';
+import {BACKEND_API_URL} from '../config/apiConfig';
 
-const API_BASE_URL = 'http://localhost:5000/api'; // Physical Device (via adb reverse)
+const API_BASE_URL = BACKEND_API_URL;
 const TOKEN_KEY = '@auth_token';
 
 const apiRequest = async (endpoint, options = {}) => {

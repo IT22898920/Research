@@ -20,6 +20,7 @@ import {
 import MapView, {Marker, Circle, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import {treeAPI} from '../services/treeApi';
+import {iotAPI} from '../services/iotApi';
 import {useFocusEffect} from '@react-navigation/native';
 
 
@@ -38,6 +39,12 @@ export default function PlantationMapScreen({navigation, route}) {
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('standard'); // 'standard' or 'satellite'
 
+  // IoT Device live location
+  const [iotLocation, setIotLocation] = useState(null);
+  const [iotOnline, setIotOnline] = useState(false);
+  const [iotSats, setIotSats] = useState(0);
+  const iotPollRef = useRef(null);
+
   // Custom stable current location with AUTO-STABILIZATION
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationAccuracy, setLocationAccuracy] = useState(null);
@@ -53,8 +60,47 @@ export default function PlantationMapScreen({navigation, route}) {
   useFocusEffect(
     useCallback(() => {
       loadTrees();
+      startIoTPoll();
+      return () => {
+        if (iotPollRef.current) clearInterval(iotPollRef.current);
+      };
     }, [plantationId])
   );
+
+  // Poll IoT device live location every 3 seconds
+  const startIoTPoll = async () => {
+    try {
+      const devices = await iotAPI.getMyDevices();
+      if (!devices || devices.length === 0) return;
+      const device = devices[0];
+
+      // Initial fetch
+      fetchIoTLocation(device._id);
+
+      // Poll every 3 seconds
+      iotPollRef.current = setInterval(() => {
+        fetchIoTLocation(device._id);
+      }, 3000);
+    } catch (err) {
+      console.log('IoT poll setup error:', err.message);
+    }
+  };
+
+  const fetchIoTLocation = async (deviceId) => {
+    try {
+      const data = await iotAPI.getDeviceLiveLocation(deviceId);
+      if (data && data.location && data.location.latitude) {
+        setIotLocation({
+          latitude: data.location.latitude,
+          longitude: data.location.longitude,
+        });
+        setIotOnline(data.isOnline || false);
+        setIotSats(data.liveData?.satellites || 0);
+      }
+    } catch (err) {
+      // silent fail
+    }
+  };
 
   // Start/stop location tracking based on view mode
   useEffect(() => {
@@ -665,6 +711,43 @@ export default function PlantationMapScreen({navigation, route}) {
                 >
                   <View style={styles.currentLocationMarker}>
                     <View style={styles.currentLocationDot} />
+                  </View>
+                </Marker>
+              </>
+            )}
+
+            {/* IoT Device Live Location */}
+            {iotLocation && (
+              <>
+                <Circle
+                  center={iotLocation}
+                  radius={3}
+                  fillColor="rgba(21, 101, 192, 0.2)"
+                  strokeColor="rgba(21, 101, 192, 0.6)"
+                  strokeWidth={2}
+                />
+                <Marker
+                  coordinate={iotLocation}
+                  anchor={{x: 0.5, y: 0.5}}
+                  title="IoT GPS Device"
+                  description={`Satellites: ${iotSats} | ${iotOnline ? 'Online' : 'Offline'}`}
+                >
+                  <View style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    backgroundColor: iotOnline ? 'rgba(21, 101, 192, 0.3)' : 'rgba(158, 158, 158, 0.3)',
+                    borderWidth: 3,
+                    borderColor: iotOnline ? '#1565C0' : '#9E9E9E',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <View style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: iotOnline ? '#1565C0' : '#9E9E9E',
+                    }} />
                   </View>
                 </Marker>
               </>

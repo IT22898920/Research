@@ -22,6 +22,7 @@ import {
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import {treeAPI} from '../services/treeApi';
+import {iotAPI} from '../services/iotApi';
 
 // Sri Lanka coconut growing regions with coordinates
 const SRI_LANKA_LOCATIONS = [
@@ -60,8 +61,111 @@ export default function AddTreeScreen({navigation, route}) {
   const [currentMapLocation, setCurrentMapLocation] = useState(null);
   const mapPickerRef = useRef(null);
 
+  // IoT Device states
+  const [iotLoading, setIotLoading] = useState(false);
+  const [iotDevice, setIotDevice] = useState(null);
+
   useEffect(() => {
     checkPermission();
+    loadIoTDevice();
+  }, []);
+
+  // Load IoT device for this user
+  const loadIoTDevice = async () => {
+    try {
+      const response = await iotAPI.getMyDevices();
+      if (response && response.length > 0) {
+        setIotDevice(response[0]);
+      }
+    } catch (error) {
+      console.log('No IoT device found');
+    }
+  };
+
+  // IoT polling ref
+  const iotPollRef = useRef(null);
+  const iotStartTimeRef = useRef(null);
+
+  // Start waiting for IoT GPS capture
+  const getIoTLocation = async () => {
+    setIotLoading(true);
+    try {
+      // Auto-find device
+      let device = iotDevice;
+      if (!device) {
+        const devices = await iotAPI.getMyDevices();
+        if (!devices || devices.length === 0) {
+          Alert.alert('No IoT Device', 'No IoT GPS device registered. Please register your ESP32 device first.');
+          setIotLoading(false);
+          return;
+        }
+        device = devices[0];
+        setIotDevice(device);
+      }
+
+      // Record current time — only accept locations AFTER this
+      iotStartTimeRef.current = new Date().toISOString();
+
+      // Start polling every 2 seconds
+      Alert.alert(
+        'Waiting for IoT GPS',
+        'Press the BUTTON on your ESP32 device now.\n\nThe device will capture 30 GPS readings and send the location automatically.',
+      );
+
+      iotPollRef.current = setInterval(async () => {
+        try {
+          const liveData = await iotAPI.getDeviceLiveLocation(device._id);
+
+          if (liveData && liveData.location && liveData.lastSeenAt) {
+            // Check if this is a NEW reading (after we started waiting)
+            const lastSeen = new Date(liveData.lastSeenAt);
+            const startTime = new Date(iotStartTimeRef.current);
+
+            if (lastSeen > startTime && liveData.location.latitude) {
+              // New location received!
+              clearInterval(iotPollRef.current);
+              iotPollRef.current = null;
+
+              setLatitude(liveData.location.latitude);
+              setLongitude(liveData.location.longitude);
+              setAccuracy(liveData.location.accuracy || null);
+              setLocationName(
+                `IoT GPS (${liveData.liveData?.satellites || '?'} sats, ~${(liveData.location.accuracy || 0).toFixed(1)}m)`,
+              );
+              setIotLoading(false);
+
+              Alert.alert(
+                'IoT Location Captured!',
+                `Lat: ${liveData.location.latitude.toFixed(6)}\nLng: ${liveData.location.longitude.toFixed(6)}\nAccuracy: ~${(liveData.location.accuracy || 0).toFixed(1)}m\nSatellites: ${liveData.liveData?.satellites || '?'}`,
+              );
+            }
+          }
+        } catch (err) {
+          console.log('IoT poll error:', err.message);
+        }
+      }, 2000);
+
+      // Timeout after 2 minutes
+      setTimeout(() => {
+        if (iotPollRef.current) {
+          clearInterval(iotPollRef.current);
+          iotPollRef.current = null;
+          setIotLoading(false);
+          Alert.alert('Timeout', 'No GPS capture received from IoT device within 2 minutes. Try again.');
+        }
+      }, 120000);
+
+    } catch (error) {
+      Alert.alert('Error', 'Failed: ' + error.message);
+      setIotLoading(false);
+    }
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (iotPollRef.current) clearInterval(iotPollRef.current);
+    };
   }, []);
 
   // Load existing trees for the plantation when map picker opens
@@ -453,6 +557,32 @@ export default function AddTreeScreen({navigation, route}) {
           >
             <Text style={styles.manualButtonIcon}>🗺️</Text>
             <Text style={styles.manualButtonText}>Select on Map</Text>
+          </TouchableOpacity>
+
+          {/* IoT GPS Device Button */}
+          <TouchableOpacity
+            style={[styles.gpsButton, {backgroundColor: iotLoading ? '#E65100' : '#1565C0', marginTop: 10}]}
+            onPress={() => {
+              if (iotLoading && iotPollRef.current) {
+                clearInterval(iotPollRef.current);
+                iotPollRef.current = null;
+                setIotLoading(false);
+              } else {
+                getIoTLocation();
+              }
+            }}
+          >
+            {iotLoading ? (
+              <>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.gpsButtonText}>Waiting for ESP32 button press... (Tap to cancel)</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.gpsButtonIcon}>📡</Text>
+                <Text style={styles.gpsButtonText}>Use IoT GPS Device (~2-3m)</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Predefined Locations Button */}

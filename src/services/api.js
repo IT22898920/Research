@@ -1,10 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {BACKEND_API_URL} from '../config/apiConfig';
 
-// API Base URL - change this for production
-// const API_BASE_URL = 'http://10.0.2.2:5000/api'; // Android Emulator
-const API_BASE_URL = 'http://localhost:5000/api'; // USB with adb reverse (works for both)
-// const API_BASE_URL = 'http://localhost:5000/api'; // iOS Simulator
-// const API_BASE_URL = 'https://your-production-url.com/api'; // Production
+// API Base URL - centralized in apiConfig.js
+const API_BASE_URL = BACKEND_API_URL;
 
 // Storage keys
 const TOKEN_KEY = '@auth_token';
