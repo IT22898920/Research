@@ -116,27 +116,27 @@ export default function AddTreeScreen({navigation, route}) {
         try {
           const liveData = await iotAPI.getDeviceLiveLocation(device._id);
 
-          if (liveData && liveData.location && liveData.lastSeenAt) {
-            // Check if this is a NEW reading (after we started waiting)
-            const lastSeen = new Date(liveData.lastSeenAt);
+          // Only accept the STABLE captured location (button press), not live tracking
+          if (liveData && liveData.capturedLocation && liveData.capturedAt) {
+            const capturedTime = new Date(liveData.capturedAt);
             const startTime = new Date(iotStartTimeRef.current);
 
-            if (lastSeen > startTime && liveData.location.latitude) {
-              // New location received!
+            if (capturedTime > startTime && liveData.capturedLocation.latitude) {
+              // New stable capture received from button press!
               clearInterval(iotPollRef.current);
               iotPollRef.current = null;
 
-              setLatitude(liveData.location.latitude);
-              setLongitude(liveData.location.longitude);
-              setAccuracy(liveData.location.accuracy || null);
+              setLatitude(liveData.capturedLocation.latitude);
+              setLongitude(liveData.capturedLocation.longitude);
+              setAccuracy(liveData.capturedLocation.accuracy || null);
               setLocationName(
-                `IoT GPS (${liveData.liveData?.satellites || '?'} sats, ~${(liveData.location.accuracy || 0).toFixed(1)}m)`,
+                `IoT GPS (${liveData.liveData?.satellites || '?'} sats, ~${(liveData.capturedLocation.accuracy || 0).toFixed(1)}m)`,
               );
               setIotLoading(false);
 
               Alert.alert(
                 'IoT Location Captured!',
-                `Lat: ${liveData.location.latitude.toFixed(6)}\nLng: ${liveData.location.longitude.toFixed(6)}\nAccuracy: ~${(liveData.location.accuracy || 0).toFixed(1)}m\nSatellites: ${liveData.liveData?.satellites || '?'}`,
+                `Lat: ${liveData.capturedLocation.latitude.toFixed(6)}\nLng: ${liveData.capturedLocation.longitude.toFixed(6)}\nAccuracy: ~${(liveData.capturedLocation.accuracy || 0).toFixed(1)}m\nSatellites: ${liveData.liveData?.satellites || '?'}`,
               );
             }
           }

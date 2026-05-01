@@ -202,12 +202,24 @@ export default function PlantationMapScreen({navigation, route}) {
 
       watchIdRef.current = Geolocation.watchPosition(
         (position) => {
-          // If already stable, don't update (auto-locked)
-          if (stableLocationRef.current) {
-            return;
-          }
-
           const { latitude, longitude, accuracy } = position.coords;
+
+          // If locked but user moved significantly (>10m), unlock to track movement
+          if (stableLocationRef.current) {
+            const movedDistance = getDistance(
+              stableLocationRef.current.latitude,
+              stableLocationRef.current.longitude,
+              latitude,
+              longitude
+            );
+            if (movedDistance > 10) {
+              console.log(`User moved ${movedDistance.toFixed(1)}m - unlocking GPS tracking`);
+              stableLocationRef.current = null;
+              locationHistoryRef.current = [];
+            } else {
+              return;
+            }
+          }
 
           // Only accept readings with reasonable accuracy (< 30m)
           if (accuracy > 30) {
@@ -227,8 +239,8 @@ export default function PlantationMapScreen({navigation, route}) {
               longitude
             );
 
-            // Ignore readings that are too far from average (likely GPS jump)
-            if (distance > 30) {
+            // Ignore readings that are too far from average (but allow walking - up to 50m)
+            if (distance > 50) {
               console.log(`Ignoring outlier: ${distance.toFixed(1)}m from average`);
               return;
             }
@@ -290,16 +302,42 @@ export default function PlantationMapScreen({navigation, route}) {
 
   // Center map on current location
   const centerOnCurrentLocation = () => {
-    if (currentLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      }, 500);
-    } else {
-      Alert.alert('Location', 'Getting your location... Please wait.');
-    }
+    // Force unlock and reset GPS tracking - get fresh location
+    stableLocationRef.current = null;
+    locationHistoryRef.current = [];
+    setStabilityStatus('searching');
+    setStabilityProgress(0);
+
+    // Get one-time current position immediately
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setCurrentLocation({ latitude, longitude });
+        setLocationAccuracy(accuracy);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }, 500);
+        }
+      },
+      (error) => {
+        console.log('Get current position error:', error);
+        if (currentLocation && mapRef.current) {
+          mapRef.current.animateToRegion({
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }, 500);
+        } else {
+          Alert.alert('Location', 'Getting your location... Please wait.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   };
 
   // Recalibrate - restart the stabilization process

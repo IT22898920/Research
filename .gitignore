@@ -267,6 +267,54 @@ pids/
 **/fastlane/test_output/
 
 # ===================
+# Research Papers & Documents
+# ===================
+
+# Word, PDF documents (research papers, reports, reviews)
+*.docx
+*.doc
+*.pdf
+~$*
+
+# Word/Office lock files
+.~lock.*
+
+# ===================
+# Generated/One-off Scripts
+# ===================
+
+_gen_*.py
+_arch_*
+add_authors_*.py
+create_*_report*.py
+create_individual_report.py
+create_signed_form.py
+fill_response.py
+reformat_ieee.py
+run_report.py
+Response_to_Reviewers.txt
+
+# ===================
+# Generated Folders
+# ===================
+
+# Generated images & reports
+report_images/
+indiual_function/
+paper/
+
+# HF Spaces deploy folder (separate git repo)
+ml-deploy/
+
+# Generated Android bundle assets
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/raw/
+
+# Spurious files
+nul
+
+# ===================
 # Misc
 # ===================
 

@@ -16,11 +16,14 @@
 // ============================================
 // Backend API Configuration
 // ============================================
-// Backend API — auto-discovered via UDP, no manual IP needed!
+// Backend API — Cloud URL (Railway) + local fallback
+#define CLOUD_HOST    "research-production-ed2e.up.railway.app"
+#define CLOUD_URL     "https://research-production-ed2e.up.railway.app"
 #define API_PORT      5000
 #define API_ENDPOINT  "/api/iot/location"
 #define DISCOVER_PORT 5001
 #define DISCOVER_MSG  "COCONUT_DISCOVER"
+#define USE_CLOUD     true    // true = cloud, false = local only
 
 // ============================================
 // Device Authentication

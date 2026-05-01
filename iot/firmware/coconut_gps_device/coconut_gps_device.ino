@@ -24,6 +24,7 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <TinyGPSPlus.h>
 #include <Wire.h>
@@ -172,6 +173,15 @@ void loop() {
     wifiConnected = false;
   }
 
+  // Send live location every 3 seconds (when GPS is valid and not capturing)
+  static unsigned long lastLiveSend = 0;
+  if (gps.location.isValid() && !isAveraging && currentState != STATE_SENDING) {
+    if (millis() - lastLiveSend >= 3000) {
+      lastLiveSend = millis();
+      sendLiveLocation(currentLat, currentLng, currentAccuracy);
+    }
+  }
+
   // Update display
   updateDisplay();
 
@@ -179,6 +189,53 @@ void loop() {
   blinkLED();
 
   delay(100);
+}
+
+// ============================================
+// Live Location (continuous tracking)
+// ============================================
+void sendLiveLocation(double lat, double lng, float accuracy) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  StaticJsonDocument<256> doc;
+  doc["latitude"] = lat;
+  doc["longitude"] = lng;
+  doc["accuracy"] = accuracy;
+  doc["satellites"] = currentSatellites;
+  doc["hdop"] = currentHdop;
+  doc["altitude"] = currentAlt;
+
+  String jsonPayload;
+  serializeJson(doc, jsonPayload);
+
+  String url;
+  if (USE_CLOUD) {
+    url = String(CLOUD_URL) + "/api/iot/live-location";
+  } else {
+    if (!serverFound) return;
+    url = "http://" + apiHost + ":" + String(API_PORT) + "/api/iot/live-location";
+  }
+
+  HTTPClient http;
+  WiFiClientSecure secureClient;
+  if (USE_CLOUD) {
+    secureClient.setInsecure();
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Id", DEVICE_ID);
+  http.addHeader("X-Device-Key", DEVICE_KEY);
+  http.setTimeout(5000);
+
+  int httpCode = http.POST(jsonPayload);
+  if (httpCode == 200) {
+    Serial.printf("[LIVE] Sent: %.6f, %.6f\n", lat, lng);
+  } else {
+    Serial.printf("[LIVE] Failed: %d\n", httpCode);
+  }
+  http.end();
 }
 
 // ============================================
@@ -414,31 +471,37 @@ void sendLocation(double lat, double lng, float accuracy) {
   String jsonPayload;
   serializeJson(doc, jsonPayload);
 
-  // Auto-discover server if not found yet
-  if (!serverFound) {
-    discoverServer();
+  // Build URL — use cloud or local
+  String url;
+  if (USE_CLOUD) {
+    url = String(CLOUD_URL) + API_ENDPOINT;
+  } else {
     if (!serverFound) {
-      currentState = STATE_ERROR;
-      lastStatus = "No server!";
-      return;
+      discoverServer();
+      if (!serverFound) {
+        currentState = STATE_ERROR;
+        lastStatus = "No server!";
+        return;
+      }
     }
+    url = "http://" + apiHost + ":" + String(API_PORT) + API_ENDPOINT;
   }
-
-  // Build URL
-  String url = "http://";
-  url += apiHost;
-  url += ":";
-  url += API_PORT;
-  url += API_ENDPOINT;
 
   Serial.print("Sending to: ");
   Serial.println(url);
   Serial.print("Payload: ");
   Serial.println(jsonPayload);
 
-  // HTTP POST
+  // HTTP/HTTPS POST
   HTTPClient http;
-  http.begin(url);
+  WiFiClientSecure secureClient;
+
+  if (USE_CLOUD) {
+    secureClient.setInsecure();  // Skip SSL cert verification (OK for IoT)
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Id", DEVICE_ID);
   http.addHeader("X-Device-Key", DEVICE_KEY);

@@ -1,9 +1,12 @@
 import {GoogleSignin} from '@react-native-google-signin/google-signin';
-import auth from '@react-native-firebase/auth';
-import {GOOGLE_WEB_CLIENT_ID} from '@env';
+import {getApp} from '@react-native-firebase/app';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithCredential,
+} from '@react-native-firebase/auth';
 
-// Google Web Client ID from environment variables
-const WEB_CLIENT_ID = GOOGLE_WEB_CLIENT_ID;
+const WEB_CLIENT_ID = '628864186352-0mdc5cph69v6jr800mi08to46fpsfqn6.apps.googleusercontent.com';
 
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
@@ -14,23 +17,17 @@ export const configureGoogleSignIn = () => {
 
 export const signInWithGoogle = async () => {
   try {
-    // Check Play Services
     await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
 
-    // Sign in with Google
     const signInResult = await GoogleSignin.signIn();
 
-    // Get the ID token
-    let idToken = signInResult.data?.idToken;
+    let idToken = signInResult.data?.idToken || signInResult.idToken;
     if (!idToken) {
       throw new Error('No ID token found');
     }
 
-    // Create Firebase credential with Google ID token
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-
-    // Sign in to Firebase with the credential
-    const userCredential = await auth().signInWithCredential(googleCredential);
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    const userCredential = await signInWithCredential(getAuth(getApp()), googleCredential);
 
     return {
       success: true,
@@ -50,18 +47,13 @@ export const signInWithGoogle = async () => {
 
 export const signOutFromGoogle = async () => {
   try {
-    // Sign out from Firebase (ignore if no user signed in)
     try {
-      await auth().signOut();
-    } catch (e) {
-      // Ignore "no-current-user" error - it's expected if user used email login
-    }
-    // Sign out from Google (ignore if not signed in with Google)
+      const {signOut} = await import('@react-native-firebase/auth');
+      await signOut(getAuth(getApp()));
+    } catch (e) {}
     try {
       await GoogleSignin.signOut();
-    } catch (e) {
-      // Ignore - user may not have signed in with Google
-    }
+    } catch (e) {}
     return {success: true};
   } catch (error) {
     return {success: false, error: error.message};
@@ -69,10 +61,10 @@ export const signOutFromGoogle = async () => {
 };
 
 export const getCurrentUser = () => {
-  return auth().currentUser;
+  return getAuth(getApp()).currentUser;
 };
 
-// Listen for auth state changes
 export const onAuthStateChanged = callback => {
-  return auth().onAuthStateChanged(callback);
+  const {onAuthStateChanged: rnfOnAuthStateChanged} = require('@react-native-firebase/auth');
+  return rnfOnAuthStateChanged(getAuth(getApp()), callback);
 };
