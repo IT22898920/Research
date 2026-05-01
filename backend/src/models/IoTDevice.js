@@ -51,6 +51,16 @@ const iotDeviceSchema = new mongoose.Schema(
       accuracy: Number,
     },
 
+    // Stable captured location (button press only, separate from live)
+    lastCapturedLocation: {
+      latitude: Number,
+      longitude: Number,
+      accuracy: Number,
+    },
+    lastCapturedAt: {
+      type: Date,
+    },
+
     // Live tracking data
     liveData: {
       satellites: Number,

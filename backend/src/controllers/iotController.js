@@ -299,6 +299,8 @@ exports.receiveLocation = async (req, res) => {
       // No plantation specified — just save the location reading
       device.lastSeenAt = new Date();
       device.lastLocation = { latitude, longitude, accuracy };
+      device.lastCapturedLocation = { latitude, longitude, accuracy };
+      device.lastCapturedAt = new Date();
       device.totalReadings += 1;
       await device.save();
 
@@ -359,6 +361,8 @@ exports.receiveLocation = async (req, res) => {
     // Update device stats
     device.lastSeenAt = new Date();
     device.lastLocation = { latitude, longitude, accuracy };
+    device.lastCapturedLocation = { latitude, longitude, accuracy };
+    device.lastCapturedAt = new Date();
     device.totalReadings += 1;
     await device.save();
 
@@ -482,6 +486,8 @@ exports.getDeviceLiveLocation = async (req, res) => {
         name: device.name,
         isOnline,
         location: device.lastLocation || null,
+        capturedLocation: device.lastCapturedLocation || null,
+        capturedAt: device.lastCapturedAt || null,
         liveData: device.liveData || null,
         lastSeenAt: device.lastSeenAt,
       },
