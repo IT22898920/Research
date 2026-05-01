@@ -53,8 +53,8 @@ export default function PlantationMapScreen({navigation, route}) {
   const watchIdRef = useRef(null);
   const locationHistoryRef = useRef([]); // Store last N readings for averaging
   const stableLocationRef = useRef(null); // Store the stable location once achieved
-  const MAX_HISTORY = 5; // Number of readings to average
-  const STABILITY_THRESHOLD = 5; // meters - if all readings within this, consider stable
+  const MAX_HISTORY = 8; // Number of readings to average (more = smoother)
+  const STABILITY_THRESHOLD = 8; // meters - looser threshold = locks faster when stationary
 
   // Load trees when screen is focused
   useFocusEffect(
@@ -212,7 +212,7 @@ export default function PlantationMapScreen({navigation, route}) {
               latitude,
               longitude
             );
-            if (movedDistance > 10) {
+            if (movedDistance > 15) {
               console.log(`User moved ${movedDistance.toFixed(1)}m - unlocking GPS tracking`);
               stableLocationRef.current = null;
               locationHistoryRef.current = [];
@@ -282,7 +282,7 @@ export default function PlantationMapScreen({navigation, route}) {
         },
         {
           enableHighAccuracy: true,
-          distanceFilter: 3, // Update when moved 3+ meters
+          distanceFilter: 8, // Update when moved 8+ meters (reduces jitter)
           interval: 3000, // Update every 3 seconds
           fastestInterval: 1000,
         }
