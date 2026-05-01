@@ -39,11 +39,15 @@ export default function PlantationMapScreen({navigation, route}) {
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState('standard'); // 'standard' or 'satellite'
 
-  // IoT Device live location
+  // IoT Device live location (with smoothing)
   const [iotLocation, setIotLocation] = useState(null);
   const [iotOnline, setIotOnline] = useState(false);
   const [iotSats, setIotSats] = useState(0);
   const iotPollRef = useRef(null);
+  const iotHistoryRef = useRef([]); // Smoothing history for IoT
+  const iotStableRef = useRef(null); // Locked IoT position when stationary
+  const IOT_HISTORY_SIZE = 5;
+  const IOT_JITTER_THRESHOLD = 8; // meters - ignore IoT updates within this distance
 
   // Custom stable current location with AUTO-STABILIZATION
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -90,10 +94,62 @@ export default function PlantationMapScreen({navigation, route}) {
     try {
       const data = await iotAPI.getDeviceLiveLocation(deviceId);
       if (data && data.location && data.location.latitude) {
-        setIotLocation({
-          latitude: data.location.latitude,
-          longitude: data.location.longitude,
-        });
+        const newLat = data.location.latitude;
+        const newLng = data.location.longitude;
+
+        // If stationary lock exists, check if IoT moved significantly
+        if (iotStableRef.current) {
+          const dist = getDistance(
+            iotStableRef.current.latitude,
+            iotStableRef.current.longitude,
+            newLat,
+            newLng
+          );
+          if (dist < IOT_JITTER_THRESHOLD) {
+            // Within jitter range - keep the locked position
+            setIotOnline(data.isOnline || false);
+            setIotSats(data.liveData?.satellites || 0);
+            return;
+          }
+          // Moved significantly - unlock and start fresh
+          iotStableRef.current = null;
+          iotHistoryRef.current = [];
+        }
+
+        // Add to smoothing history
+        iotHistoryRef.current.push({ latitude: newLat, longitude: newLng });
+        if (iotHistoryRef.current.length > IOT_HISTORY_SIZE) {
+          iotHistoryRef.current.shift();
+        }
+
+        // Calculate smoothed position
+        const sumLat = iotHistoryRef.current.reduce((s, p) => s + p.latitude, 0);
+        const sumLng = iotHistoryRef.current.reduce((s, p) => s + p.longitude, 0);
+        const smoothLat = sumLat / iotHistoryRef.current.length;
+        const smoothLng = sumLng / iotHistoryRef.current.length;
+
+        // Check if all readings are tight (stationary)
+        if (iotHistoryRef.current.length >= IOT_HISTORY_SIZE) {
+          let maxSpread = 0;
+          for (let i = 0; i < iotHistoryRef.current.length; i++) {
+            for (let j = i + 1; j < iotHistoryRef.current.length; j++) {
+              const d = getDistance(
+                iotHistoryRef.current[i].latitude,
+                iotHistoryRef.current[i].longitude,
+                iotHistoryRef.current[j].latitude,
+                iotHistoryRef.current[j].longitude
+              );
+              if (d > maxSpread) maxSpread = d;
+            }
+          }
+          if (maxSpread <= IOT_JITTER_THRESHOLD) {
+            // Stationary - lock!
+            iotStableRef.current = { latitude: smoothLat, longitude: smoothLng };
+            console.log(`[IoT] LOCKED at: ${smoothLat.toFixed(6)}, ${smoothLng.toFixed(6)}`);
+          }
+        }
+
+        setIotLocation({ latitude: smoothLat, longitude: smoothLng });
         setIotOnline(data.isOnline || false);
         setIotSats(data.liveData?.satellites || 0);
       }
