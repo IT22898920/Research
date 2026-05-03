@@ -128,6 +128,16 @@ LEAF_HEALTH_CLASSES = ['healthy', 'unhealthy']
 
 # Leaf Health v4 uses MobileNetV2 preprocess_input (no temperature scaling needed)
 
+# Leaf Health v5 model paths (v5 - MobileNetV2 color-aware, 93.94% accuracy)
+LEAFE_HEALTH_V5_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_leafe_Health_v5', 'best_model.keras')
+LEAFE_HEALTH_V5_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_leafe_Health_v5', 'model_info.json')
+LEAFE_HEALTH_V5_CLASSES = ['healthy', 'unhealthy']
+
+# Leaf Color Detector v1 (EfficientNetB3, 99.78% accuracy)
+LEAF_COLOR_MODEL_PATH      = os.path.join(BASE_MODEL_PATH, 'leaf_color_detector_v1', 'best_model.keras')
+LEAF_COLOR_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_color_detector_v1', 'model_info.json')
+LEAF_COLOR_CLASSES         = ['healthy', 'unhealthy']
+
 # Branch Health model paths (v1 - 2-class)
 BRANCH_HEALTH_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'best_model.keras')
 BRANCH_HEALTH_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_branch_health_v1', 'model_info.json')
@@ -299,6 +309,53 @@ def load_models():
         print(f"    ERROR loading leaf health model: {e}")
         models['leaf_health'] = None
         model_infos['leaf_health'] = None
+
+    # Load Leafe Health v5 Model (color-aware MobileNetV2, 93.94%)
+    try:
+        print("\n[4b] Loading Leafe Health model (v5 - color-aware, 93.94%)...")
+        models['leafe_health_v5'] = tf.keras.models.load_model(
+            LEAFE_HEALTH_V5_MODEL_PATH,
+            custom_objects={'focal_loss_fn': focal_loss(gamma=2.0, alpha=0.25)}
+        )
+        try:
+            with open(LEAFE_HEALTH_V5_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leafe_health_v5'] = json.load(f)
+        except:
+            model_infos['leafe_health_v5'] = {
+                'version': 'v5', 'classes': LEAFE_HEALTH_V5_CLASSES,
+                'performance': {'test_accuracy': 0.9394, 'macro_f1': 0.9365}
+            }
+        print(f"    Version: v5 (color-aware MobileNetV2)")
+        print(f"    Classes: {LEAFE_HEALTH_V5_CLASSES}")
+        print(f"    Accuracy: 93.94%  Macro F1: 93.65%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leafe health v5 model: {e}")
+        models['leafe_health_v5'] = None
+        model_infos['leafe_health_v5'] = None
+
+    # Load Leaf Color Detector v1 (EfficientNetB3, 99.78%)
+    try:
+        print("\n[4c] Loading Leaf Color Detector model (v1 - EfficientNetB3, 99.78%)...")
+        models['leaf_color'] = tf.keras.models.load_model(
+            LEAF_COLOR_MODEL_PATH, compile=False
+        )
+        try:
+            with open(LEAF_COLOR_MODEL_INFO_PATH, 'r') as f:
+                model_infos['leaf_color'] = json.load(f)
+        except:
+            model_infos['leaf_color'] = {
+                'version': 'v1', 'classes': LEAF_COLOR_CLASSES,
+                'performance': {'test_accuracy': 0.9978, 'macro_f1': 0.9978}
+            }
+        print(f"    Version: v1 (EfficientNetB3)")
+        print(f"    Classes: {LEAF_COLOR_CLASSES}")
+        print(f"    Accuracy: 99.78%  Macro F1: 99.78%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading leaf color model: {e}")
+        models['leaf_color'] = None
+        model_infos['leaf_color'] = None
 
     # Load Branch Health Model (v1 - 2-class)
     try:
@@ -1250,6 +1307,121 @@ def predict_leaf_health():
             'success': False,
             'error': str(e)
         }), 500
+
+# Leaf Color Detector v1 — EfficientNetB3 (99.78%)
+@app.route('/predict/leaf-color', methods=['POST'])
+def predict_leaf_color():
+    """
+    Coconut leaf color detection using EfficientNetB3 (v1 - 99.78% accuracy).
+    Returns: healthy (green) or unhealthy (yellow/brown)
+    """
+    if models.get('leaf_color') is None:
+        return jsonify({'error': 'Leaf color model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+
+    try:
+        image_bytes = request.files['image'].read()
+        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        img_array = np.array(image.resize((224, 224)), dtype=np.float32)
+        img_array = tf.keras.applications.efficientnet.preprocess_input(img_array)
+        img_input = np.expand_dims(img_array, axis=0)
+
+        predictions  = models['leaf_color'].predict(img_input, verbose=0)
+        healthy_prob   = float(predictions[0][0])
+        unhealthy_prob = float(predictions[0][1])
+
+        predicted_class = 'healthy' if healthy_prob > unhealthy_prob else 'unhealthy'
+        confidence      = max(healthy_prob, unhealthy_prob)
+
+        return jsonify({
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': round(confidence, 4),
+            'probabilities': {
+                'healthy':   round(healthy_prob, 4),
+                'unhealthy': round(unhealthy_prob, 4),
+            },
+            'is_healthy': predicted_class == 'healthy',
+            'message': get_leaf_health_message(predicted_class, confidence),
+            'recommendation': get_leaf_health_recommendation(predicted_class),
+            'model_info': {
+                'version': 'v1',
+                'architecture': 'EfficientNetB3',
+                'accuracy': '99.78%',
+                'macro_f1': '99.78%',
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Leafe Health v5 — Color-Aware Detection Endpoint
+@app.route('/predict/leafe-health-v5', methods=['POST'])
+def predict_leafe_health_v5():
+    """
+    Coconut leaf health detection using color-aware MobileNetV2 (v5).
+    Detects yellowing/browning leaves vs healthy green leaves.
+    Test Accuracy: 93.94%  |  Macro F1: 93.65%
+    """
+    if models.get('leafe_health_v5') is None:
+        return jsonify({'error': 'Leafe health v5 model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    try:
+        image_bytes = request.files['image'].read()
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img = img.resize((224, 224), Image.Resampling.LANCZOS)
+        img_array = np.array(img, dtype=np.float32)
+
+        # MobileNetV2 preprocess_input: [0,255] → [-1,1]
+        img_input = np.expand_dims((img_array / 127.5) - 1.0, axis=0)
+
+        predictions = models['leafe_health_v5'].predict(img_input, verbose=0)
+        healthy_prob   = float(predictions[0][0])
+        unhealthy_prob = float(predictions[0][1])
+        predicted_idx  = int(np.argmax(predictions[0]))
+        predicted_class = LEAFE_HEALTH_V5_CLASSES[predicted_idx]
+        confidence = float(np.max(predictions[0]))
+
+        result = {
+            'success': True,
+            'prediction': predicted_class,
+            'confidence': confidence,
+            'probabilities': {
+                'healthy': healthy_prob,
+                'unhealthy': unhealthy_prob,
+            },
+            'is_healthy': predicted_class == 'healthy',
+            'message': get_leaf_health_message(predicted_class, confidence),
+            'recommendation': get_leaf_health_recommendation(predicted_class),
+            'model_info': {
+                'version': 'v5',
+                'architecture': 'MobileNetV2',
+                'classes': LEAFE_HEALTH_V5_CLASSES,
+                'accuracy': '93.94%',
+                'macro_f1': '93.65%',
+                'color_threshold': 40.04,
+                'note': 'Color-aware: detects yellow/brown vs green leaves',
+            },
+            'timestamp': datetime.now().isoformat(),
+        }
+
+        if predicted_class == 'unhealthy':
+            result['possible_conditions'] = get_unhealthy_conditions_details()
+            result['conditions_count'] = len(UNHEALTHY_LEAF_CONDITIONS)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Knowledge base for unhealthy leaf conditions
 UNHEALTHY_LEAF_CONDITIONS = [

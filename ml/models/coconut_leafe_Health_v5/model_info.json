@@ -1,0 +1,79 @@
+{
+  "model_name": "coconut_leafe_Health_v5",
+  "version": "v5",
+  "created_at": "2026-05-04 01:11",
+  "architecture": "EfficientNetB0",
+  "task": "Coconut leaf health detection (color-based, binary)",
+  "classes": [
+    "healthy",
+    "unhealthy"
+  ],
+  "num_classes": 2,
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "color_detection": {
+    "approach": "HSV-based color health score",
+    "healthy_signal": "High green pixel ratio (>50%)",
+    "unhealthy_signal": "High yellow/brown pixel ratio (>30%)",
+    "threshold": 38.87,
+    "avg_healthy_score": 55.13,
+    "avg_unhealthy_score": 22.62
+  },
+  "training": {
+    "phase1_epochs": 15,
+    "phase2_epochs": 9,
+    "batch_size": 32,
+    "learning_rate_phase1": 0.001,
+    "learning_rate_phase2": 5e-05,
+    "dropout_rate": 0.4,
+    "l2_regularization": 0.0001,
+    "label_smoothing": 0.1,
+    "fine_tune_at_layer": 200,
+    "loss_function": "Focal Loss (gamma=2.0, alpha=0.25)",
+    "optimizer": "Adam",
+    "augmentation": "Geometric only \u2014 NO color aug (preserves leaf color signal)",
+    "anti_overfitting": [
+      "Dropout",
+      "BatchNormalization",
+      "L2 regularization",
+      "EarlyStopping",
+      "ReduceLROnPlateau",
+      "LabelSmoothing",
+      "Color-preserving augmentation"
+    ],
+    "final_train_accuracy": 0.9976,
+    "final_val_accuracy": 0.9947
+  },
+  "data": {
+    "train_samples": 8600,
+    "val_samples": 187,
+    "test_samples": 198,
+    "train_healthy": 4572,
+    "train_unhealthy": 4028,
+    "sources": [
+      "healthy-leaves/",
+      "unhealthy-yellowing/"
+    ]
+  },
+  "test_performance": {
+    "accuracy": 0.9798,
+    "macro_precision": 0.981,
+    "macro_recall": 0.9774,
+    "macro_f1": 0.9791,
+    "healthy_precision": 0.9746,
+    "healthy_recall": 0.9914,
+    "healthy_f1": 0.9829,
+    "unhealthy_precision": 0.9875,
+    "unhealthy_recall": 0.9634,
+    "unhealthy_f1": 0.9753
+  },
+  "files": {
+    "best_model": "best_model.keras",
+    "phase1_model": "phase1_best.keras",
+    "model_info": "model_info.json"
+  },
+  "api_endpoint": "/predict/leafe-health-v5"
+}

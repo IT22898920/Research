@@ -1,0 +1,86 @@
+{
+  "model_name": "leaf_color_detector_v1",
+  "version": "v1",
+  "created_at": "2026-05-03 23:59",
+  "architecture": "EfficientNetB3",
+  "task": "Coconut leaf color detection \u2014 healthy (green) vs unhealthy (yellow/brown)",
+  "classes": [
+    "healthy",
+    "unhealthy"
+  ],
+  "num_classes": 2,
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "input_range": "[0, 255] \u2014 EfficientNetB3 built-in preprocessing handles rescaling",
+  "training": {
+    "phase1_epochs": 15,
+    "phase2_epochs": 9,
+    "batch_size": 32,
+    "lr_phase1": 0.001,
+    "lr_phase2": 3e-05,
+    "lr_schedule": "CosineDecay (both phases)",
+    "optimizer": "AdamW (weight_decay=0.0001)",
+    "dropout": [
+      0.6,
+      0.4,
+      0.25
+    ],
+    "l2_regularization": 0.0003,
+    "label_smoothing": 0.1,
+    "fine_tune_pct": 0.75,
+    "fine_tune_at_layer": 288,
+    "loss_function": "Focal Loss (gamma=2.0, alpha=0.25)",
+    "pipeline": "tf.data.Dataset with prefetch and AUTOTUNE",
+    "augmentation": "Geometric only \u2014 flip, rotation, zoom, translation \u2014 NO color aug",
+    "anti_overfitting": [
+      "AdamW weight decay (1e-4)",
+      "Dropout: 0.60 -> 0.40 -> 0.25",
+      "BatchNormalization (3 layers)",
+      "L2 regularization (3e-4)",
+      "Label smoothing (0.1)",
+      "EarlyStopping (patience=7)",
+      "CosineDecay LR",
+      "Color-preserving augmentation",
+      "Proper 80/10/10 re-split (stable val signal)",
+      "Class weights"
+    ],
+    "final_train_acc": 0.9939,
+    "final_val_acc": 1.0,
+    "train_val_gap": -0.0061
+  },
+  "data": {
+    "total_images": 8985,
+    "split": "80 / 10 / 10 re-split from all available images",
+    "train_healthy": 3843,
+    "train_unhealthy": 3344,
+    "val_healthy": 480,
+    "val_unhealthy": 418,
+    "test_healthy": 481,
+    "test_unhealthy": 419,
+    "sources": [
+      "healthy-leaves/       -> healthy class (green leaves)",
+      "unhealthy-yellowing/  -> unhealthy class (yellow/brown leaves)"
+    ]
+  },
+  "test_performance": {
+    "accuracy": 0.9978,
+    "macro_precision": 0.9978,
+    "macro_recall": 0.9978,
+    "macro_f1": 0.9978,
+    "healthy_precision": 0.9979,
+    "healthy_recall": 0.9979,
+    "healthy_f1": 0.9979,
+    "unhealthy_precision": 0.9976,
+    "unhealthy_recall": 0.9976,
+    "unhealthy_f1": 0.9976
+  },
+  "files": {
+    "best_model": "best_model.keras",
+    "phase1_model": "phase1_best.keras",
+    "model_info": "model_info.json"
+  },
+  "api_endpoint": "/predict/leaf-color-v2"
+}

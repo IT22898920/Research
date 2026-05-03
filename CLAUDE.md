@@ -63,8 +63,10 @@ This file provides context for AI assistants (like Claude) working on this codeb
 - `ml/models/disease_detection_v2/` - Disease detection model (4-class, 98.69%)
 - `ml/models/leaf_health_v1/` - Leaf health detection model (2-class, 93.70%)
 - `ml/models/coconut_branch_health_v1/` - Branch health detection model (2-class, 99.63%)
+- `ml/models/coconut_leafe_Health_v5/` - Leaf health v5 model (2-class color-aware, 93.94%)
+- `ml/models/coconut_leaf_color_v1/` - Leaf color detection model (green vs yellow, 2-class)
 - `ml/notebooks/` - Jupyter notebooks for model training
-  - `14_coconut_branch_health_v1.ipynb` - Latest branch health model
+  - `22_coconut_leaf_color_v1.ipynb` - Latest leaf color detection model
 
 ## Build Commands (Windows PowerShell)
 
@@ -158,7 +160,25 @@ python test_api.py
 | **v1** | **96.08%** | **4** | **Current - Combined caterpillar + white_fly** |
 
 
-### Coconut Leaf Health Detection Model (v1 - Latest)
+### Coconut Leafe Health Detection Model (v5 - Latest)
+- **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
+- **Version:** v5 (2-class, color-aware)
+- **Test Accuracy:** 93.94%
+- **Macro F1 Score:** 93.65%
+- **Macro Recall:** 93.04%
+- **Classes:** `healthy`, `unhealthy`
+- **Input Size:** 224x224x3
+- **Color Detection:** HSV-based green vs yellow/brown pixel ratio (threshold: 40.04)
+- **Per-Class Metrics:**
+  - healthy: P=91.94% R=98.28% F1=95.00%
+  - unhealthy: P=97.30% R=87.80% F1=92.31%
+- **Files:**
+  - `models/coconut_leafe_Health_v5/best_model.keras`
+  - `models/coconut_leafe_Health_v5/model_info.json`
+- **API Endpoint:** `/predict/leafe-health-v5`
+- **Training:** Phase 1 (9 epochs) + Phase 2 fine-tune (9 epochs), EarlyStopping
+
+### Coconut Leaf Health Detection Model (v1 - Legacy)
 - **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
 - **Version:** v1 (2-class)
 - **Test Accuracy:** 93.70%
@@ -208,6 +228,23 @@ python test_api.py
   - High accuracy for branch health classification
   - Helps identify branches that need pruning or treatment
 
+### Coconut Leaf Color Detection Model (v1 - Latest)
+- **Model:** MobileNetV2 (Transfer Learning) with Focal Loss
+- **Version:** v1 (2-class)
+- **Task:** Identify leaf color — green (healthy) vs yellow (yellowing/stressed)
+- **Test Accuracy:** TBD (training in progress)
+- **Macro F1 Score:** TBD
+- **Classes:** `green`, `yellow`
+- **Input Size:** 224x224x3
+- **Anti-Overfitting:** Dropout (0.5+0.3+0.2) + BatchNorm + L2 (2e-4) + LabelSmoothing + EarlyStopping + ReduceLROnPlateau
+- **Augmentation:** Geometric-only (NO color/hue shifts — preserves green/yellow signal)
+- **Files:**
+  - `models/coconut_leaf_color_v1/best_model.keras`
+  - `models/coconut_leaf_color_v1/model_info.json`
+- **Data:** `healthy-leaves/` → green | `unhealthy-yellowing/` → yellow
+- **API Endpoint:** `/predict/leaf-color`
+- **Notebook:** `ml/notebooks/22_coconut_leaf_color_v1.ipynb`
+
 ### Pending Models
 - None! All planned models are trained.
 
@@ -225,6 +262,8 @@ python test_api.py
 | `/predict/disease` | POST | Disease detection (Leaf Rot, Leaf Spot) |
 | `/predict/leaf-health` | POST | **Leaf health detection with detailed reasons & solutions** |
 | `/predict/branch-health` | POST | **Branch health detection with unhealthy percentage** |
+| `/predict/leafe-health-v5` | POST | **Color-aware leaf health v5 (93.94%, yellow/brown detection)** |
+| `/predict/leaf-color` | POST | **Leaf color detection (green vs yellow, MobileNetV2)** |
 | `/predict/all` | POST | All pests detection with smart combined logic |
 | `/predict` | POST | Legacy endpoint (redirects to mite) |
 

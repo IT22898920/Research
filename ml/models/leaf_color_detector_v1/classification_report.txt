@@ -1,0 +1,10 @@
+CLASSIFICATION REPORT — leaf_color_detector_v1
+============================================================
+              precision    recall  f1-score   support
+
+     healthy     0.9979    0.9979    0.9979       481
+   unhealthy     0.9976    0.9976    0.9976       419
+
+    accuracy                         0.9978       900
+   macro avg     0.9978    0.9978    0.9978       900
+weighted avg     0.9978    0.9978    0.9978       900
