@@ -42,4 +42,26 @@ export const API_CONFIG = {
 export const ML_API_URL = API_CONFIG.ML_API;
 export const BACKEND_API_URL = API_CONFIG.BACKEND_API;
 
+/**
+ * Fetch with timeout and retry - handles HF Spaces cold start
+ */
+export const fetchWithTimeout = async (url, options = {}, timeoutMs = 60000, retries = 2) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      if (attempt === retries) throw error;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+};
+
 export default API_CONFIG;

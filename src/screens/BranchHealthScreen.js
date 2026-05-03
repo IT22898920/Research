@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {detectBranchHealth} from '../services/pestDetectionApi';
-import {ML_API_URL} from '../config/apiConfig';
+import {ML_API_URL, fetchWithTimeout} from '../config/apiConfig';
 import {treeAPI} from '../services/treeApi';
 import {
   getHealthTreatmentRecommendations,
@@ -139,13 +139,9 @@ export default function BranchHealthScreen({navigation, route}) {
   const checkApi = async () => {
     try {
       // Uses centralized config
-      const response = await fetch(`${ML_API_URL}/health`);
+      const response = await fetchWithTimeout(`${ML_API_URL}/health`, {}, 30000, 2);
       const data = await response.json();
-      setApiStatus(
-        data.status === 'healthy' && data.models.branch_health
-          ? 'online'
-          : 'offline',
-      );
+      setApiStatus(data.status === 'healthy' ? 'online' : 'offline');
     } catch (error) {
       setApiStatus('offline');
     }

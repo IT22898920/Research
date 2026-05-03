@@ -27,7 +27,7 @@ import {
 } from '../services/treatmentApi';
 
 // Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
-import {ML_API_URL} from '../config/apiConfig';
+import {ML_API_URL, fetchWithTimeout} from '../config/apiConfig';
 const API_BASE_URL = ML_API_URL;
 
 export default function TreeHealthScreen({navigation, route}) {
@@ -143,7 +143,7 @@ export default function TreeHealthScreen({navigation, route}) {
 
   const checkApi = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/health`, {}, 30000, 2);
       const data = await response.json();
       setApiStatus(data.status === 'healthy' ? 'online' : 'offline');
     } catch (error) {
@@ -215,13 +215,13 @@ export default function TreeHealthScreen({navigation, route}) {
         name: selectedImage.fileName || 'image.jpg',
       });
 
-      const response = await fetch(`${API_BASE_URL}/predict/tree-health`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/predict/tree-health`, {
         method: 'POST',
         body: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-      });
+      }, 90000, 1);
 
       const data = await response.json();
 

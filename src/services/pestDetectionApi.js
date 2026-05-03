@@ -21,9 +21,30 @@
  */
 
 // Import centralized config - CHANGE IP IN ../config/apiConfig.js ONLY!
-import {ML_API_URL} from '../config/apiConfig';
+import {ML_API_URL, fetchWithTimeout} from '../config/apiConfig';
 
 const API_BASE_URL = ML_API_URL;
+
+/**
+ * Safe predict request - handles HF cold start (HTML response) + timeout
+ */
+const safePredict = async (endpoint, formData) => {
+  const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'multipart/form-data',
+    },
+    body: formData,
+  }, 90000, 2);
+
+  // Check if response is JSON (not HTML cold-start page)
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('Server is starting up, please wait 30 seconds and try again');
+  }
+  return await response.json();
+};
 
 /**
  * Check if the ML API is available (with timeout and retry)
@@ -32,7 +53,7 @@ export const checkApiHealth = async (retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for cloud cold start
 
       const response = await fetch(`${API_BASE_URL}/health`, {
         method: 'GET',
@@ -47,7 +68,7 @@ export const checkApiHealth = async (retries = 3) => {
       return {
         success: response.ok,
         healthy: data.status === 'healthy',
-        models: data.models, // { mite: true, caterpillar: true }
+        models: data.models,
       };
     } catch (error) {
       if (i === retries - 1) {
@@ -56,8 +77,7 @@ export const checkApiHealth = async (retries = 3) => {
           error: error.message || 'Cannot connect to ML API',
         };
       }
-      // Wait 1 second before retry
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 };
@@ -109,16 +129,7 @@ export const detectMite = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/mite`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/mite', formData);
 
     if (data.success) {
       return {
@@ -149,16 +160,7 @@ export const detectCaterpillar = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/caterpillar`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/caterpillar', formData);
 
     if (data.success) {
       return {
@@ -189,16 +191,7 @@ export const detectWhiteFly = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/white_fly`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/white_fly', formData);
 
     if (data.success) {
       return {
@@ -234,16 +227,7 @@ export const detectAllPests = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/all`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/all', formData);
 
     if (data.success) {
       return {
@@ -278,16 +262,7 @@ export const detectDisease = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/disease`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/disease', formData);
 
     if (data.success) {
       return {
@@ -322,16 +297,7 @@ export const detectLeafDieback = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/leaf_dieback`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/leaf_dieback', formData);
 
     if (data.success) {
       return {
@@ -370,16 +336,7 @@ export const detectLeafHealth = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/leaf-health`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/leaf-health', formData);
 
     if (data.success) {
       return {
@@ -425,16 +382,7 @@ export const detectTreeHealth = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/tree-health`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/tree-health', formData);
 
     if (data.success) {
       return {
@@ -481,16 +429,7 @@ export const detectBranchHealth = async (imageUri) => {
   try {
     const formData = createFormData(imageUri);
 
-    const response = await fetch(`${API_BASE_URL}/predict/branch-health`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/branch-health', formData);
 
     if (data.success) {
       return {
@@ -576,16 +515,7 @@ export const detectBunches = async (imageUri1, imageUri2 = null) => {
       });
     }
 
-    const response = await fetch(`${API_BASE_URL}/predict/bunch`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/bunch', formData);
 
     if (data.success) {
       return {
@@ -646,16 +576,7 @@ export const detectYield = async (imageUri1, imageUri2 = null) => {
       });
     }
 
-    const response = await fetch(`${API_BASE_URL}/predict/yield`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'multipart/form-data',
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
+    const data = await safePredict('/predict/yield', formData);
 
     if (data.success) {
       return {

@@ -830,15 +830,15 @@ def list_models():
 
 @app.route('/predict/mite', methods=['POST'])
 def predict_mite():
-    """Detect coconut mite infection (v12 model - 2-class, Fruit Surface Focused)
+    """Detect coconut mite infection (v10 model - 3-class)
 
-    Uses the new v12 model trained specifically on coconut fruit surface patterns.
-    Classes: healthy, mite (binary classification)
-    Accuracy: 97.44%
+    Uses the v10 model with 3-class classification.
+    Classes: coconut_mite, healthy, not_coconut
+    Accuracy: 91.44%
     """
 
-    if models.get('mite_v12') is None:
-        return jsonify({'error': 'Mite v12 model not loaded'}), 500
+    if models.get('mite') is None:
+        return jsonify({'error': 'Mite v10 model not loaded'}), 500
 
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
@@ -851,38 +851,47 @@ def predict_mite():
         image_bytes = file.read()
         processed_image = preprocess_image_mite(image_bytes)
 
-        # v12 2-class classification: softmax output
-        # Classes: ['healthy', 'mite']
-        predictions = models['mite_v12'].predict(processed_image, verbose=0)[0]
+        # v10 3-class classification: softmax output
+        # Classes: ['coconut_mite', 'healthy', 'not_coconut']
+        predictions = models['mite'].predict(processed_image, verbose=0)[0]
+
+        # Apply mite boost factor for improved recall
+        adjusted_probs = predictions.copy()
+        adjusted_probs[0] = adjusted_probs[0] * MITE_BOOST_FACTOR
 
         # Get predicted class
-        predicted_idx = int(np.argmax(predictions))
-        predicted_class = MITE_V12_CLASSES[predicted_idx]
+        predicted_idx = int(np.argmax(adjusted_probs))
+        predicted_class = MITE_CLASSES[predicted_idx]
         confidence = float(predictions[predicted_idx])
-        is_mite = predicted_class == 'mite'
+        is_mite = predicted_class == 'coconut_mite'
+        is_valid = predicted_class != 'not_coconut'
 
         probabilities = {
-            'healthy': float(predictions[0]),
-            'mite': float(predictions[1])
+            'coconut_mite': float(predictions[0]),
+            'healthy': float(predictions[1]),
+            'not_coconut': float(predictions[2])
         }
 
         # Map to standard response format
-        if is_mite:
+        if not is_valid:
+            label = 'Not a Coconut'
+            message = 'This image does not appear to be a coconut. Please upload a coconut image.'
+        elif is_mite:
             label = 'Coconut Mite Infected'
-            message = 'This coconut fruit shows signs of mite damage on the surface.'
+            message = 'This coconut shows signs of mite infection.'
         else:
             label = 'Healthy'
-            message = 'No mite damage detected on this coconut fruit.'
+            message = 'No mite infection detected on this coconut.'
 
         return jsonify({
             'success': True,
             'pest_type': 'mite',
-            'model_version': 'v12',
+            'model_version': 'v10',
             'prediction': {
-                'class': 'coconut_mite' if is_mite else 'healthy',  # Map to standard class names
+                'class': predicted_class,
                 'confidence': confidence,
                 'is_infected': is_mite,
-                'is_valid_image': True,  # v12 is trained only on coconut images
+                'is_valid_image': is_valid,
                 'label': label,
                 'message': message
             },
