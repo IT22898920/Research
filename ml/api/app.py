@@ -136,8 +136,8 @@ DISEASE_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'disease_detection_v2', 
 DISEASE_CLASSES = ['Leaf Rot', 'Leaf_Spot', 'healthy', 'not_cocount']
 
 # Leaf Dieback Detection model paths (v4 - 3-class for baby coconut trees)
-LEAF_DIEBACK_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'best_model.keras')
-LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v4', 'model_info.json')
+LEAF_DIEBACK_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v6', 'best_model.keras')
+LEAF_DIEBACK_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'leaf_dieback_v6', 'model_info.json')
 
 # Leaf Dieback model class indices (alphabetical order from ImageDataGenerator)
 LEAF_DIEBACK_CLASSES = ['healthy', 'leaf_die_back', 'not_cocount']
@@ -1415,7 +1415,7 @@ def predict_leaf_dieback():
         return jsonify({
             'success': True,
             'detection_type': 'leaf_dieback',
-            'model_version': 'v4',
+            'model_version': 'v6',
             'prediction': {
                 'class': predicted_class,
                 'confidence': confidence,

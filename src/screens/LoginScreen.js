@@ -2,6 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -127,8 +128,12 @@ export default function LoginScreen({navigation}) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
       <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>🌴</Text>
-        <Text style={styles.title}>{t('common.appName')}</Text>
+        <Image
+          source={require('../assets/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>CocoSence</Text>
         <Text style={styles.subtitle}>AI-Powered Drone Monitoring System</Text>
       </View>
 
@@ -218,6 +223,11 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 80,
+  },
+  logoImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
