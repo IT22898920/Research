@@ -93,7 +93,12 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for React Native app
 
 # Configuration paths
-BASE_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models')
+BASE_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models')
+
+# Coconut vs Not-Coconut Validator (v1 - binary, 100% test accuracy)
+VALIDATOR_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_vs_notcoconut_v1', 'best_model.keras')
+VALIDATOR_MODEL_INFO_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_vs_notcoconut_v1', 'model_info.json')
+VALIDATOR_CLASSES = ['coconut', 'not_coconut']
 
 # Mite model paths (v10 - 3-class with Focal Loss) - Used for /predict/all
 MITE_MODEL_PATH = os.path.join(BASE_MODEL_PATH, 'coconut_mite_v10', 'best_model.keras')
@@ -212,6 +217,27 @@ def load_models():
     print("=" * 60)
     print("  Loading Coconut Health Monitor Models...")
     print("=" * 60)
+
+    # Load Coconut Validator (binary - 100% accuracy)
+    try:
+        print("\n[0] Loading Coconut Validator (binary - 100% accuracy)...")
+        models['validator'] = tf.keras.models.load_model(VALIDATOR_MODEL_PATH)
+        try:
+            with open(VALIDATOR_MODEL_INFO_PATH, 'r') as f:
+                model_infos['validator'] = json.load(f)
+        except:
+            model_infos['validator'] = {
+                'version': 'v1',
+                'classes': VALIDATOR_CLASSES,
+                'accuracy': 1.0,
+            }
+        print(f"    Classes: {VALIDATOR_CLASSES}")
+        print(f"    Test Accuracy: 100%")
+        print("    Status: LOADED")
+    except Exception as e:
+        print(f"    ERROR loading validator: {e}")
+        models['validator'] = None
+        model_infos['validator'] = None
 
     # Load Mite Model (v10 - 3-class with Focal Loss)
     try:
@@ -752,12 +778,78 @@ def home():
         }
     })
 
+@app.route('/predict/validate', methods=['POST'])
+def predict_validate():
+    """Validate if image is a coconut (binary classifier - 100% accuracy)
+
+    Returns:
+        is_coconut: bool
+        confidence: float (0-1)
+        class: 'coconut' | 'not_coconut'
+        message: human-readable result
+    """
+    if models.get('validator') is None:
+        return jsonify({'success': False, 'error': 'Validator model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No image selected'}), 400
+
+    try:
+        from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+        image_bytes = file.read()
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB').resize((224, 224))
+        arr = np.array(img, dtype=np.float32)
+        arr = preprocess_input(arr)
+        arr = np.expand_dims(arr, axis=0)
+
+        # Binary prediction - sigmoid output
+        prediction = models['validator'].predict(arr, verbose=0)[0]
+
+        # Handle both sigmoid (single value) and softmax (2 values)
+        if len(prediction) == 1:
+            not_coconut_prob = float(prediction[0])
+            coconut_prob = 1.0 - not_coconut_prob
+        else:
+            coconut_prob = float(prediction[0])
+            not_coconut_prob = float(prediction[1])
+
+        is_coconut = coconut_prob > not_coconut_prob
+        confidence = max(coconut_prob, not_coconut_prob)
+        predicted_class = 'coconut' if is_coconut else 'not_coconut'
+
+        if is_coconut:
+            message = f'This is a coconut image (confidence: {confidence*100:.1f}%)'
+        else:
+            message = f'This is NOT a coconut image (confidence: {confidence*100:.1f}%). Please upload a coconut image.'
+
+        return jsonify({
+            'success': True,
+            'is_coconut': is_coconut,
+            'class': predicted_class,
+            'confidence': confidence,
+            'probabilities': {
+                'coconut': coconut_prob,
+                'not_coconut': not_coconut_prob,
+            },
+            'message': message,
+            'model_version': 'v1',
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
         'models': {
+            'validator': models.get('validator') is not None,
             'mite': models.get('mite') is not None,
             'unified': models.get('unified') is not None,
             'disease': models.get('disease') is not None,
@@ -892,6 +984,69 @@ def predict_mite():
                 'confidence': confidence,
                 'is_infected': is_mite,
                 'is_valid_image': is_valid,
+                'label': label,
+                'message': message
+            },
+            'probabilities': probabilities,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/mite_v12', methods=['POST'])
+def predict_mite_v12():
+    """Detect coconut mite infection (v12 model - 2-class, Fruit Surface Focused)
+
+    Uses the v12 model with 2-class classification (binary).
+    Classes: healthy, mite
+    Accuracy: 97.44% (Fruit Surface Focused)
+    """
+    if models.get('mite_v12') is None:
+        return jsonify({'success': False, 'error': 'Mite v12 model not loaded'}), 500
+
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No image selected'}), 400
+
+    try:
+        image_bytes = file.read()
+        processed_image = preprocess_image_mite(image_bytes)
+
+        # v12 2-class classification: softmax output
+        # Classes: ['healthy', 'mite']
+        predictions = models['mite_v12'].predict(processed_image, verbose=0)[0]
+
+        predicted_idx = int(np.argmax(predictions))
+        predicted_class = MITE_V12_CLASSES[predicted_idx]
+        confidence = float(predictions[predicted_idx])
+        is_mite = predicted_class == 'mite'
+
+        probabilities = {
+            'healthy': float(predictions[0]),
+            'mite': float(predictions[1])
+        }
+
+        if is_mite:
+            label = 'Coconut Mite Infected'
+            message = f'This coconut shows mite damage on the surface (confidence: {confidence*100:.1f}%)'
+        else:
+            label = 'Healthy'
+            message = f'No mite damage detected (confidence: {confidence*100:.1f}%)'
+
+        return jsonify({
+            'success': True,
+            'pest_type': 'mite',
+            'model_version': 'v12',
+            'accuracy': '97.44%',
+            'prediction': {
+                'class': 'coconut_mite' if is_mite else 'healthy',
+                'confidence': confidence,
+                'is_infected': is_mite,
+                'is_valid_image': True,
                 'label': label,
                 'message': message
             },
@@ -2146,12 +2301,15 @@ def not_found(e):
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
-if __name__ == '__main__':
-    load_models()
+# Load models on startup (works for both `python app.py` and gunicorn/HF Spaces)
+print("\n[STARTUP] Loading models for Coconut Health Monitor ML API v9.0...")
+load_models()
+print("[STARTUP] Models loaded - API ready!\n")
 
-    print("\nStarting Coconut Health Monitor ML API v9.0...")
-    print("  Mite Model: v12 (2-class, 97.44% accuracy) - /predict/mite")
-    print("  Mite Model: v10 (3-class, 91.44% accuracy) - /predict/all")
+if __name__ == '__main__':
+    print("=" * 60)
+    print("  Mite Model: v10 (3-class, 91.44% accuracy) - /predict/mite")
+    print("  Mite Model: v12 (2-class, 97.44% accuracy) - loaded but unused")
     print("  Unified Model: v1 (4-class - caterpillar + white_fly, 96.08% accuracy)")
     print("  Disease Model: v2 (4-class - Leaf Rot, Leaf Spot, 98.69% accuracy)")
     print("  Leaf Dieback Model: v4 (3-class - baby coconut disease)")

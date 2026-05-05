@@ -627,6 +627,8 @@ export default function AddTreeScreen({navigation, route}) {
             value={treeLabel}
             onChangeText={setTreeLabel}
             maxLength={50}
+          
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Notes (Optional)</Text>
@@ -638,6 +640,8 @@ export default function AddTreeScreen({navigation, route}) {
             multiline
             numberOfLines={3}
             maxLength={500}
+          
+            placeholderTextColor="#999"
           />
         </View>
 
@@ -986,6 +990,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginBottom: 15,
+    color: '#000',
   },
   notesInput: {
     height: 100,

@@ -69,6 +69,27 @@ export default function DashboardScreen({navigation, route}) {
 
         <TouchableOpacity
           style={styles.featureCardActive}
+          onPress={() => navigation.navigate('TreeHealth')}>
+          <Text style={styles.featureIcon}>🌴</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Tree Health Monitor</Text>
+            <Text style={styles.featureSubtext}>Overall tree health analysis</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
+          onPress={() => navigation.navigate('CoconutValidator')}>
+          <Text style={styles.featureIcon}>✅</Text>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureText}>Coconut Validator</Text>
+          </View>
+          <Text style={styles.featureArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.featureCardActive}
           onPress={() => navigation.navigate('PestDetection')}>
           <Text style={styles.featureIcon}>🐛</Text>
           <View style={styles.featureContent}>
@@ -85,17 +106,6 @@ export default function DashboardScreen({navigation, route}) {
           <View style={styles.featureContent}>
             <Text style={styles.featureText}>Leaf Health Monitor</Text>
             <Text style={styles.featureSubtext}>Check leaf health status</Text>
-          </View>
-          <Text style={styles.featureArrow}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.featureCardActive}
-          onPress={() => navigation.navigate('TreeHealth')}>
-          <Text style={styles.featureIcon}>🌴</Text>
-          <View style={styles.featureContent}>
-            <Text style={styles.featureText}>Tree Health Monitor</Text>
-            <Text style={styles.featureSubtext}>Overall tree health analysis</Text>
           </View>
           <Text style={styles.featureArrow}>→</Text>
         </TouchableOpacity>

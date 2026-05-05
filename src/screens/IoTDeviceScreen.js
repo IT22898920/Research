@@ -294,7 +294,9 @@ export default function IoTDeviceScreen({navigation}) {
               onChangeText={setNewDeviceId}
               maxLength={50}
               autoCapitalize="none"
-            />
+            
+            placeholderTextColor="#999"
+          />
             <Text style={styles.fieldHint}>
               Unique identifier for your ESP32 device
             </Text>
@@ -306,7 +308,9 @@ export default function IoTDeviceScreen({navigation}) {
               value={newDeviceName}
               onChangeText={setNewDeviceName}
               maxLength={100}
-            />
+            
+            placeholderTextColor="#999"
+          />
 
             <Text style={styles.fieldLabel}>Default Plantation</Text>
             <TouchableOpacity
@@ -688,6 +692,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginBottom: 10,
+    color: '#000',
   },
   plantationSelector: {
     flexDirection: 'row',

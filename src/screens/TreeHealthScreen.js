@@ -535,7 +535,9 @@ export default function TreeHealthScreen({navigation, route}) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>🔑 Enter Groq API Key</Text>
-            <TextInput style={styles.apiKeyInput} placeholder="gsk_xxxx" value={apiKeyInput} onChangeText={setApiKeyInput} secureTextEntry />
+            <TextInput style={styles.apiKeyInput} placeholder="gsk_xxxx" value={apiKeyInput} onChangeText={setApiKeyInput} secureTextEntry 
+            placeholderTextColor="#999"
+          />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowApiKeyModal(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>

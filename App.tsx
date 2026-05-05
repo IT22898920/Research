@@ -16,6 +16,7 @@ import SignupScreen from './src/screens/SignupScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import PestDetectionScreen from './src/screens/PestDetectionScreen';
+import CoconutValidatorScreen from './src/screens/CoconutValidatorScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ScanHistoryScreen from './src/screens/ScanHistoryScreen';
@@ -65,6 +66,7 @@ function App(): React.JSX.Element {
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="PestDetection" component={PestDetectionScreen} />
+            <Stack.Screen name="CoconutValidator" component={CoconutValidatorScreen} />
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="ScanHistory" component={ScanHistoryScreen} />

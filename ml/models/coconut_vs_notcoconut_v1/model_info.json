@@ -1,0 +1,104 @@
+{
+  "model_name": "coconut_vs_notcoconut_v1",
+  "version": "v1",
+  "architecture": "MobileNetV2 (Transfer Learning + Fine-tune top 40)",
+  "task": "binary classification - coconut vs not_coconut",
+  "num_classes": 2,
+  "classes": [
+    "coconut",
+    "not_coconut"
+  ],
+  "class_indices": {
+    "coconut": 0,
+    "not_coconut": 1
+  },
+  "input_size": [
+    224,
+    224,
+    3
+  ],
+  "preprocessing": "mobilenet_v2.preprocess_input (scales to [-1, 1])",
+  "dataset": {
+    "source": "ml/data/raw/Coconut_NotCoconut",
+    "split": "70 / 15 / 15  (train / val / test)",
+    "counts": {
+      "coconut": {
+        "total": 1240,
+        "train": 868,
+        "val": 186,
+        "test": 186
+      },
+      "not_coconut": {
+        "total": 1640,
+        "train": 1148,
+        "val": 246,
+        "test": 246
+      }
+    }
+  },
+  "augmentation": {
+    "rotation_range": 25,
+    "width_shift_range": 0.15,
+    "height_shift_range": 0.15,
+    "zoom_range": 0.15,
+    "horizontal_flip": true,
+    "brightness_range": [
+      0.85,
+      1.15
+    ],
+    "note": "no aggressive colour jitter - colour is the discriminating cue"
+  },
+  "training": {
+    "phase1_epochs_run": 5,
+    "phase2_epochs_run": 6,
+    "phase1_minutes": 4.84,
+    "phase2_minutes": 5.89,
+    "total_minutes": 10.73,
+    "phase1_optimizer": "Adam(1e-3)",
+    "phase2_optimizer": "Adam(1e-5)",
+    "loss": "binary_crossentropy",
+    "fine_tuned_layers": "top 40 of MobileNetV2"
+  },
+  "performance": {
+    "test_loss": 0.0005853726179338992,
+    "test_accuracy": 1.0,
+    "test_precision": 1.0,
+    "test_recall": 1.0,
+    "macro_f1": 1.0,
+    "weighted_f1": 1.0,
+    "per_class": [
+      {
+        "class": "coconut",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 186
+      },
+      {
+        "class": "not_coconut",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 246
+      }
+    ],
+    "confusion_matrix": [
+      [
+        186,
+        0
+      ],
+      [
+        0,
+        246
+      ]
+    ]
+  },
+  "files": {
+    "best_model": "best_model.keras",
+    "phase1_checkpoint": "phase1_best.keras",
+    "training_history": "training_history.png",
+    "confusion_matrix": "confusion_matrix.png",
+    "per_class_metrics": "per_class_metrics.png",
+    "sample_predictions": "sample_predictions.png"
+  }
+}

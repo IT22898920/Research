@@ -817,7 +817,9 @@ export default function DiseaseDetectionScreen({navigation, route}) {
               onChangeText={setApiKeyInput}
               secureTextEntry={true}
               autoCapitalize="none"
-            />
+            
+            placeholderTextColor="#999"
+          />
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelButton}

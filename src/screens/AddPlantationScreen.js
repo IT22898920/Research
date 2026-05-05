@@ -180,6 +180,8 @@ export default function AddPlantationScreen({navigation}) {
             value={name}
             onChangeText={setName}
             maxLength={100}
+          
+            placeholderTextColor="#999"
           />
         </View>
 
@@ -195,6 +197,8 @@ export default function AddPlantationScreen({navigation}) {
             multiline
             numberOfLines={3}
             maxLength={500}
+          
+            placeholderTextColor="#999"
           />
         </View>
 
@@ -208,6 +212,8 @@ export default function AddPlantationScreen({navigation}) {
             value={area}
             onChangeText={setArea}
             keyboardType="decimal-pad"
+          
+            placeholderTextColor="#999"
           />
         </View>
 
@@ -363,6 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    color: '#000',
   },
   textArea: {
     minHeight: 80,

@@ -724,7 +724,9 @@ export default function LeafHealthScreen({navigation, route}) {
               onChangeText={setApiKeyInput}
               autoCapitalize="none"
               secureTextEntry
-            />
+            
+            placeholderTextColor="#999"
+          />
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
