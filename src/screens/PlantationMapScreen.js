@@ -592,18 +592,46 @@ export default function PlantationMapScreen({navigation, route}) {
     }, 500);
   };
 
-  // Get marker color based on health status
-  const getMarkerColor = (healthStatus) => {
-    switch (healthStatus) {
-      case 'healthy':
-        return '#4CAF50';
-      case 'unhealthy':
-        return '#FF9800';
-      case 'infected':
-        return '#F44336';
-      default:
-        return '#9E9E9E';
+  // Get marker color HEX (for custom marker views)
+  const getMarkerColorHex = (healthStatus, tree) => {
+    // Check if pest/disease detected → red
+    if (tree?.detectedIssues?.length > 0) {
+      const issuesText = tree.detectedIssues.join(' ').toLowerCase();
+      if (issuesText.includes('mite') || issuesText.includes('caterpillar') ||
+          issuesText.includes('white_fly') || issuesText.includes('white fly') ||
+          issuesText.includes('disease') || issuesText.includes('rot') ||
+          issuesText.includes('spot') || issuesText.includes('die_back') ||
+          issuesText.includes('dieback') || issuesText.includes('pest') ||
+          issuesText.includes('infect')) {
+        return '#F44336'; // RED
+      }
     }
+    switch (healthStatus) {
+      case 'healthy': return '#4CAF50'; // GREEN
+      case 'unhealthy': return '#FF9800'; // ORANGE
+      case 'infected': return '#F44336'; // RED
+      default: return '#9E9E9E'; // GREY (not scanned)
+    }
+  };
+
+  // Get scan type display info (icon + label for each model)
+  const getScanTypeInfo = (scanType) => {
+    const types = {
+      mite: {icon: '🐛', label: 'Coconut Mite'},
+      caterpillar: {icon: '🐛', label: 'Caterpillar'},
+      white_fly: {icon: '🦟', label: 'White Fly'},
+      pest: {icon: '🐛', label: 'Pest Detection'},
+      all: {icon: '🐛', label: 'All Pests'},
+      disease: {icon: '🍃', label: 'Leaf Disease'},
+      leaf_dieback: {icon: '🌿', label: 'Leaf Dieback'},
+      leaf_health: {icon: '🌿', label: 'Leaf Health'},
+      tree_health: {icon: '🌴', label: 'Tree Health'},
+      branch_health: {icon: '🌳', label: 'Branch Health'},
+      bunch_detection: {icon: '🥥', label: 'Bunch Count'},
+      yield_estimation: {icon: '📊', label: 'Yield Estimate'},
+      validator: {icon: '✅', label: 'Coconut Validator'},
+    };
+    return types[scanType] || {icon: '🔬', label: scanType || 'Scan'};
   };
 
   // Handle marker drag to update tree location
@@ -863,7 +891,7 @@ export default function PlantationMapScreen({navigation, route}) {
                     strokeWidth={1}
                   />
                 )}
-                {/* Tree Marker */}
+                {/* Tree Marker - beautiful pin with tree icon */}
                 <Marker
                   coordinate={{
                     latitude: tree.latitude,
@@ -872,10 +900,24 @@ export default function PlantationMapScreen({navigation, route}) {
                   title={tree.label}
                   description={`Status: ${getStatusText(tree.lastHealthStatus)}`}
                   onPress={() => handleTreePress(tree)}
-                  pinColor={getMarkerColor(tree.lastHealthStatus)}
                   draggable={true}
                   onDragEnd={(e) => handleMarkerDrag(tree, e.nativeEvent.coordinate)}
-                />
+                  anchor={{x: 0.5, y: 1}}
+                  tracksViewChanges={false}
+                >
+                  <View style={styles.markerContainer}>
+                    <View style={[
+                      styles.markerPin,
+                      {backgroundColor: getMarkerColorHex(tree.lastHealthStatus, tree)}
+                    ]}>
+                      <Text style={styles.markerEmoji}>🌴</Text>
+                    </View>
+                    <View style={[
+                      styles.markerTip,
+                      {borderTopColor: getMarkerColorHex(tree.lastHealthStatus, tree)}
+                    ]} />
+                  </View>
+                </Marker>
               </React.Fragment>
             ))}
           </MapView>
@@ -1103,19 +1145,34 @@ export default function PlantationMapScreen({navigation, route}) {
               {selectedTree?.healthHistory?.length > 0 && (
                 <View style={styles.infoSection}>
                   <Text style={styles.infoSectionTitle}>📅 Health History</Text>
-                  {selectedTree.healthHistory.slice(-5).reverse().map((scan, index) => (
-                    <View key={scan.id || index} style={styles.historyItem}>
-                      <Text style={styles.historyDate}>
-                        {new Date(scan.scannedAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[
-                        styles.historyStatus,
-                        {color: getStatusColor(scan.status)}
-                      ]}>
-                        {getStatusText(scan.status)}
-                      </Text>
-                    </View>
-                  ))}
+                  {selectedTree.healthHistory.slice(-10).reverse().map((scan, index) => {
+                    const scanTypeInfo = getScanTypeInfo(scan.scanType);
+                    return (
+                      <View key={scan.id || index} style={styles.historyItem}>
+                        <View style={{flex: 1}}>
+                          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                            <Text style={styles.historyTypeIcon}>{scanTypeInfo.icon}</Text>
+                            <Text style={styles.historyTypeLabel}>{scanTypeInfo.label}</Text>
+                          </View>
+                          <Text style={styles.historyDate}>
+                            {new Date(scan.scannedAt).toLocaleDateString()} {new Date(scan.scannedAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                          </Text>
+                          {scan.details?.prediction?.label && (
+                            <Text style={styles.historyDetails}>
+                              {scan.details.prediction.label}
+                              {scan.details.prediction.confidence && ` (${(scan.details.prediction.confidence * 100).toFixed(1)}%)`}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={[
+                          styles.historyStatus,
+                          {color: getStatusColor(scan.status)}
+                        ]}>
+                          {getStatusText(scan.status)}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
@@ -1336,6 +1393,36 @@ const styles = StyleSheet.create({
   accuracyInfoText: {
     color: '#fff',
     fontSize: 11,
+  },
+  markerContainer: {
+    alignItems: 'center',
+  },
+  markerPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  markerEmoji: {
+    fontSize: 18,
+  },
+  markerTip: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -2,
   },
   currentLocationMarker: {
     width: 24,
@@ -1769,17 +1856,35 @@ const styles = StyleSheet.create({
   historyItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  historyTypeIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  historyTypeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
   historyDate: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 11,
+    color: '#888',
+    marginTop: 2,
+  },
+  historyDetails: {
+    fontSize: 12,
+    color: '#555',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   historyStatus: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
   modalActions: {
     padding: 20,

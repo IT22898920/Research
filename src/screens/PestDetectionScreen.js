@@ -224,8 +224,12 @@ export default function PestDetectionScreen({navigation, route}) {
       // Also add to health history
       const treeScanData = {
         status: status,
-        scanType: 'pest',
+        scanType: scanData.scanType || 'pest',  // Use actual pest type (mite, caterpillar, white_fly, all)
         details: {
+          prediction: {
+            label: detectedIssues.length > 0 ? detectedIssues[0] : 'Healthy',
+            confidence: scanData.results?.[0]?.prediction?.confidence,
+          },
           pestType: scanData.scanType,
           pestsDetected: scanData.pestsDetected || [],
           severity: scanData.severity,
